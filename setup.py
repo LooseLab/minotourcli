@@ -17,7 +17,6 @@ setup(
     author_email='matt.loose@nottingham.ac.uk',
     license='MIT',
     classifiers=[
-        'Development Status :: 1 - Alpha',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         'License :: OSI Approved :: MIT License',
