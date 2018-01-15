@@ -1,13 +1,49 @@
-from distutils.core import setup
+# Always prefer setuptools over distutils
+from setuptools import setup, find_packages
+# To use a consistent encoding
+from codecs import open
+from os import path
+
+here = path.abspath(path.dirname(__file__))
+exec(open('minFQ/version.py').read())
+
 setup(
-  name = 'minFQ',
-  packages = ['minFQ'],
-  version = '0.1',
-  description = 'A command line client to upload minION data to the minoTour website',
-  author = 'Matt Loose',
-  author_email = 'matt.loose@nottingham.ac.uk',
-  url = 'https://github.com/LooseLab/minotourcli', 
-  download_url = 'https://github.com/LooseLab/minotourcli/archive/0.1.tar.gz', 
-  keywords = ['quality control', 'minion', 'nanopore'],
-  classifiers = [],
+    name='minFQ',
+    version=__version__,
+    description='Command line interface for uploading fastq files and monitoring minKNOW in minotour.',
+    long_description=open(path.join(here, "README.rst")).read(),
+    url='https://github.com/LooseLab/mintourcli',
+    author='Matt Loose',
+    author_email='matt.loose@nottingham.ac.uk',
+    license='MIT',
+    classifiers=[
+        'Development Status :: 1 - Alpha',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering :: Bio-Informatics',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+    ],
+    keywords='nanopore quality control analysis',
+    python_requires='>=3',
+    setup_requires=['numpy'],
+    install_requires=['tqdm',
+                      'python-dateutil',
+                      'requests',
+                      'BioPython',
+                      'numpy',
+                      'watchdog',
+                      'ws4py',
+                      'configargparse'
+                      ],
+    package_data={'minFQ': []},
+    package_dir={'minFQ': 'minFQ'},
+    include_package_data=True,
+    entry_points={
+        'console_scripts': [
+            'minFQ=minFQ.minFQ:main',
+        ],
+    },
 )
