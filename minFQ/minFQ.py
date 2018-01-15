@@ -4,21 +4,18 @@ import sys
 import time
 import threading
 
-from FastqUtils import FastqHandler
-from controlutils import HelpTheMinion
+from minFQ.FastqUtils import FastqHandler
+from minFQ.controlutils import HelpTheMinion
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
-from concurrent.futures import ThreadPoolExecutor
-from requests_futures.sessions import FuturesSession
+#from concurrent.futures import ThreadPoolExecutor
+#from requests_futures.sessions import FuturesSession
 
-session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
+#session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
 
 
-
-# noinspection PyGlobalUndefined
-if __name__ == '__main__':
-
+def main():
     global OPER
 
     OPER = platform.system()
@@ -26,7 +23,7 @@ if __name__ == '__main__':
         OPER = 'windows'
     else:
         OPER = 'linux'  # MS
-    #print(OPER)  # MS
+    # print(OPER)  # MS
 
     if OPER is 'linux':
         config_file = os.path.join(os.path.sep, \
@@ -37,8 +34,9 @@ if __name__ == '__main__':
                                    'minfq_windows.config')
 
     parser = \
-        configargparse.ArgParser(description='minFQ: A program to analyse minION fastq files in real-time or post-run and monitor the activity of MinKNOW.' \
-                                 , default_config_files=[config_file])
+        configargparse.ArgParser(
+            description='minFQ: A program to analyse minION fastq files in real-time or post-run and monitor the activity of MinKNOW.' \
+            , default_config_files=[config_file])
     parser.add(
         '-w',
         '--watch-dir',
@@ -117,7 +115,7 @@ if __name__ == '__main__':
         '-p',
         '--port',
         type=int,
-        #required=True,
+        # required=True,
         default=8100,
         help='The port number for the local server.',
         dest='port_number',
@@ -127,7 +125,7 @@ if __name__ == '__main__':
         '-hn',
         '--hostname',
         type=str,
-        #required=True,
+        # required=True,
         default='127.0.0.1',
         help='The run name you wish to provide.',
         dest='host_name',
@@ -165,23 +163,22 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:
-        print ("You must monitor either FastQ or MinKNOW.")
-        print ("This program will now exit.")
+        print("You must monitor either FastQ or MinKNOW.")
+        print("This program will now exit.")
         os._exit(0)
-
 
     args.full_host = "http://" + args.host_name + ":" + str(args.port_number) + "/"
     args.read_count = 0
 
     if args.is_flowcell:
-        print ("Flowcell option is set.")
-    #GLobal creation of header (needs fixing)
+        print("Flowcell option is set.")
+    # GLobal creation of header (needs fixing)
     global header
     header = {'Authorization': 'Token ' + args.api_key, 'Content-Type': 'application/json'}
-
+    rundict=dict()
 
     if not args.noFastQ:
-        event_handler = FastqHandler(args,header)
+        event_handler = FastqHandler(args, header,rundict)
         # This block handles the fastq
         observer = Observer()
         observer.schedule(event_handler, path=args.watchdir, recursive=True)
@@ -205,10 +202,14 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print(": ctrl-c event")
         if not args.noMinKNOW:
-            helper.mcrunning=False
+            helper.mcrunning = False
             helper.hang_up()
         if not args.noFastQ:
             observer.stop()
             observer.join()
         os._exit(0)
 
+
+# noinspection PyGlobalUndefined
+if __name__ == '__main__':
+    main()

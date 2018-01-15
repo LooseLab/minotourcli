@@ -9,10 +9,10 @@ import json
 from tqdm import tqdm
 import numpy as np
 
-from concurrent.futures import ThreadPoolExecutor
-from requests_futures.sessions import FuturesSession
+#from concurrent.futures import ThreadPoolExecutor
+#from requests_futures.sessions import FuturesSession
 
-session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
+#session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
 
 class Runcollection():
 

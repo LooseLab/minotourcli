@@ -7,7 +7,7 @@ import time
 import gzip
 
 from tqdm import tqdm
-from apifunc import Runcollection
+from minFQ.apifunc import Runcollection
 from Bio import SeqIO
 from watchdog.events import FileSystemEventHandler
 
@@ -81,7 +81,7 @@ def file_dict_of_folder_simple(path,args):
 
 
 class FastqHandler(FileSystemEventHandler):
-    def __init__(self, args,header):
+    def __init__(self, args,header,rundict):
         """Collect information about files already in the folders"""
         self.file_descriptor = dict()
         self.args = args
@@ -90,7 +90,7 @@ class FastqHandler(FileSystemEventHandler):
         self.creates = file_dict_of_folder_simple(args.watchdir,args)
         self.processing = dict()
         self.running = True
-        self.rundict = dict()
+        self.rundict = rundict
         self.t = threading.Thread(target=self.processfiles)
 
         try:

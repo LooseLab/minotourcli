@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 from ws4py.client.threadedclient import WebSocketClient
 
-from channelmaps import chanlookup
+from minFQ.channelmaps import chanlookup
 
 global channel_data
 channel_data=dict()

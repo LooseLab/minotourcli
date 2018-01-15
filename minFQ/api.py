@@ -7,15 +7,15 @@ import numpy as np
 import os
 import platform
 
-from FastqUtils import FastqHandler
-from controlutils import HelpTheMinion
+from minFQ.FastqUtils import FastqHandler
+from minFQ.controlutils import HelpTheMinion
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
-from concurrent.futures import ThreadPoolExecutor
-from requests_futures.sessions import FuturesSession
+#from concurrent.futures import ThreadPoolExecutor
+#from requests_futures.sessions import FuturesSession
 
-session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
+#session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
 
 class MyDict(dict):
     pass
