@@ -7,7 +7,7 @@ import time
 import gzip
 
 from tqdm import tqdm
-from minFQ.apifunc import Runcollection
+from minFQ.minotourapiclient import Runcollection
 from Bio import SeqIO
 from watchdog.events import FileSystemEventHandler
 

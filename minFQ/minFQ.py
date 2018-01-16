@@ -4,8 +4,8 @@ import sys
 import time
 import threading
 
-from minFQ.FastqUtils import FastqHandler
-from minFQ.controlutils import HelpTheMinion
+from minFQ.fastqutils import FastqHandler
+from minFQ.minknowcontrolutils import HelpTheMinion
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
