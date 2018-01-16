@@ -19,8 +19,6 @@ from minFQ.channelmaps import chanlookup
 global channel_data
 channel_data=dict()
 
-
-
 def startstop(command,minION):
     if self.args.GUI:
         self.args.minKNOWmessage = "Sending start stop message."
@@ -29,20 +27,16 @@ def startstop(command,minION):
         while 1:
             line = p.readline()
             if not line: break
-            #print line
     elif OPER == "windows":
         p = os.popen('C:\\grouper\\binaries\\bin\\mk_manager_client.exe -i ' + minION + ' --' + command, "r")
-        #print 'C:\\grouper\\binaries\\bin\\mk_manager_client.exe -i ' + minION + ' --' + command, "r"
         while 1:
             line = p.readline()
             if not line: break
-            #print line
     elif OPER == "linux":
         p = os.popen('/opt/ONT/MinKNOW/bin/mk_manager_client -i' + minION + ' --' + command, "r")
         while 1:
             line = p.readline()
             if not line: break
-        #print ("!!!!!!!!!!!!!! Sorry cannot handle linux yet.")
     else:
         print ("!!!!!!!!!!!!!! Sorry - cannot recognise your operating system.")
 
@@ -62,7 +56,6 @@ def startrun(script,ipadd,port):
         startruncustom = \
             '{"id":1, "method":"start_script","params":{"name":"' \
             + script + '"}}'
-        #print (startruncustom,ipadd,port)
         startresult = \
             execute_command_as_string(startruncustom,
                 ipadd, port)
@@ -187,7 +180,6 @@ def commands(command):
 class MessagesClient(WebSocketClient):
     def __init__(self, connectip,args,minIONdict):
         super(MessagesClient, self).__init__(connectip)
-        #print ("MessagesClient established!")
         self.detailsdict=dict()
         self.daemon=True
         self.args=args
@@ -205,15 +197,12 @@ class MessagesClient(WebSocketClient):
 
     def received_message(self,m):
         if not m.is_binary:
-            print (m)
             try:
                 if self.minion not in self.minIONdict.keys():
                     self.minIONdict[self.minion]=dict()
                 if "messages" not in self.minIONdict[self.minion].keys():
                     self.minIONdict[self.minion]["messages"]=[]
-                #minIONdict[self.minion]["messages"].append(json.loads(str(m)))
                 self.minIONdict[self.minion]["APIHelp"].update_message(json.loads(str(m)))
-                #send_data()
             except Exception as err:
                 print (err)
                 pass
@@ -244,7 +233,6 @@ def process_tracked_yield(minIONdict):
                         except:
                             heatsinktemp = 0
                         if minIONdict[minion]["livedata"]["bias_voltage_gain"]["result"] != "null":
-                            #print "!!!!!!!!STUFF!!!!!", minIONdict[minion]["livedata"]["bias_voltage_gain"]["result"]
                             biasvoltage = int(minIONdict[minion]["livedata"]["bias_voltage_gain"]["result"])
                         else:
                             biasvoltage = 0
@@ -1241,8 +1229,6 @@ class HelpTheMinion(WebSocketClient):
                                         for key in keys:
                                             #print (key)
                                             self.minIONclassdict[minION].pop(key, None)
-
-                print ("yawn")
                 time.sleep(5)
             time.sleep(1)
 

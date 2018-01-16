@@ -9,12 +9,6 @@ from minFQ.controlutils import HelpTheMinion
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
-#from concurrent.futures import ThreadPoolExecutor
-#from requests_futures.sessions import FuturesSession
-
-#session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
-
-
 def main():
     global OPER
 
@@ -170,8 +164,6 @@ def main():
     args.full_host = "http://" + args.host_name + ":" + str(args.port_number) + "/"
     args.read_count = 0
 
-    if args.is_flowcell:
-        print("Flowcell option is set.")
     # GLobal creation of header (needs fixing)
     global header
     header = {'Authorization': 'Token ' + args.api_key, 'Content-Type': 'application/json'}
@@ -200,7 +192,7 @@ def main():
         while 1:
             time.sleep(1)
     except KeyboardInterrupt:
-        print(": ctrl-c event")
+        print(": Exiting")
         if not args.noMinKNOW:
             helper.mcrunning = False
             helper.hang_up()

@@ -14,11 +14,8 @@ from watchdog.events import FileSystemEventHandler
 
 def parsefastq(fastq, rundict, args, header):
     counter = 0
-    #print ('processing reads')
     if fastq.endswith(".gz"):
-        #we have a potentiall gzipped file so:
         with gzip.open(fastq, "rt") as handle:
-            #for record in tqdm(SeqIO.parse(handle, "fastq")):
             for record in SeqIO.parse(handle, "fastq"):
                 counter += 1
                 args.fastqmessage = "processing read {}".format(counter)
@@ -28,7 +25,6 @@ def parsefastq(fastq, rundict, args, header):
                     rundict[descriptiondict["runid"]].add_run(descriptiondict)
                 rundict[descriptiondict["runid"]].add_read(record, descriptiondict, fastq)
     else:
-        #for record in tqdm(SeqIO.parse(fastq, "fastq")):
         for record in SeqIO.parse(fastq, "fastq"):
             counter += 1
             args.fastqmessage = "processing read {}".format(counter)
@@ -39,7 +35,6 @@ def parsefastq(fastq, rundict, args, header):
             rundict[descriptiondict["runid"]].add_read(record, descriptiondict,fastq)
     for runs in rundict:
         rundict[runs].commit_reads()
-
 
 
 def parsedescription(description):
@@ -54,26 +49,15 @@ def parsedescription(description):
 
 def file_dict_of_folder_simple(path,args):
     file_list_dict = dict()
-    # ref_list_dict=dict()
-    print("File Dict Of Folder Called")
     counter = 0
     if os.path.isdir(path):
         print("caching existing fastq files in: %s" % (path))
         args.fastqmessage = "caching existing fastq files in: %s" % (path)
-        #for path, dirs, files in tqdm(os.walk(path)):
         for path, dirs, files in os.walk(path):
             for f in files:
-                # print f
                 counter += 1
-                #print(counter)
-                # if (("downloads" in path )):
-                # if ("muxscan" not in f and args.callingdir not in path and f.endswith(".fast5") ):
                 if (f.endswith(".fastq") or f.endswith(".fastq.gz")):
                     file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
-                    # try:
-                    #    file_descriptor = update_file_descriptor(os.path.join(path, f),file_descriptor)
-                    # except:
-                    #    pass
     print("processed %s files" % (counter))
     args.fastqmessage = "processed %s files" % (counter)
     print("found %d existing fastq files to process first." % (len(file_list_dict)))
@@ -95,9 +79,7 @@ class FastqHandler(FileSystemEventHandler):
 
         try:
             self.t.start()
-            print("Watchdog started")
         except KeyboardInterrupt:
-            print ("Seen a ctrl-c")
             self.t.stop()
             raise
 
@@ -113,16 +95,12 @@ class FastqHandler(FileSystemEventHandler):
     def processfiles(self):
         everyten = 0
         while self.running:
-            starttime = time.time()
-            print("processfiles running {}".format(starttime))
             for fastqfile, createtime in tqdm(sorted(self.creates.items(), key=lambda x: x[1])):
                 delaytime = 0
                 if (int(
                         createtime) + delaytime < time.time()):  # file created 5 sec ago, so should be complete. For simulations we make the time longer.
-                    #print(fastqfile)
                     del self.creates[fastqfile]
                     parsefastq(fastqfile, self.rundict,self.args, self.header)
-            print ("processed in {}".format(time.time()-starttime))
             readsuploaded=0
             for runid in self.rundict:
                 print("RunID", runid)
@@ -137,9 +115,6 @@ class FastqHandler(FileSystemEventHandler):
                         print("mean", mean, "median", median, "std", std, "max", maxval, "min", minval)
                     except:
                         pass
-                # print self.rundict[runid].timeid
-                #self.rundict[runid].parse1minwin()
-                #os._exit(0)
             print ("Uploaded {} reads in total.".format(readsuploaded))
             self.args.fastqmessage ="Uploaded {} reads in total.".format(readsuploaded)
 
