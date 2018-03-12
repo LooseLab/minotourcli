@@ -12,7 +12,7 @@ setup(
     version=__version__,
     description='Command line interface for uploading fastq files and monitoring minKNOW in minotour.',
     long_description=open(path.join(here, "README.rst")).read(),
-    url='https://github.com/LooseLab/mintourcli',
+    url='https://github.com/LooseLab/minotourcli',
     author='Matt Loose',
     author_email='matt.loose@nottingham.ac.uk',
     license='MIT',
