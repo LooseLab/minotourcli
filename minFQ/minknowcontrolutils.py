@@ -197,15 +197,18 @@ class MessagesClient(WebSocketClient):
 
     def received_message(self,m):
         if not m.is_binary:
-            try:
-                if self.minion not in self.minIONdict.keys():
-                    self.minIONdict[self.minion]=dict()
-                if "messages" not in self.minIONdict[self.minion].keys():
-                    self.minIONdict[self.minion]["messages"]=[]
-                self.minIONdict[self.minion]["APIHelp"].update_message(json.loads(str(m)))
-            except Exception as err:
-                print (err)
-                pass
+            if hasattr(self, 'minion'):
+                try:
+                    if self.minion not in self.minIONdict.keys():
+                        self.minIONdict[self.minion]=dict()
+                    if "messages" not in self.minIONdict[self.minion].keys():
+                        self.minIONdict[self.minion]["messages"]=[]
+                    self.minIONdict[self.minion]["APIHelp"].update_message(json.loads(str(m)))
+                except Exception as err:
+                    print (err)
+                    pass
+            else:
+                print ("Still waiting to configure")
 
 def get_run_scripts(ipadd,port):
     get_scripts = \
@@ -990,6 +993,7 @@ class HelpTheMinion(WebSocketClient):
                                         self.minIONclassdict[minION]["class"].connect()
                                         self.minIONclassdict[minION]["class2"].connect()
                                         self.minIONclassdict[minION]["class"].init_minion(minION,self.minIONdict)
+                                        print ("Trying to init a messages client with {}".format(minION))
                                         self.minIONclassdict[minION]["class2"].init_minion(minION)
                                         results = execute_command_as_string(commands('get_analysis_configuration'), self.args.ip,
                                                                             self.minIONdict[minION]["port"])
@@ -1112,6 +1116,7 @@ class HelpTheMinion(WebSocketClient):
                                         try:
                                             #print ("GETTING THE GOOD STUFF")
                                             self.minIONclassdict[minION]["class"].init_minion(minION,self.minIONdict)
+                                            print ("Trying to set the minion Again.... {}".format(minION))
                                             self.minIONclassdict[minION]["class2"].init_minion(minION)
                                             results = execute_command_as_string(commands('get_analysis_configuration'), self.args.ip,
                                                                                 self.minIONdict[minION]["port"])
