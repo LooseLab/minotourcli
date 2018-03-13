@@ -398,8 +398,7 @@ def get_state_summary(minion,channel_data):
             else:
                 state_dict[value["state"]] = 1
         except Exception as err:
-            print
-            "line 956", err
+            print ("line 956", err)
             pass
     return state_dict
 
@@ -684,14 +683,14 @@ class MinControlAPI():
                    "minKNOW_severity": messagestring["severity"],
                    "minKNOW_message_timestamp": messagestring["timestamp"],
         }
-        print (self.minionidlink + 'messages/')
-        print (payload)
+        #print (self.minionidlink + 'messages/')
+        #print (payload)
         createminIONStatus = requests.post(self.minionidlink + 'messages/', headers=self.header(),
                                            json=payload)
 
 
     def identify_minion(self,minION):
-        print ("args full host {}".format(self.args.full_host))
+        #print ("args full host {}".format(self.args.full_host))
         r = requests.get(self.args.full_host + 'api/v1/minions', headers=self.header())
         minionidlink = ""
         for minion in json.loads(r.text):
@@ -831,14 +830,6 @@ class MinControlAPI():
 
 
     def update_minion_status (self,minION,computer,status):
-        #print ("Setting the status of {} to {} on {}".format(minION,status,computer))
-        #First get id of minION we are updating
-        #r = requests.get(self.args.full_host + 'api/v1/minions', headers=self.header())
-        #minionidlink=self.identify_minion(minION)
-        #for minion in json.loads(r.text):
-        #    if minion["minION_name"] == minION:
-        #        print(minion)
-        #        minionidlink = minion["url"]
         self.computer = computer
         #print (self.minionidlink)
         #Second get id of status we are looking for:
@@ -849,19 +840,12 @@ class MinControlAPI():
             if info["name"] == status:
                 #print(info)
                 statusidlink= info["url"]
-        #print ("status",status, statusidlink)
-        #print ({"computer_name": computer, "datetime": str(datetime.datetime.now()), "event": str(urlparse(statusidlink).path),"minION": str(urlparse(self.minionidlink).path)})
         updatestatus = requests.post(self.minionidlink + "events/", headers=self.header(),
                                      json={"computer_name": computer, "datetime": str(datetime.datetime.now()), "event": str(urlparse(statusidlink).path),"minION": str(urlparse(self.minionidlink).path)})
         #print (updatestatus.text)
 
     def check_scripts(self,minION):
-        #minionidlink=self.identify_minion(minION)
-        #print ("checking scripts")
-        #print (self.minionidlink)
-        #print(minionidlink+'scripts')
         r=requests.get(self.minionidlink + 'scripts/', headers = self.header())
-        #print (r.text)
         self.scripts=r.text
 
     def update_script(self,minION,script):
@@ -940,10 +924,7 @@ class HelpTheMinion(WebSocketClient):
         #print (result)
 
     def received_message(self, m):
-        #print ("message received!")
-        #print (m.data)
         for thing in ''.join(map(chr,map(ord,(m.data).decode('windows-1252')))).split('\n'):
-            #print (thing)
             if len(thing) > 5 and "2L" not in thing and "2n" not in thing:
                 if len(thing) > 5 and (thing[1] == "M" or thing[1] == "G"):
                     if thing[1:8] not in self.minIONdict:
@@ -962,9 +943,9 @@ class HelpTheMinion(WebSocketClient):
                         self.minIONdict[thing[1:8]]["ws_longpoll_port"]=ws_longpoll_port
                         self.minIONdict[thing[1:8]]["ws_event_sampler_port"]=ws_event_sampler_port
                         self.minIONdict[thing[1:8]]["ws_raw_data_sampler_port"]=ws_raw_data_sampler_port
-                        results = execute_command_as_string(commands("machine_name"), self.args.ip,
+                        results = execute_command_as_string(commands("machine_id"), self.args.ip,
                                                             self.minIONdict[thing[1:8]]["port"])
-                        #print (results["result"])
+                        #print ("should contain the computer name" , results["result"])
                         self.minIONdict[thing[1:8]]["APIHelp"].update_minion_status(thing[1:8], str(results["result"]), 'active')
                     else:
                         self.minIONdict[thing[1:8]]["state"]="inactive"
@@ -976,12 +957,13 @@ class HelpTheMinion(WebSocketClient):
 
     def process_minion_test(self):
         while True:
-            print ("yo dawg")
+            #print ("yo dawg")
             time.sleep(1)
 
     def process_minion(self):
         while True:
             while self.mcrunning:
+                print ("Still Monitoring")
                 #print (".")
                 #print (self.mcrunning)
                 #print (minIONdict)
@@ -1175,10 +1157,11 @@ class HelpTheMinion(WebSocketClient):
                                                                          self.minIONdict[minION]["port"])
                                     self.minIONdict[minION]["channelstuff"] = results2["result"]["channel_states"]
                                     self.minIONdict[minION]["livedata"] = livedata  # append results to data stream
+                                    #print (livedata)
                                     if "class" in self.minIONclassdict[minION]:
                                         for element in self.minIONclassdict[minION]["class"].detailsdict:
                                             if "detailsdata" not in self.minIONdict[minION]:
-                                                print ("creating detailsdata")
+                                                print ("Creating detailsdata")
                                                 self.minIONdict[minION]["detailsdata"] = dict()
                                             try:
                                                 self.minIONdict[minION]["detailsdata"]["meanratio"] = np.mean(meanratio)
