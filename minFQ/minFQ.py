@@ -10,9 +10,11 @@ import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
 def main():
+
     global OPER
 
     OPER = platform.system()
+
     if OPER is 'Windows':  # MS
         OPER = 'windows'
     else:
@@ -155,18 +157,24 @@ def main():
     )
 
     args = parser.parse_args()
+
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:
         print("You must monitor either FastQ or MinKNOW.")
         print("This program will now exit.")
         os._exit(0)
 
-    args.full_host = "http://" + args.host_name + ":" + str(args.port_number) + "/"
+    args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+
+    print(args.full_host)
+
     args.read_count = 0
 
     # GLobal creation of header (needs fixing)
     global header
-    header = {'Authorization': 'Token ' + args.api_key, 'Content-Type': 'application/json'}
+
+    header = {'Authorization': 'Token {}'.format(args.api_key), 'Content-Type': 'application/json'}
+
     rundict=dict()
 
     if not args.noFastQ:

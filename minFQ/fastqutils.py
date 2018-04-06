@@ -65,6 +65,7 @@ def file_dict_of_folder_simple(path,args):
 
 
 class FastqHandler(FileSystemEventHandler):
+
     def __init__(self, args,header,rundict):
         """Collect information about files already in the folders"""
         self.file_descriptor = dict()
@@ -93,16 +94,24 @@ class FastqHandler(FileSystemEventHandler):
         return len(self.processed)
 
     def processfiles(self):
+
         everyten = 0
         while self.running:
+
             for fastqfile, createtime in tqdm(sorted(self.creates.items(), key=lambda x: x[1])):
+
                 delaytime = 0
-                if (int(
-                        createtime) + delaytime < time.time()):  # file created 5 sec ago, so should be complete. For simulations we make the time longer.
+
+                # file created 5 sec ago, so should be complete. For simulations we make the time longer.
+                if (int(createtime) + delaytime < time.time()):
+
                     del self.creates[fastqfile]
                     parsefastq(fastqfile, self.rundict,self.args, self.header)
+
             readsuploaded=0
+
             for runid in self.rundict:
+
                 print("RunID", runid)
                 if self.rundict[runid].readcount > 0:
                     print("Read Number:", self.rundict[runid].readcount, "Total Length:", self.rundict[runid].cumulength,
