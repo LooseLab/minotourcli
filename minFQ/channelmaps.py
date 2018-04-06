@@ -3,6 +3,15 @@ A collection of channel lookup functions.
 """
 
 
+def chanlookup_type(minion):
+    if minion[0] in ("M","G"):
+        return chanlookup()
+    else:
+        return list(range(1,3001,1))
+
+
+
+
 def chanlookup():
     chanlookup = {1: (31, 0), 2: (31, 1), 3: (31, 2), 4: (31, 3), 5: (31, 4), 6: (31, 5), 7: (31, 6), 8: (31, 7),
                   9: (30, 0), 10: (30, 1), 11: (30, 2), 12: (30, 3), 13: (30, 4), 14: (30, 5), 15: (30, 6), 16: (30, 7),

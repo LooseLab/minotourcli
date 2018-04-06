@@ -2,17 +2,44 @@
 A class to handle the collection of run statistics and information from fastq files and upload to minotour.
 """
 import datetime
-import dateutil.parser
-import requests
-import os,sys
 import json
-from tqdm import tqdm
+import os
+import sys
+
+import dateutil.parser
 import numpy as np
+import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+
 
 #from concurrent.futures import ThreadPoolExecutor
 #from requests_futures.sessions import FuturesSession
 
 #session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
+
+
+# https://www.peterbe.com/plog/best-practice-with-retries-with-requests
+def requests_retry_session(
+    retries=3,
+    backoff_factor=0.3,
+    status_forcelist=(500, 502, 504),
+    session=None,
+):
+
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
 
 class Runcollection():
 
@@ -36,13 +63,16 @@ class Runcollection():
         self.batchsize = 2000
 
     def get_readnames_by_run(self):
-        content = requests.get(self.runidlink + 'readnames', headers=self.header)
+        print ("Off to get the reads")
+        print ("calling ", self.runidlink + 'readnames')
+        content = requests_retry_session().get(self.runidlink + 'readnames', headers=self.header)
         content_json = json.loads(content.text)
         number_pages = content_json.get('number_pages')
         self.args.fastqmessage = "Fetching reads to check if we've uploaded these before."
         #for page in tqdm(range(number_pages)):
         for page in range(number_pages):
             self.args.fastqmessage = "Fetching {} of {} pages.".format(page,number_pages)
+            print ("Fetching {} of {} pages.".format(page,number_pages))
             url = self.runidlink + 'readnames?page={}'.format(page)
             content = requests.get(url, headers=self.header)
             # We have to recover the data component and loop through that to get the read names.
