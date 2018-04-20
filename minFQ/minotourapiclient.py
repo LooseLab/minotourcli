@@ -8,11 +8,14 @@ import os,sys
 import json
 from tqdm import tqdm
 import numpy as np
+import minotourapi
 
 #from concurrent.futures import ThreadPoolExecutor
 #from requests_futures.sessions import FuturesSession
 
 #session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
+from minFQ.minotourapi import MinotourAPI
+
 
 class Runcollection():
 
@@ -34,6 +37,8 @@ class Runcollection():
         self.readstore = list()
         self.flowcelllink = ""
         self.batchsize = 2000
+        self.minotourapi = MinotourAPI(self.args.full_host, self.header)
+
 
     def get_readnames_by_run(self):
         content = requests.get(self.runidlink + 'readnames', headers=self.header)
@@ -84,8 +89,12 @@ class Runcollection():
         response will start to be a dramatic bottleneck.
         """
         self.args.fastqmessage = "Adding run."
-        r = requests.get(self.args.full_host + 'api/v1/runs', headers=self.header)
+
         runid = descriptiondict["runid"]
+
+        run = self.minotourapi.miget_run_by_runid(runid)
+
+        r = requests.get(self.args.full_host + 'api/v1/runs', headers=self.header)
         if runid not in r.text:
             runname = self.args.run_name
             if "barcode" in descriptiondict.keys():
