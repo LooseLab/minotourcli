@@ -8,13 +8,13 @@ import datetime
 import time
 import sys,os
 import threading
-
+from encodings.aliases import aliases
 from urllib.parse import urlparse
 
 
 from ws4py.client.threadedclient import WebSocketClient
 
-from minFQ.channelmaps import chanlookup
+from minFQ.channelmaps import chanlookup,chanlookup_type
 
 global channel_data
 channel_data=dict()
@@ -350,7 +350,7 @@ def process_tracked_yield(minIONdict):
 def logitem(channel,minion,state):
     if minion not in channel_data:
         channel_data[minion]=dict()
-        for i in chanlookup():
+        for i in chanlookup_type(minion):
             channel_data[minion][i]=dict()
     channel_data[minion][channel]["state"]=state
 
@@ -368,7 +368,7 @@ def process_channel_information(minIONdict,statedict, statesummarydict):
                         colourlookup[minIONdict[minion]["channelstuff"][item]['style']['label']]=minIONdict[minion]["channelstuff"][item]['style']['colour']
                 if "cust_chan_dict" not in minIONdict[minion]:
                     minIONdict[minion]["cust_chan_dict"]=dict()
-                    for i in chanlookup():
+                    for i in chanlookup_type(minion):
                         minIONdict[minion]["cust_chan_dict"][i]=dict()
                 for channel in minIONdict[minion]["detailsdata"]["channel_info"]["channels"]:
                     if minion not in statedict:
@@ -910,7 +910,7 @@ class HelpTheMinion(WebSocketClient):
         self.minIONclassdict = dict()
         self.statedict = dict()
         self.summarystatedict = dict()
-        self.mcrunning = True
+        self.mcrunning = False
         #t = threading.Thread(target=self.process_minion_test())
         #t.daemon = True
         #t.start()
@@ -923,40 +923,139 @@ class HelpTheMinion(WebSocketClient):
     def initialiseminion():
         if self.args.GUI:
             self.args.minKNOWmessage = "Initialising MinION"
-        result = self.send(json.dumps({"params": "null", "id": 5, "method": "initialization_status"}))
+        #result = self.send(json.dumps({"params": "null", "id": 5, "method": "initialization_status"}))
         #print (result)
 
+    def determinetype(self,minION):
+        """
+        :param minION:
+        :return: devicetype,deviceid,portstring
+        """
+        devicetype = "unknown"
+        deviceid = "unknown"
+        if minION[1] == "M":
+            devicetype = "MinION"
+            deviceid=minION[1:8]
+        elif minION[1] == "G":
+            devicetype = "GridION"
+            deviceid = minION[1:8]
+        elif minION[1] =="1" or minION[1]=="2":
+            devicetype = "PromethION"
+            #print (minION[1:9])
+            promvals = minION[1:9].split('-')
+            if len(promvals[1])==2:
+                print (minION[1:8])
+                deviceid = minION[1:8]
+            else:
+                print (minION[1:10])
+                deviceid = minION[1:10]
+        print (devicetype)
+        return devicetype,deviceid  #,portstring
+
+    def parse_ports(self,ports,minIONname):
+        """
+        :param ports: string to parse representing the ports
+        :return: list of ports
+        """
+        portset = list()
+        rawports = list(map(lambda x: x, filter(lambda x: x, map(ord, ports))))
+        chomplen = len(minIONname)+4
+        print (rawports)
+        rawports = rawports[chomplen:-2]
+        rawvalues = list()
+        offset = list()
+        for index,port in enumerate(rawports):
+            if index%3==0:
+                rawvalues.append(port)
+                offset.append(rawports[(index+1)])
+        #print (rawports)
+        #print (rawvalue)
+        #print (offset)
+
+        for index,rawvalue in enumerate(rawvalues):
+            off = offset[index]
+            if off == 62:
+                correction = 192
+            elif off == 63:
+                correction = 64
+            else:
+                print("These are not the ports you are looking for.")
+                correction = 0
+                #sys.exit()
+            port = rawvalue - correction + 8000
+            print (port)
+            portset.append(port)
+        return portset
+
     def received_message(self, m):
-        for thing in ''.join(map(chr,map(ord,(m.data).decode('windows-1252')))).split('\n'):
+        for thing in ''.join(map(chr,map(ord,(m.data).decode('latin-1')))).split('\n'):
             if len(thing) > 5 and "2L" not in thing and "2n" not in thing:
-                if len(thing) > 5 and (thing[1] == "M" or thing[1] == "G"):
-                    if thing[1:8] not in self.minIONdict:
-                        #print ("INITIALISING self.minIONdict", thing[1:8])
-                        self.minIONdict[thing[1:8]]=dict()
-                        self.minIONdict[thing[1:8]]["APIHelp"]=MinControlAPI(thing[1:8],self.args,self.statedict, self.summarystatedict, self.minIONdict)
-                        self.minIONdict[thing[1:8]]["APIHelp"].update_minion_status(thing[1:8],'UNKNOWN','connected')
-                    minIONports = list(map(lambda x:x-192+8000,filter(lambda x:x>190,map(ord,thing))))
-                    if len(minIONports) > 0:
-                        self.minIONdict[thing[1:8]]["state"]="active"
-                        port = minIONports[0]
-                        ws_longpoll_port = minIONports[1]
-                        ws_event_sampler_port = minIONports[2]
-                        ws_raw_data_sampler_port = minIONports[3]
-                        self.minIONdict[thing[1:8]]["port"]=port
-                        self.minIONdict[thing[1:8]]["ws_longpoll_port"]=ws_longpoll_port
-                        self.minIONdict[thing[1:8]]["ws_event_sampler_port"]=ws_event_sampler_port
-                        self.minIONdict[thing[1:8]]["ws_raw_data_sampler_port"]=ws_raw_data_sampler_port
-                        results = execute_command_as_string(commands("machine_id"), self.args.ip,
-                                                            self.minIONdict[thing[1:8]]["port"])
-                        #print ("should contain the computer name" , results["result"])
-                        self.minIONdict[thing[1:8]]["APIHelp"].update_minion_status(thing[1:8], str(results["result"]), 'active')
+                devicetype,deviceid=self.determinetype(thing)
+                if len(thing) > 5 and (thing[1] == "M" or thing[1] == "G" or thing[1] =="1" or thing[1] =="2"):
+                    if deviceid not in self.minIONdict:
+                        #print ("INITIALISING self.minIONdict", deviceid)
+                        self.minIONdict[deviceid]=dict()
+                        self.minIONdict[deviceid]["APIHelp"]=MinControlAPI(deviceid,self.args,self.statedict, self.summarystatedict, self.minIONdict)
+                        self.minIONdict[deviceid]["APIHelp"].update_minion_status(deviceid,'UNKNOWN','connected')
+                    # minIONports = list(map(lambda x:x,filter(lambda x:x,map(ord,thing))))
+                    # print (minIONports)
+                    # minIONports = list(map(lambda x: x, filter(lambda x: x > 120, map(ord, thing))))
+                    # print (minIONports)
+                    # minIONports = list(map(lambda x:x-192+8000,filter(lambda x:x>120,map(ord,thing))))
+                    # print (minIONports)
+                    minIONports = self.parse_ports(thing,deviceid)
+                    print (minIONports)
+
+                    # time.sleep(1)
+                    if len(minIONports) > 3:
+                        # if min(minIONports) != minIONports[0]:
+                        #     print ("These are not the ports you are looking for.")
+                        #     minIONports = list(
+                        #         map(lambda x: x - 192 + 8000 + 128, filter(lambda x: x > 120, map(ord, thing))))
+                        #     print (minIONports)
+                        try:
+                            self.minIONdict[deviceid]["state"]="active"
+                            port = minIONports[0]
+                            ws_longpoll_port = minIONports[1]
+                            ws_event_sampler_port = minIONports[2]
+                            ws_raw_data_sampler_port = minIONports[3]
+                            self.minIONdict[deviceid]["port"]=port
+                            self.minIONdict[deviceid]["ws_longpoll_port"]=ws_longpoll_port
+                            self.minIONdict[deviceid]["ws_event_sampler_port"]=ws_event_sampler_port
+                            self.minIONdict[deviceid]["ws_raw_data_sampler_port"]=ws_raw_data_sampler_port
+                            # print ("port is:", port)
+                            results = execute_command_as_string(commands("machine_id"), self.args.ip,
+                                                           self.minIONdict[deviceid]["port"])
+                            print ("should contain the computer name" , results)
+                            self.minIONdict[deviceid]["APIHelp"].update_minion_status(deviceid, str(results["result"]), 'active')
+                        except:
+                            # print ("caught it")
+                            minIONports = list(
+                                map(lambda x: x - 192 + 8000 +128, filter(lambda x: x > 120, map(ord, thing))))
+                            # print (minIONports)
+                            self.minIONdict[deviceid]["state"] = "active"
+                            port = minIONports[0]
+                            ws_longpoll_port = minIONports[1]
+                            ws_event_sampler_port = minIONports[2]
+                            ws_raw_data_sampler_port = minIONports[3]
+                            self.minIONdict[deviceid]["port"] = port
+                            self.minIONdict[deviceid]["ws_longpoll_port"] = ws_longpoll_port
+                            self.minIONdict[deviceid]["ws_event_sampler_port"] = ws_event_sampler_port
+                            self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ws_raw_data_sampler_port
+                            # print ("port is:", port)
+                            results = execute_command_as_string(commands("machine_id"), self.args.ip,
+                                                                self.minIONdict[deviceid]["port"])
+                            # print ("should contain the computer name", results)
+                            self.minIONdict[deviceid]["APIHelp"].update_minion_status(deviceid,str(results["result"]),'active')
+                        # print (minIONports)
                     else:
-                        self.minIONdict[thing[1:8]]["state"]="inactive"
-                        self.minIONdict[thing[1:8]]["port"]=""
-                        self.minIONdict[thing[1:8]]["ws_longpoll_port"]=""
-                        self.minIONdict[thing[1:8]]["ws_event_sampler_port"]=""
-                        self.minIONdict[thing[1:8]]["ws_raw_data_sampler_port"]=""
-                        self.minIONdict[thing[1:8]]["APIHelp"].update_minion_status(thing[1:8], 'UNKNOWN', 'inactive')
+                        self.minIONdict[deviceid]["state"]="inactive"
+                        self.minIONdict[deviceid]["port"]=""
+                        self.minIONdict[deviceid]["ws_longpoll_port"]=""
+                        self.minIONdict[deviceid]["ws_event_sampler_port"]=""
+                        self.minIONdict[deviceid]["ws_raw_data_sampler_port"]=""
+                        self.minIONdict[deviceid]["APIHelp"].update_minion_status(deviceid, 'UNKNOWN', 'inactive')
+        self.mcrunning=True
 
     def process_minion_test(self):
         while True:
@@ -1198,17 +1297,19 @@ class HelpTheMinion(WebSocketClient):
                                                     self.minIONclassdict[minION]["class"].detailsdict[element]
                                 except Exception as err:
                                     self.minIONclassdict.pop(minION)
-                                    print ("line 1411", err)
+                                    print ("line 1411 minCONTROL", err)
                                     print ("Connection Error")
                                 process_tracked_yield(self.minIONdict)
                                 process_channel_information(self.minIONdict, self.statedict, self.summarystatedict)
                                 if "livedata" in self.minIONdict[minION].keys():
-                                    self.minIONdict[minION]["APIHelp"].update_minion_current_stats(self.minIONdict[minION]['livedata'],
+                                    try:
+                                        self.minIONdict[minION]["APIHelp"].update_minion_current_stats(self.minIONdict[minION]['livedata'],
                                                                                           self.minIONdict[minION]['detailsdata'],
                                                                                           self.minIONdict[minION]["simplesummary"],
                                                                                           self.minIONdict[minION]["channelstuff"])
-                                    self.minIONdict[minION]["APIHelp"].check_jobs(minION)
-
+                                        self.minIONdict[minION]["APIHelp"].check_jobs(minION)
+                                    except:
+                                        print ("update failed")
                             else:  # minION state is inactive
                                 # print minION, "INACTIVE"
                                 if minION in self.minIONclassdict:

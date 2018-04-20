@@ -2,16 +2,38 @@
 A class to handle the collection of run statistics and information from fastq files and upload to minotour.
 """
 import datetime
-import dateutil.parser
-import requests
-import os,sys
 import json
-from tqdm import tqdm
+import os
+import sys
+
+import dateutil.parser
 import numpy as np
 import minotourapi
+import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
-#from concurrent.futures import ThreadPoolExecutor
-#from requests_futures.sessions import FuturesSession
+
+# https://www.peterbe.com/plog/best-practice-with-retries-with-requests
+def requests_retry_session(
+    retries=3,
+    backoff_factor=0.3,
+    status_forcelist=(500, 502, 504),
+    session=None,
+):
+
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
 
 #session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
 from minFQ.minotourapi import MinotourAPI
@@ -20,6 +42,10 @@ from minFQ.minotourapi import MinotourAPI
 class Runcollection():
 
     def __init__(self, args, header):
+
+        self.base_url = args.full_host
+        self.run = {}
+
         self.args = args
         self.header = header
         self.readid = dict()
@@ -40,18 +66,120 @@ class Runcollection():
         self.minotourapi = MinotourAPI(self.args.full_host, self.header)
 
 
+        self.get_readtype_list()
+
+
+    def get_readtype_list(self):
+
+        url = "{}api/v1/readtypes/".format(self.base_url)
+
+        req = requests.get(
+            url,
+            headers=self.header
+        )
+
+        if req.status_code == 200:
+
+            content = json.loads(req.text)
+
+            readtype_dict = {}
+
+            for readtype in content:
+
+                readtype_dict[readtype["name"]] = readtype["url"]
+
+            self.readtypes = readtype_dict
+
+            print('>>>> readtypes')
+            print(readtype_dict)
+            print('<<<< readtypes')
+
+    def get_or_create_run(self, runid, name, is_barcoded, has_fastq):
+
+        url = "{}api/v1/runs/".format(self.base_url)
+
+        r = requests.get(
+            url,
+            headers=self.header
+        )
+
+        if runid not in r.text:
+
+            payload = {
+                "name": name,
+                "runid": runid,
+                "is_barcoded": is_barcoded,
+                "has_fastq": has_fastq
+            }
+
+            createrun = requests.post(
+
+                url,
+                headers=self.header,
+                json=payload
+            )
+
+            if createrun.status_code != 201:
+
+                print ("Error - we have been unable to create a run.")
+                print (createrun.status_code)
+                print (createrun.text)
+
+                sys.exit()
+
+            else:
+
+                run = json.loads(createrun.text)
+                created = True
+
+                #if self.args.noMinKNOW:
+                #    if self.args.is_flowcell:
+                #        self.create_flowcell(self.args.run_name)
+                #        self.create_flowcell_run()
+
+        else:
+
+            runs = json.loads(r.text)
+            for item in runs:
+
+                if item["runid"] == runid:
+
+                    run = item
+                    created = False
+
+        return (run, created)
+
+
     def get_readnames_by_run(self):
-        content = requests.get(self.runidlink + 'readnames', headers=self.header)
-        content_json = json.loads(content.text)
-        number_pages = content_json.get('number_pages')
+
+        url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
+        print(url)
+
+        req = requests.get(
+            url,
+            headers=self.header
+        )
+
+        readname_list = json.loads(req.text)
+
+        print(readname_list)
+
+        number_pages = readname_list['number_pages']
+
         self.args.fastqmessage = "Fetching reads to check if we've uploaded these before."
+
         #for page in tqdm(range(number_pages)):
         for page in range(number_pages):
+
             self.args.fastqmessage = "Fetching {} of {} pages.".format(page,number_pages)
-            url = self.runidlink + 'readnames?page={}'.format(page)
+
+            url += '?page={}'.format(page)
+
             content = requests.get(url, headers=self.header)
+
             # We have to recover the data component and loop through that to get the read names.
             for read in json.loads(content.text)["data"]:
+
                 self.readnames.append(read)
 
     def create_flowcell(self, name):
@@ -82,12 +210,7 @@ class Runcollection():
                                           json={"flowcell": self.flowcelllink, "run": self.runidlink})
 
     def add_run(self, descriptiondict):
-        print("Seen a new run")
-        # Test to see if the run exists
-        """
-        Note we need to do this properly - too many runs and this
-        response will start to be a dramatic bottleneck.
-        """
+
         self.args.fastqmessage = "Adding run."
 
         runid = descriptiondict["runid"]
@@ -123,24 +246,28 @@ class Runcollection():
                         self.create_flowcell_run()
                 #else:
                 #    print ("$$$$$$$$$$$$$$$$$$$$$$$$$$ skipping flowcell creation as minKNOW monitoring is live.")
-        else:
-            for run in json.loads(r.text):
-                if run["run_id"] == runid:
-                    print (run)
-                    self.runidlink = run["url"]
-                    self.runid = run["id"]
-            #
-            # Now fetch a list of reads that already exist at that location
-            #
+        is_barcoded = True if "barcode" in descriptiondict.keys() else False
+        has_fastq = True if self.args.skip_sequence else False
+        name = self.args.run_name
+        runid = descriptiondict["runid"]
+
+        run, created = self.get_or_create_run(runid, name, is_barcoded, has_fastq)
+
+        self.run = run
+
+        url = "{}api/v1/runs/{}/".format(self.base_url, run['id'])
+        self.runidlink = url
+
+        if not created:
+
             self.get_readnames_by_run()
-        readtypes = requests.get(self.args.full_host + 'api/v1/readtypes', headers=self.header)
-        for readtype in json.loads(readtypes.text):
-            self.readtypes[readtype["name"]] = readtype["url"]
-        response = requests.get(
-            str(self.runidlink) + "barcodes/",
-            headers=self.header
-        )
-        for item in json.loads(response.text):
+
+        print('>>>> run')
+        print(run)
+        print('<<<< run')
+        print(run.keys())
+
+        for item in run['barcodes']:
             self.barcodes.update({
                 item['name']: item['url']
             })
