@@ -8,7 +8,6 @@ import sys
 
 import dateutil.parser
 import numpy as np
-import minotourapi
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -64,9 +63,8 @@ class Runcollection():
         self.flowcelllink = ""
         self.batchsize = 2000
         self.minotourapi = MinotourAPI(self.args.full_host, self.header)
-
-
         self.get_readtype_list()
+        self.grouprun = None
 
 
     def get_readtype_list(self):
@@ -215,11 +213,12 @@ class Runcollection():
 
         runid = descriptiondict["runid"]
 
-        run = self.minotourapi.miget_run_by_runid(runid)
+        run = self.minotourapi.get_run_by_runid(runid)
 
-        r = requests.get(self.args.full_host + 'api/v1/runs', headers=self.header)
-        if runid not in r.text:
+        if not run:
+
             runname = self.args.run_name
+
             if "barcode" in descriptiondict.keys():
                 is_barcoded = True
                 barcoded = "barcoded"
@@ -230,43 +229,52 @@ class Runcollection():
                 has_fastq = False
             else:
                 has_fastq = True
-            createrun = requests.post(self.args.full_host + 'api/v1/runs/', headers=self.header,
-                                      json={"run_name": runname, "run_id": runid, "barcode": barcoded,
-                                            "is_barcoded": is_barcoded, "has_fastq": has_fastq})
-            if createrun.status_code != 201:
-                print (createrun.status_code)
-                print (createrun.text)
-                print ("Error - we have been unable to create a run.")
-            else:
-                self.runidlink = json.loads(createrun.text)["url"]
-                self.runid = json.loads(createrun.text)["id"]
-                if self.args.noMinKNOW:
-                    if self.args.is_flowcell:
-                        self.create_flowcell(self.args.run_name)
-                        self.create_flowcell_run()
-                #else:
-                #    print ("$$$$$$$$$$$$$$$$$$$$$$$$$$ skipping flowcell creation as minKNOW monitoring is live.")
-        is_barcoded = True if "barcode" in descriptiondict.keys() else False
-        has_fastq = True if self.args.skip_sequence else False
-        name = self.args.run_name
-        runid = descriptiondict["runid"]
 
-        run, created = self.get_or_create_run(runid, name, is_barcoded, has_fastq)
+            createrun = self.minotourapi.create_run(runname, runid, is_barcoded, has_fastq)
 
-        self.run = run
+            if not createrun:
 
-        url = "{}api/v1/runs/{}/".format(self.base_url, run['id'])
-        self.runidlink = url
+                print('There is a problem creating run')
+                sys.exit()
 
-        if not created:
+            if not self.grouprun:
 
-            self.get_readnames_by_run()
+                grouprun = self.minotourapi.create_grouprun(runname)
+                self.grouprun = grouprun
 
-        print('>>>> run')
-        print(run)
-        print('<<<< run')
-        print(run.keys())
+                self.minotourapi.create_grouprun_membership(
+                    grouprun['id'],
+                    createrun['id']
+                )
 
+        # if self.args.noMinKNOW:
+        #
+        #     if self.args.is_flowcell:
+        #
+        #         self.create_flowcell(self.args.run_name)
+        #         self.create_flowcell_run()
+
+        # is_barcoded = True if "barcode" in descriptiondict.keys() else False
+        # has_fastq = True if self.args.skip_sequence else False
+        # name = self.args.run_name
+        # runid = descriptiondict["runid"]
+        #
+        # run, created = self.get_or_create_run(runid, name, is_barcoded, has_fastq)
+        #
+        # self.run = run
+        #
+        # url = "{}api/v1/runs/{}/".format(self.base_url, run['id'])
+        # self.runidlink = url
+        #
+        # if not created:
+        #
+        #     self.get_readnames_by_run()
+        #
+        # print('>>>> run')
+        # print(run)
+        # print('<<<< run')
+        # print(run.keys())
+        #
         for item in run['barcodes']:
             self.barcodes.update({
                 item['name']: item['url']
