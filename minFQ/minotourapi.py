@@ -2,6 +2,7 @@ import json
 
 import requests
 
+
 class MinotourAPI:
 
     def __init__(self, base_url, request_headers):
@@ -11,21 +12,33 @@ class MinotourAPI:
 
     def get(self, partial_url, parameters=None):
 
-        url = '{}api/v1{}?{}'.format(self.base_url, partial_url, parameters)
+        if not parameters:
+
+            url = '{}api/v1{}'.format(self.base_url, partial_url)
+
+        else:
+
+            url = '{}api/v1{}?{}'.format(self.base_url, partial_url, parameters)
+
         return requests.get(url, headers=self.request_headers)
 
     def post(self, partial_url, json, parameters=None):
 
-        url = '{}api/v1{}?{}'.format(self.base_url, partial_url, parameters)
+        if not parameters:
+
+            url = '{}api/v1{}'.format(self.base_url, partial_url)
+
+        else:
+
+            url = '{}api/v1{}?{}'.format(self.base_url, partial_url, parameters)
+
         return requests.post(url, headers=self.request_headers, json=json)
 
     def get_run_by_runid(self, runid):
 
-        url = '/runs/{}/?search_criteria=runid'.format(runid)
+        url = '/runs/{}/'.format(runid)
 
-        print(url)
-
-        req = self.get(url)
+        req = self.get(url, 'search_criteria=runid')
 
         if req.status_code != 200:
 
@@ -38,25 +51,21 @@ class MinotourAPI:
 
     def get_grouprun_by_name(self, name):
 
-        print('search for grouprun name = {}'.format(name))
-        print('url {}'.format('/grouprun/{}/'.format(name)))
-
         req = self.get('/grouprun/{}/'.format(name))
 
         if req.status_code != 200:
 
-            print('status code: {}'.format(req.status_code))
+            print('Did not fing grouprun {}.'.format(name))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
             return None
 
         else:
 
-            print('text: {}'.format(req.text))
             grouprun = json.loads(req.text)
             return grouprun
 
     def create_run(self, name, runid, is_barcoded, has_fastq):
-
-        print('>>> creating new run')
 
         payload = {
             "name": name,
@@ -69,21 +78,18 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            print('nao criou grouprun')
-            print(req.status_code)
-            print(req.text)
-            print('>>> new run not created - returning None')
+            print('Run {} could not be created.'.format(name))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
             return None
 
         else:
 
             run = json.loads(req.text)
-            print('>>> new run created - returning {}'.format(run))
             return run
 
     def create_grouprun(self, name):
 
-        print('creating new grouprun')
         payload = {
             'name': name
         }
@@ -92,9 +98,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            print('nao criou grouprun')
-            print(req.status_code)
-            print(req.text)
+            print('GroupRun {} could not be created.'.format(name))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
             return None
 
         else:
@@ -104,7 +110,6 @@ class MinotourAPI:
 
     def create_grouprun_membership(self, grouprun, run):
 
-        print('creating new grouprun-membership')
         payload = {
             'grouprun_id': grouprun,
             'run_id': run
@@ -114,12 +119,70 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            print('nao criou grouprun-membership')
-            print(req.status_code)
-            print(req.text)
+            print('GroupRun membership {} could not be created.')
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
             return None
 
         else:
 
             grouprun = json.loads(req.text)
             return grouprun
+
+    def create_reads(self, reads):
+
+        payload = reads
+
+        req = self.post('/read/', json=payload)
+
+        if req.status_code != 201:
+
+            print('Reads batch {} could not be created.')
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
+            return None
+
+        else:
+
+            grouprun = json.loads(req.text)
+            return grouprun
+
+    def get_read_type_list(self):
+
+        url = '/readtypes/'
+
+        req = self.get(url)
+
+        if req.status_code != 200:
+
+            print('FastqReadType list could not be retrieved.')
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
+            return None
+
+        else:
+
+            read_type_list = json.loads(req.text)
+            return read_type_list
+
+    def create_barcode(self, barcode_name, run_url):
+
+        payload = {
+            'name': barcode_name,
+            'run': run_url
+        }
+
+        req = self.post('/barcode/', json=payload)
+
+        if req.status_code != 201:
+
+            print('Barcode {} could not be created.'.format(barcode_name))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
+            return None
+
+        else:
+
+            barcode = json.loads(req.text)
+            return barcode
+

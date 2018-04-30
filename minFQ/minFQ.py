@@ -128,13 +128,13 @@ def main():
     )
 
     parser.add(
-        '-c',
-        '--custom_barcode',
-        type=str,
+        '-tc',
+        '--treatment-control',
+        type=int,
         required=False,
         default=None,
-        help='Optionally split reads based on odd/even channel description. Not a standard option.',
-        dest='cust_barc'
+        help='Optionally split reads based in treatment and control groups based on the channel number. The integer value informed is used to mover ish read to the control group.',
+        dest='treatment_control'
     )
 
     parser.add(

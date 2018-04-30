@@ -5,6 +5,7 @@ import os,sys
 import threading
 import time
 import gzip
+import numpy as np
 
 from tqdm import tqdm
 from minFQ.minotourapiclient import Runcollection
@@ -12,32 +13,25 @@ from Bio import SeqIO
 from watchdog.events import FileSystemEventHandler
 
 
-def parsefastq(fastq, rundict, args, header):
-    counter = 0
-    if fastq.endswith(".gz"):
-        with gzip.open(fastq, "rt") as handle:
-            for record in SeqIO.parse(handle, "fastq"):
-                counter += 1
-                args.fastqmessage = "processing read {}".format(counter)
-                descriptiondict = parsedescription(record.description)
-                if descriptiondict["runid"] not in rundict:
-                    rundict[descriptiondict["runid"]] = Runcollection(args,header)
-                    rundict[descriptiondict["runid"]].add_run(descriptiondict)
-                rundict[descriptiondict["runid"]].add_read(record, descriptiondict, fastq)
+def check_is_pass(path):
+
+    folders = os.path.split(path)
+
+    if 'pass' in folders[0]:
+
+        return True
+
+    elif 'fail' in folders[0]:
+
+        return False
+
     else:
-        for record in SeqIO.parse(fastq, "fastq"):
-            counter += 1
-            args.fastqmessage = "processing read {}".format(counter)
-            descriptiondict = parsedescription(record.description)
-            if descriptiondict["runid"] not in rundict:
-                rundict[descriptiondict["runid"]] = Runcollection(args, header)
-                rundict[descriptiondict["runid"]].add_run(descriptiondict)
-            rundict[descriptiondict["runid"]].add_read(record, descriptiondict,fastq)
-    for runs in rundict:
-        rundict[runs].commit_reads()
+
+        return True  # This assumes we have been unable to find either pass or fail and thus we assume the run is a pass run.
 
 
-def parsedescription(description):
+def parse_fastq_description(description):
+
     descriptiondict = dict()
     descriptors = description.split(" ")
     del descriptors[0]
@@ -46,6 +40,89 @@ def parsedescription(description):
         descriptiondict[bits[0]] = bits[1]
     return descriptiondict
 
+
+def parse_fastq_record(record, fastq, rundict, args, header):
+
+    fastq_read = {}
+
+    description_dict = parse_fastq_description(record.description)
+
+    fastq_read['read'] = description_dict.get('read', None)
+    fastq_read['runid'] = description_dict.get('runid', None)
+    fastq_read['channel'] = description_dict.get('ch', None)
+    fastq_read['start_time'] = description_dict.get('start_time', None)
+    fastq_read['is_pass'] = check_is_pass(fastq)
+    fastq_read['read_id'] = record.id
+    fastq_read['sequence_length'] = len(str(record.seq))
+
+    quality = record.format('fastq').split('\n')[3]
+
+    fastq_read['quality_average'] = quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
+
+    # use 'No barcode' for non-barcoded reads
+    if not description_dict.get('barcode', None):
+
+        fastq_read['barcode_name'] = 'No barcode'
+
+    # add control-treatment if passed as argument
+    if args.treatment_control:
+
+        if int(fastq_read['channel']) % args.treatment_control == 0:
+
+            fastq_read['barcode_name'] = fastq_read['barcode_name'] + ' - control'
+
+        else:
+
+            fastq_read['barcode_name'] = fastq_read['barcode_name'] + ' - treatment'
+
+    # check if sequence is sent or not
+    if args.skip_sequence:
+
+        fastq_read['sequence'] = ''
+        fastq_read['quality'] = ''
+
+    else:
+
+        fastq_read['sequence'] = str(record.seq)
+        fastq_read['quality'] = record.format('fastq').split('\n')[3]
+
+    if fastq_read['runid'] not in rundict:
+        rundict[fastq_read['runid']] = Runcollection(args, header)
+
+        rundict[fastq_read['runid']].add_run(description_dict)
+
+    rundict[fastq_read['runid']].add_read(fastq_read)
+
+
+def parse_fastq_file(fastq, rundict, args, header):
+
+    counter = 0
+
+    if fastq.endswith(".gz"):
+
+        with gzip.open(fastq, "rt") as handle:
+
+            for record in SeqIO.parse(handle, "fastq"):
+
+                counter += 1
+
+                args.fastqmessage = "processing read {}".format(counter)
+
+                parse_fastq_record(record, fastq, rundict, args, header)
+
+    else:
+
+        for record in SeqIO.parse(fastq, "fastq"):
+
+            counter += 1
+
+            args.fastqmessage = "processing read {}".format(counter)
+
+            parse_fastq_record(record, fastq, rundict, args, header)
+
+    for runs in rundict:
+
+        rundict[runs].commit_reads()
 
 def file_dict_of_folder_simple(path,args):
     file_list_dict = dict()
@@ -106,7 +183,7 @@ class FastqHandler(FileSystemEventHandler):
                 if (int(createtime) + delaytime < time.time()):
 
                     del self.creates[fastqfile]
-                    parsefastq(fastqfile, self.rundict, self.args, self.header)
+                    parse_fastq_file(fastqfile, self.rundict, self.args, self.header)
             readsuploaded=0
 
             for runid in self.rundict:
@@ -143,6 +220,3 @@ class FastqHandler(FileSystemEventHandler):
         """When a file is moved, we just want to update its location in the master dictionary."""
         if (event.dest_path.endswith(".fastq") or event.dest_path.endswith(".fastq.gz")):
             print("seen a fastq file move")
-
-    def on_deleted(self, event):
-        print("On Deleted Called", event.src_path)
