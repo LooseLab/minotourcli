@@ -21,7 +21,11 @@ class MinotourAPI:
 
     def get_run_by_runid(self, runid):
 
-        req = self.get('/runs/{}/'.format(runid))
+        url = '/runs/{}/?search_criteria=runid'.format(runid)
+
+        print(url)
+
+        req = self.get(url)
 
         if req.status_code != 200:
 

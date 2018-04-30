@@ -215,6 +215,11 @@ class Runcollection():
 
         run = self.minotourapi.get_run_by_runid(runid)
 
+        print('>>> >>> run {}'.format(run))
+        print('>>> >>> runid {}'.format(runid))
+
+        sys.exit()
+
         if not run:
 
             runname = self.args.run_name
@@ -247,38 +252,14 @@ class Runcollection():
                     createrun['id']
                 )
 
-        # if self.args.noMinKNOW:
-        #
-        #     if self.args.is_flowcell:
-        #
-        #         self.create_flowcell(self.args.run_name)
-        #         self.create_flowcell_run()
+        for item in createrun['barcodes']:
+            print('>>> {}'.format(item['url']))
 
-        # is_barcoded = True if "barcode" in descriptiondict.keys() else False
-        # has_fastq = True if self.args.skip_sequence else False
-        # name = self.args.run_name
-        # runid = descriptiondict["runid"]
-        #
-        # run, created = self.get_or_create_run(runid, name, is_barcoded, has_fastq)
-        #
-        # self.run = run
-        #
-        # url = "{}api/v1/runs/{}/".format(self.base_url, run['id'])
-        # self.runidlink = url
-        #
-        # if not created:
-        #
-        #     self.get_readnames_by_run()
-        #
-        # print('>>>> run')
-        # print(run)
-        # print('<<<< run')
-        # print(run.keys())
-        #
-        for item in run['barcodes']:
             self.barcodes.update({
                 item['name']: item['url']
             })
+
+        sys.exit()
 
     def commit_reads(self):
         runlinkaddread = self.runidlink + "reads/"
