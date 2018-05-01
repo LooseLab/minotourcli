@@ -227,11 +227,11 @@ class Runcollection():
 
                 self.update_read_type(secondread, self.read_type_list["Complement"])
 
-                fastq_read_payload['type'] = self.read_type_list["Template"]
+                fastq_read_payload['type'] = self.read_type_list["1D^2"]
 
             else:
 
-                fastq_read_payload['type'] = self.read_type_list["1D^2"]
+                fastq_read_payload['type'] = self.read_type_list["Template"]
 
             self.readnames.append(read_id)
 
