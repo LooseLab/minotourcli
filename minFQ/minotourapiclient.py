@@ -139,7 +139,24 @@ class Runcollection():
 
             if not self.grouprun:
 
-                grouprun = self.minotourapi.create_grouprun(runname)
+                print('>>> does grouprun {} exist?'.format(runname))
+
+                grouprun = self.minotourapi.get_grouprun_by_name(runname)
+
+                if grouprun:
+
+                    print('>>> Yes! {}'.format(grouprun))
+
+                else:
+
+                    print('>>> No! Lets create one.')
+
+                if not grouprun:
+
+                    grouprun = self.minotourapi.create_grouprun(runname)
+
+                    print('>>> Created! {}'.format(grouprun))
+
                 self.grouprun = grouprun
 
                 self.minotourapi.create_grouprun_membership(

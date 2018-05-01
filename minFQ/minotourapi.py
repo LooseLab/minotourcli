@@ -51,7 +51,9 @@ class MinotourAPI:
 
     def get_grouprun_by_name(self, name):
 
-        req = self.get('/grouprun/{}/'.format(name))
+        url = '/grouprun/{}/'.format(name)
+
+        req = self.get(url, 'search_criteria=name')
 
         if req.status_code != 200:
 

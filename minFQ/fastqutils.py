@@ -184,24 +184,25 @@ class FastqHandler(FileSystemEventHandler):
 
                     del self.creates[fastqfile]
                     parse_fastq_file(fastqfile, self.rundict, self.args, self.header)
-            readsuploaded=0
 
-            for runid in self.rundict:
-
-                print("RunID", runid)
-                if self.rundict[runid].readcount > 0:
-                    print("Read Number:", self.rundict[runid].readcount, "Total Length:", self.rundict[runid].cumulength,
-                      "Average Length", self.rundict[runid].cumulength / self.rundict[runid].readcount, "Chan Count",
-                      len(self.rundict[runid].chandict))
-                readsuploaded+=self.rundict[runid].readcount
-                if self.args.GUI:
-                    try:
-                        (mean, median, std, maxval, minval) = self.rundict[runid].mean_median_std_max_min()
-                        print("mean", mean, "median", median, "std", std, "max", maxval, "min", minval)
-                    except:
-                        pass
-            print ("Uploaded {} reads in total.".format(readsuploaded))
-            self.args.fastqmessage ="Uploaded {} reads in total.".format(readsuploaded)
+            # readsuploaded=0
+            #
+            # for runid in self.rundict:
+            #
+            #     print("RunID", runid)
+            #     if self.rundict[runid].readcount > 0:
+            #         print("Read Number:", self.rundict[runid].readcount, "Total Length:", self.rundict[runid].cumulength,
+            #           "Average Length", self.rundict[runid].cumulength / self.rundict[runid].readcount, "Chan Count",
+            #           len(self.rundict[runid].chandict))
+            #     readsuploaded+=self.rundict[runid].readcount
+            #     if self.args.GUI:
+            #         try:
+            #             (mean, median, std, maxval, minval) = self.rundict[runid].mean_median_std_max_min()
+            #             print("mean", mean, "median", median, "std", std, "max", maxval, "min", minval)
+            #         except:
+            #             pass
+            # print ("Uploaded {} reads in total.".format(readsuploaded))
+            # self.args.fastqmessage ="Uploaded {} reads in total.".format(readsuploaded)
 
             time.sleep(5)
 
