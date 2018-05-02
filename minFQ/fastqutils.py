@@ -87,6 +87,7 @@ def parse_fastq_record(record, fastq, rundict, args, header):
         fastq_read['quality'] = record.format('fastq').split('\n')[3]
 
     if fastq_read['runid'] not in rundict:
+
         rundict[fastq_read['runid']] = Runcollection(args, header)
 
         rundict[fastq_read['runid']].add_run(description_dict)

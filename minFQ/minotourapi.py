@@ -188,3 +188,40 @@ class MinotourAPI:
             barcode = json.loads(req.text)
             return barcode
 
+    def get_flowcell_by_name(self, name):
+
+        url = '/flowcells/{}/'.format(name)
+
+        req = self.get(url, 'search_criteria=name')
+
+        if req.status_code != 200:
+
+            print('Did not find flowcell {}.'.format(name))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
+            return None
+
+        else:
+
+            return json.loads(req.text)
+
+    def create_flowcell(self, name):
+
+        payload = {
+
+            'name': name,
+        }
+
+        req = self.post('/flowcells/', json=payload)
+
+        if req.status_code != 201:
+
+            print('Flowcell {} could not be created.'.format(name))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
+            return None
+
+        else:
+
+            return json.loads(req.text)
+

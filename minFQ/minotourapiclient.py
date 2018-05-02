@@ -164,6 +164,14 @@ class Runcollection():
                     createrun['id']
                 )
 
+            if not createrun['flowcell']:
+
+                flowcell = self.minotourapi.get_flowcell_by_name(runname)
+
+                if not flowcell:
+
+                    createflowcell = self.minotourapi.create_flowcell(runname)
+
             run = createrun
 
         if not self.run:
