@@ -9,6 +9,11 @@ from minFQ.minknowcontrolutils import HelpTheMinion
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
+from minFQ.minotourapi import MinotourAPI
+
+CLIENT_VERSION = '1.0'
+
+
 def main():
 
     global OPER
@@ -16,16 +21,20 @@ def main():
     OPER = platform.system()
 
     if OPER is 'Windows':  # MS
+
         OPER = 'windows'
+
     else:
+
         OPER = 'linux'  # MS
-    # print(OPER)  # MS
 
     if OPER is 'linux':
+
         config_file = os.path.join(os.path.sep, \
                                    os.path.dirname(os.path.realpath('__file__' \
                                                                     )), 'minfq_posix.config')
     if OPER is 'windows':
+
         config_file = os.path.join(os.path.sep, sys.prefix,
                                    'minfq_windows.config')
 
@@ -33,6 +42,7 @@ def main():
         configargparse.ArgParser(
             description='minFQ: A program to analyse minION fastq files in real-time or post-run and monitor the activity of MinKNOW.' \
             , default_config_files=[config_file])
+
     parser.add(
         '-w',
         '--watch-dir',
@@ -166,50 +176,81 @@ def main():
 
     args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
 
-    print(args.full_host)
-
     args.read_count = 0
 
-    # GLobal creation of header (needs fixing)
-    global header
+    header = {
+        'Authorization': 'Token {}'.format(args.api_key),
+        'Content-Type': 'application/json'
+    }
 
-    header = {'Authorization': 'Token {}'.format(args.api_key), 'Content-Type': 'application/json'}
+    minotourapi = MinotourAPI(args.full_host, header)
 
-    rundict=dict()
+    version = minotourapi.get_server_version()
 
-    if not args.noFastQ:
-        event_handler = FastqHandler(args, header,rundict)
-        # This block handles the fastq
-        observer = Observer()
-        observer.schedule(event_handler, path=args.watchdir, recursive=True)
-        observer.daemon = True
+    shall_exit = False
 
-    if not args.noMinKNOW:
-        # this block is going to handle the running of minControl.
-        minwsip = "ws://" + args.ip + ":9500/"
-        helper = HelpTheMinion(minwsip, args)
-        helper.connect()
+    if not version:
 
-    try:
+        print("Server does not support this client. Please change the client to a previous version or upgrade server.")
+
+        shall_exit = True
+
+    clients = version['clients']
+
+    if CLIENT_VERSION not in clients:
+
+        print("Server does not support this client. Please change the client to a previous version or upgrade server.")
+
+        shall_exit = True
+
+    if not shall_exit:
+
+        rundict = dict()
+
         if not args.noFastQ:
-            observer.start()
+            event_handler = FastqHandler(args, header, rundict)
+            # This block handles the fastq
+            observer = Observer()
+            observer.schedule(event_handler, path=args.watchdir, recursive=True)
+            observer.daemon = True
+
         if not args.noMinKNOW:
-            t = threading.Thread(target=helper.process_minion())
-            t.daemon = True
-            t.start()
-        while 1:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print(": Exiting")
-        if not args.noMinKNOW:
-            helper.mcrunning = False
-            helper.hang_up()
-        if not args.noFastQ:
-            observer.stop()
-            observer.join()
-        os._exit(0)
+            # this block is going to handle the running of minControl.
+            minwsip = "ws://" + args.ip + ":9500/"
+            helper = HelpTheMinion(minwsip, args)
+            helper.connect()
+
+        try:
+
+            if not args.noFastQ:
+
+                observer.start()
+
+            if not args.noMinKNOW:
+
+                t = threading.Thread(target=helper.process_minion())
+                t.daemon = True
+                t.start()
+
+            while 1:
+
+                time.sleep(1)
+
+        except KeyboardInterrupt:
+
+            print(": Exiting")
+
+            if not args.noMinKNOW:
+                helper.mcrunning = False
+                helper.hang_up()
+
+            if not args.noFastQ:
+                observer.stop()
+                observer.join()
+
+            os._exit(0)
 
 
-# noinspection PyGlobalUndefined
 if __name__ == '__main__':
+
     main()

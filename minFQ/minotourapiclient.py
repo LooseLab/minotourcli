@@ -1,12 +1,8 @@
 """
 A class to handle the collection of run statistics and information from fastq files and upload to minotour.
 """
-import datetime
 import json
-import os
 import sys
-
-import dateutil.parser
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -72,8 +68,9 @@ class Runcollection():
 
     def get_readnames_by_run(self):
 
+        # TODO move this function to MinotourAPI class.
+
         url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
-        print(url)
 
         req = requests.get(
             url,
@@ -81,8 +78,6 @@ class Runcollection():
         )
 
         readname_list = json.loads(req.text)
-
-        print(readname_list)
 
         number_pages = readname_list['number_pages']
 
@@ -114,6 +109,19 @@ class Runcollection():
 
             runname = self.args.run_name
 
+            #
+            # get or create a flowcell
+            #
+            flowcell = self.minotourapi.get_flowcell_by_name(runname)
+
+            if not flowcell:
+
+                flowcell = self.minotourapi.create_flowcell(runname)
+
+
+            #
+            # create a run
+            #
             if "barcode" in descriptiondict.keys():
 
                 is_barcoded = True
@@ -130,32 +138,23 @@ class Runcollection():
 
                 has_fastq = True
 
-            createrun = self.minotourapi.create_run(runname, runid, is_barcoded, has_fastq)
+            createrun = self.minotourapi.create_run(runname, runid, is_barcoded, has_fastq, flowcell)
 
             if not createrun:
 
                 print('There is a problem creating run')
                 sys.exit()
 
+            #
+            # get or create a grouprun
+            #
             if not self.grouprun:
 
-                print('>>> does grouprun {} exist?'.format(runname))
-
                 grouprun = self.minotourapi.get_grouprun_by_name(runname)
-
-                if grouprun:
-
-                    print('>>> Yes! {}'.format(grouprun))
-
-                else:
-
-                    print('>>> No! Lets create one.')
 
                 if not grouprun:
 
                     grouprun = self.minotourapi.create_grouprun(runname)
-
-                    print('>>> Created! {}'.format(grouprun))
 
                 self.grouprun = grouprun
 
@@ -164,14 +163,6 @@ class Runcollection():
                     createrun['id']
                 )
 
-            if not createrun['flowcell']:
-
-                flowcell = self.minotourapi.get_flowcell_by_name(runname)
-
-                if not flowcell:
-
-                    createflowcell = self.minotourapi.create_flowcell(runname)
-
             run = createrun
 
         if not self.run:
@@ -179,8 +170,6 @@ class Runcollection():
             self.run = run
 
         for item in run['barcodes']:
-
-            print('>>> {}'.format(item['url']))
 
             self.barcode_dict.update({
                 item['name']: item['url']
@@ -211,7 +200,7 @@ class Runcollection():
 
         if barcode_name not in self.barcode_dict:
 
-            print(">>> Found new barcode {} for run {}.".format(barcode_name, runid))
+            # print(">>> Found new barcode {} for run {}.".format(barcode_name, runid))
 
             barcode = self.minotourapi.create_barcode(barcode_name, self.run['url'])
 

@@ -42,12 +42,14 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
+            print('Did not find run {}.'.format(runid))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
             return None
 
         else:
 
-            run = json.loads(req.text)
-            return run
+            return json.loads(req.text)
 
     def get_grouprun_by_name(self, name):
 
@@ -57,7 +59,7 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            print('Did not fing grouprun {}.'.format(name))
+            print('Did not find grouprun {}.'.format(name))
             print('Status-code {}'.format(req.status_code))
             print('Text {}'.format(req.text))
             return None
@@ -67,13 +69,14 @@ class MinotourAPI:
             grouprun = json.loads(req.text)
             return grouprun
 
-    def create_run(self, name, runid, is_barcoded, has_fastq):
+    def create_run(self, name, runid, is_barcoded, has_fastq, flowcell):
 
         payload = {
             "name": name,
             "runid": runid,
             "is_barcoded": is_barcoded,
-            "has_fastq": has_fastq
+            "has_fastq": has_fastq,
+            "flowcell": flowcell['url']
         }
 
         req = self.post('/runs/', json=payload)
@@ -217,6 +220,23 @@ class MinotourAPI:
         if req.status_code != 201:
 
             print('Flowcell {} could not be created.'.format(name))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
+            return None
+
+        else:
+
+            return json.loads(req.text)
+
+    def get_server_version(self):
+
+        url = '/version'
+
+        req = self.get(url)
+
+        if req.status_code != 200:
+
+            print('Did not find version for server {}.'.format(self.base_url))
             print('Status-code {}'.format(req.status_code))
             print('Text {}'.format(req.text))
             return None
