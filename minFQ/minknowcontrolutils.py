@@ -636,26 +636,47 @@ class MinControlAPI():
             self.args.flowcellruncount += 1
         createflowcellrun = requests.post(self.flowcelllink,headers=self.header(),json={"flowcell": self.flowcelllink, "run": self.runidlink})
 
-
     def create_run(self, runid):
-        r = requests.get(self.args.full_host+'api/v1/runs', headers=self.header())
-        if runid not in r.text:
-            is_barcoded = False
-            barcoded = "unclassified"
-            createrun = requests.post(self.args.full_host+'api/v1/runs/', headers=self.header(), json={"run_name": self.status_summary['run_name'], "run_id": runid, "barcode": barcoded, "is_barcoded":is_barcoded, "minION":self.minionidlink})
-            if createrun.status_code != 201:
-                print (createrun.status_code)
-                print (createrun.text)
-                print ("Houston - we have a problem!")
+
+        run = self.minotourapi.get_run_by_runid(runid)
+
+        # r = requests.get(self.args.full_host+'api/v1/runs', headers=self.header())
+        if not run:
+
+            #
+            # get or create a flowcell
+            #
+            flowcell = self.minotourapi.get_flowcell_by_name(self.status_summary['flow_cell_id'])
+
+            if not flowcell:
+
+                flowcell = self.minotourapi.create_flowcell(self.status_summary['flow_cell_id'])
+
+            is_barcoded = False  # TODO do we known this info at this moment?
+
+            has_fastq = True  # TODO do we known this info at this moment?
+
+            createrun = self.minotourapi.create_run(self.status_summary['run_name'], runid, is_barcoded, has_fastq, flowcell)
+
+            # createrun = requests.post(self.args.full_host+'api/v1/runs/', headers=self.header(), json={"run_name": self.status_summary['run_name'], "run_id": runid, "barcode": barcoded, "is_barcoded":is_barcoded, "minION":self.minionidlink})
+
+            if not createrun:
+
+                print("Houston - we have a problem!")
+
             else:
-                self.runidlink = json.loads(createrun.text)["url"]
-                self.runid = json.loads(createrun.text)["id"]
-                self.create_flowcell(self.status_summary['flow_cell_id'])
-                self.create_flowcell_run()
+
+                self.runidlink = createrun["url"]
+                self.runid = createrun["id"]  # TODO is it id or runid?
+                # self.runidlink = json.loads(createrun.text)["url"]
+                # self.runid = json.loads(createrun.text)["id"]
+                # self.create_flowcell(self.status_summary['flow_cell_id'])
+                # self.create_flowcell_run()
+
         else:
-            for run in json.loads(r.text):
-                if run["run_id"] == runid:
-                    self.runidlink = run["url"]
+
+            self.runidlink = run["url"]
+
         self.update_minion_run_stats()
 
     def update_minion_run_stats (self):

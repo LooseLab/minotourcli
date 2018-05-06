@@ -118,7 +118,6 @@ class Runcollection():
 
                 flowcell = self.minotourapi.create_flowcell(runname)
 
-
             #
             # create a run
             #
