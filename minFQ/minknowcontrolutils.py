@@ -2,19 +2,18 @@
 A collection of classes used to interrogate MinKNOW
 """
 
-import requests
-import json
 import datetime
+import json
+import os
+import sys
 import time
-import sys,os
-import threading
-from encodings.aliases import aliases
 from urllib.parse import urlparse
 
-
+import requests
 from ws4py.client.threadedclient import WebSocketClient
 
-from minFQ.channelmaps import chanlookup,chanlookup_type
+from minFQ.channelmaps import chanlookup_type
+from minFQ.minotourapi import MinotourAPI as MinotourAPINew
 
 global channel_data
 channel_data=dict()
@@ -538,6 +537,8 @@ class MinControlAPI():
         self.flowcelllink = ""
         self.statedict = statedict
         self.summarystatedict = summarystatedict
+
+        self.minotourapi = MinotourAPINew(self.args.full_host, self.header)
 
     def header (self):
         return ({'Authorization': 'Token ' + self.args.api_key, 'Content-Type': 'application/json'})
