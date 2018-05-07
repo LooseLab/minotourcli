@@ -987,25 +987,31 @@ class HelpTheMinion(WebSocketClient):
         offset = list()
         for index,port in enumerate(rawports):
             if index%3==0:
-                rawvalues.append(port)
-                offset.append(rawports[(index+1)])
+                try:
+                    rawvalues.append(port)
+                    offset.append(rawports[(index+1)])
+                except:
+                    print ("fail")
         #print (rawports)
         #print (rawvalue)
         #print (offset)
 
         for index,rawvalue in enumerate(rawvalues):
-            off = offset[index]
-            if off == 62:
-                correction = 192
-            elif off == 63:
-                correction = 64
-            else:
-                print("These are not the ports you are looking for.")
-                correction = 0
-                #sys.exit()
-            port = rawvalue - correction + 8000
-            print (port)
-            portset.append(port)
+            try:
+                off = offset[index]
+                if off == 62:
+                    correction = 192
+                elif off == 63:
+                    correction = 64
+                else:
+                    print("These are not the ports you are looking for.")
+                    correction = 0
+                    #sys.exit()
+                port = rawvalue - correction + 8000
+                print (port)
+                portset.append(port)
+            except:
+                print ("fail2")
         return portset
 
     def received_message(self, m):
