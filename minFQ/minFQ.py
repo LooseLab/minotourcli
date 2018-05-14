@@ -217,7 +217,7 @@ def main():
         if not args.noMinKNOW:
             # this block is going to handle the running of minControl.
             minwsip = "ws://" + args.ip + ":9500/"
-            helper = HelpTheMinion(minwsip, args)
+            helper = HelpTheMinion(minwsip, args, header)
             helper.connect()
 
         try:

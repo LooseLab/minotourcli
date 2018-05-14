@@ -10,6 +10,10 @@ class MinotourAPI:
         self.base_url = base_url
         self.request_headers = request_headers
 
+    def test(self):
+
+        return "OK"
+
     def get(self, partial_url, parameters=None):
 
         if not parameters:

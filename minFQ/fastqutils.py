@@ -60,7 +60,12 @@ def parse_fastq_record(record, fastq, rundict, args, header):
     fastq_read['quality_average'] = quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
 
     # use 'No barcode' for non-barcoded reads
-    if not description_dict.get('barcode', None):
+    barcode_name = description_dict.get('barcode', None)
+    if barcode_name:
+
+        fastq_read['barcode_name'] = barcode_name
+        
+    else:
 
         fastq_read['barcode_name'] = 'No barcode'
 
