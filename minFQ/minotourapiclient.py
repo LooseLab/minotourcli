@@ -191,8 +191,6 @@ class Runcollection():
 
     def add_read(self, fastq_read_payload):
 
-        print(fastq_read_payload)
-
         barcode_name = fastq_read_payload['barcode_name']
         runid = fastq_read_payload['runid']
         read_id = fastq_read_payload['read_id']
