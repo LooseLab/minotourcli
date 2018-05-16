@@ -522,11 +522,11 @@ class MinControlAPI:
     """
 
     def __init__(self, minion_name, args, statedict, summarystatedict, minIONdict, header):
-        #print ("MinControlAPI")
+
         self.args = args
         self.minIONdict=minIONdict
         self.header = header
-        # self.minion = minion
+
         self.runidlink = ""
         self.status_summary=dict()
         self.minstatexist=False
@@ -536,10 +536,6 @@ class MinControlAPI:
         self.flowcelllink = ""
         self.statedict = statedict
         self.summarystatedict = summarystatedict
-
-        print(">>> setting minotourapi")
-        print("full_host {}".format(self.args.full_host))
-        print("self.header {}".format(self.header))
 
         self.minotourapi = MinotourAPINew(self.args.full_host, self.header)
 
@@ -551,6 +547,7 @@ class MinControlAPI:
 
         self.minion = minion
         self.minionidlink=self.identify_minion(self.minion["url"])
+
 
     # def header (self):
     #     return ({'Authorization': 'Token ' + self.args.api_key, 'Content-Type': 'application/json'})
@@ -625,83 +622,34 @@ class MinControlAPI:
                 r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
 
-
-    # def create_minion (self,minION):
-    #     if self.args.GUI:
-    #         self.args.minKNOWmessage = "Creating a New MinION."
-    #     #print("Seen a new run")
-    #     # Test to see if the run exists
-    #     #header = {'Authorization': 'Token ' + self.args.api_key, 'Content-Type': 'application/json'}
-    #     r = requests.get(self.args.full_host + 'api/v1/minions', headers=self.header)
-    #     if minION not in r.text:
-    #         #print ('Need to create minION:', minION)
-    #         createminION = requests.post(self.args.full_host + 'api/v1/minions/', headers=self.header,
-    #                                   json={"minION_name": minION})
-    #         #print(createminION.text)
-    #         if createminION.status_code != 201:
-    #             print(createminION.status_code)
-    #             print(createminION.text)
-    #             print("Houston - we have a problem!")
-    #         else:
-    #             print(json.loads(createminION.text))
-
-    def create_flowcell(self, name):
-        r = requests.get(self.args.full_host+'api/v1/flowcells', headers=self.header)
-        flowcellname=name
-        if flowcellname not in r.text:
-            if self.args.GUI:
-                self.args.flowcellcount += 1
-            createflowcell = requests.post(self.args.full_host+'api/v1/flowcells/', headers=self.header, json={"name": flowcellname})
-            self.flowcelllink = json.loads(createflowcell.text)["url"]
-        else:
-            for flowcell in json.loads(r.text):
-                if flowcell["name"] == flowcellname:
-                    self.flowcelllink = flowcell["url"]
-                    break
-
-    def create_flowcell_run(self):
-        if self.args.GUI:
-            self.args.flowcellruncount += 1
-        createflowcellrun = requests.post(self.flowcelllink,headers=self.header,json={"flowcell": self.flowcelllink, "run": self.runidlink})
-
     def create_run(self, runid):
-
-        print(">>> inside create_run")
-
-        print(self.minotourapi)
-
-        print(">>> after self.minotourapi")
-
-        self.minotourapi.test()
-
-        print(">>> after self.minotourapi.test()")
 
         run = self.minotourapi.get_run_by_runid(runid)
 
-        print(run)
-
         if not run:
 
-            print(">>> no run {}".format(runid))
             #
             # get or create a flowcell
             #
             flowcell = self.minotourapi.get_flowcell_by_name(self.status_summary['flow_cell_id'])
 
-            print(flowcell)
-
             if not flowcell:
 
-                print(">>> no flowcell")
                 flowcell = self.minotourapi.create_flowcell(self.status_summary['flow_cell_id'])
 
             is_barcoded = False  # TODO do we known this info at this moment?
 
             has_fastq = True  # TODO do we known this info at this moment?
 
-            print(">>> before self.minotourapi.create_run")
+            if self.minion:
+
+                print("minion exists")
+
+            else:
+
+                print("minion does not exist")
+
             createrun = self.minotourapi.create_run(self.status_summary['run_name'], runid, is_barcoded, has_fastq, flowcell, self.minion)
-            print(">>> after self.minotourapi.create_run")
 
             # createrun = requests.post(self.args.full_host+'api/v1/runs/', headers=self.header, json={"run_name": self.status_summary['run_name'], "run_id": runid, "barcode": barcoded, "is_barcoded":is_barcoded, "minION":self.minion["url"]})
 
@@ -713,10 +661,6 @@ class MinControlAPI:
 
                 self.runidlink = createrun["url"]
                 self.runid = createrun["id"]  # TODO is it id or runid?
-                # self.runidlink = json.loads(createrun.text)["url"]
-                # self.runid = json.loads(createrun.text)["id"]
-                # self.create_flowcell(self.status_summary['flow_cell_id'])
-                # self.create_flowcell_run()
 
         else:
 
@@ -1122,7 +1066,7 @@ class HelpTheMinion(WebSocketClient):
                             # print ("port is:", port)
                             results = execute_command_as_string(commands("machine_id"), self.args.ip,
                                                            self.minIONdict[deviceid]["port"])
-                            print ("should contain the computer name" , results)
+
                             self.minIONdict[deviceid]["APIHelp"].update_minion_status(deviceid, str(results["result"]), 'active')
                         except:
                             # print ("caught it")

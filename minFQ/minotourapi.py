@@ -73,7 +73,7 @@ class MinotourAPI:
             grouprun = json.loads(req.text)
             return grouprun
 
-    def create_run(self, name, runid, is_barcoded, has_fastq, flowcell, minion = None):
+    def create_run(self, name, runid, is_barcoded, has_fastq, flowcell, minion=None):
 
         payload = {
             "name": name,
@@ -83,6 +83,13 @@ class MinotourAPI:
             "flowcell": flowcell['url']
         }
 
+        if minion:
+
+            payload.update({"minion": minion["url"]})
+
+        print('>>> create run payload')
+        print(payload)
+        print('<<< create run payload')
         req = self.post('/runs/', json=payload)
 
         if req.status_code != 201:
