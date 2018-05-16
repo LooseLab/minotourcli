@@ -73,7 +73,7 @@ class MinotourAPI:
             grouprun = json.loads(req.text)
             return grouprun
 
-    def create_run(self, name, runid, is_barcoded, has_fastq, flowcell):
+    def create_run(self, name, runid, is_barcoded, has_fastq, flowcell, minion = None):
 
         payload = {
             "name": name,
@@ -224,6 +224,44 @@ class MinotourAPI:
         if req.status_code != 201:
 
             print('Flowcell {} could not be created.'.format(name))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
+            return None
+
+        else:
+
+            return json.loads(req.text)
+
+    def get_minion_by_name(self, name):
+
+        url = '/minions/{}/'.format(name)
+
+        req = self.get(url, 'search_criteria=name')
+
+        if req.status_code != 200:
+
+            print('Did not find minion {}.'.format(name))
+            print('Status-code {}'.format(req.status_code))
+            print('Text {}'.format(req.text))
+            return None
+
+        else:
+
+            return json.loads(req.text)
+
+    def create_minion(self, name):
+
+        payload = {
+
+            'minION_name': name,
+            'name': name,
+        }
+
+        req = self.post('/minions/', json=payload)
+
+        if req.status_code != 201:
+
+            print('Minion {} could not be created.'.format(name))
             print('Status-code {}'.format(req.status_code))
             print('Text {}'.format(req.text))
             return None

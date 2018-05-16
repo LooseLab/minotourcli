@@ -521,14 +521,12 @@ class MinControlAPI:
     r.text #returns result
     """
 
-    def __init__(self, minion, args, statedict, summarystatedict, minIONdict, header):
+    def __init__(self, minion_name, args, statedict, summarystatedict, minIONdict, header):
         #print ("MinControlAPI")
         self.args = args
         self.minIONdict=minIONdict
         self.header = header
-        self.minion = minion
-        self.create_minion(self.minion)
-        self.minionidlink=self.identify_minion(self.minion)
+        # self.minion = minion
         self.runidlink = ""
         self.status_summary=dict()
         self.minstatexist=False
@@ -545,6 +543,15 @@ class MinControlAPI:
 
         self.minotourapi = MinotourAPINew(self.args.full_host, self.header)
 
+        minion = self.minotourapi.get_minion_by_name(minion_name)
+
+        if not minion:
+
+            minion = self.minotourapi.create_minion(minion_name)
+
+        self.minion = minion
+        self.minionidlink=self.identify_minion(self.minion["url"])
+
     # def header (self):
     #     return ({'Authorization': 'Token ' + self.args.api_key, 'Content-Type': 'application/json'})
 
@@ -552,76 +559,91 @@ class MinControlAPI:
         if self.args.GUI:
             self.args.minKNOWmessage = "Checking Jobs"
         #print ("checking jobs")
-        r = requests.get(self.minionidlink + 'control/', headers=self.header)
+        r = requests.get(self.minion["url"] + 'control/', headers=self.header)
         #print (r.text)
         jobs = json.loads(r.text)
         for job in jobs:
             #print (job['job'])
+
             if job["job"] == "testmessage":
-                send_message_port("minoTour is checking communication status with " + str(self.minion) + ".",
-                                  self.args.ip,self.minIONdict[self.minion]["port"])
-                r = requests.post(self.minionidlink + 'control/' + str(job["id"]) + '/', headers=self.header)
+                send_message_port("minoTour is checking communication status with " + str(self.minion['name']) + ".",
+                                  self.args.ip,self.minIONdict[self.minion['name']]["port"])
+                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print (r.text)
+
             if job["job"] == "custommessage":
-                send_message_port(str(job["custom"]),
-                                  self.args.ip,self.minIONdict[self.minion]["port"])
-                r = requests.post(self.minionidlink + 'control/' + str(job["id"]) + '/', headers=self.header)
+
+                print(self.minIONdict)
+
+                send_message_port(
+                    str(job["custom"]),
+                    self.args.ip,
+                    self.minIONdict[self.minion['name']]["port"]
+                )
+
+                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print (r.text)
+
             if job["job"] == "stopminion":
-                stoprun(self.args.ip,self.minIONdict[self.minion]["port"])
-                r = requests.post(self.minionidlink + 'control/' + str(job["id"]) + '/', headers=self.header)
+                stoprun(self.args.ip,self.minIONdict[self.minion['name']]["port"])
+                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
+
             if job["job"] == "rename":
-                renamerun(job["custom"], self.args.ip,self.minIONdict[self.minion]["port"])
-                r = requests.post(self.minionidlink + 'control/' + str(job["id"]) + '/', headers=self.header)
+                renamerun(job["custom"], self.args.ip,self.minIONdict[self.minion['name']]["port"])
+                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
+
             if job["job"] == "nameflowcell":
-                renameflowcell(job["custom"], self.args.ip,self.minIONdict[self.minion]["port"])
-                r = requests.post(self.minionidlink + 'control/' + str(job["id"]) + '/', headers=self.header)
+                renameflowcell(job["custom"], self.args.ip,self.minIONdict[self.minion['name']]["port"])
+                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
+
             if job["job"] == "stopminion":
-                stoprun(self.args.ip,self.minIONdict[self.minion]["port"])
-                r = requests.post(self.minionidlink + 'control/' + str(job["id"]) + '/', headers=self.header)
+                stoprun(self.args.ip,self.minIONdict[self.minion['name']]["port"])
+                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
+
             if job["job"] == "startminion":
-                startrun(job["custom"],self.args.ip, self.minIONdict[self.minion]["port"])
-                r = requests.post(self.minionidlink + 'control/' + str(job["id"]) + '/', headers=self.header)
+                startrun(job["custom"],self.args.ip, self.minIONdict[self.minion['name']]["port"])
+                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
+
             if job["job"] == "initialiseminion":
                 # print "Trying to initialise minION"
                 # result = helper.initialiseminion()
-                startstop('start', self.minion)
-                r = requests.post(self.minionidlink + 'control/' + str(job["id"]) + '/', headers=self.header)
+                startstop('start', self.minion['name'])
+                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
                 # execute_command_as_string(commands('initialiseminion'), self.args.ip,self.minIONdict[message["minion"]]["port"])
+
             if job["job"] == "shutdownminion":
                 # First we need to stop the minion if it is running...
                 # stoprun(self.minIONdict[message["minion"]]["port"])
                 # execute_command_as_string(commands('shutdownminion'), self.args.ip,self.minIONdict[message["minion"]]["port"])
-                startstop('stop', self.minion)
-                r = requests.post(self.minionidlink + 'control/' + str(job["id"]) + '/', headers=self.header)
+                startstop('stop', self.minion['name'])
+                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
 
 
-
-    def create_minion (self,minION):
-        if self.args.GUI:
-            self.args.minKNOWmessage = "Creating a New MinION."
-        #print("Seen a new run")
-        # Test to see if the run exists
-        #header = {'Authorization': 'Token ' + self.args.api_key, 'Content-Type': 'application/json'}
-        r = requests.get(self.args.full_host + 'api/v1/minions', headers=self.header)
-        if minION not in r.text:
-            #print ('Need to create minION:', minION)
-            createminION = requests.post(self.args.full_host + 'api/v1/minions/', headers=self.header,
-                                      json={"minION_name": minION})
-            #print(createminION.text)
-            if createminION.status_code != 201:
-                print(createminION.status_code)
-                print(createminION.text)
-                print("Houston - we have a problem!")
-            else:
-                print(json.loads(createminION.text))
+    # def create_minion (self,minION):
+    #     if self.args.GUI:
+    #         self.args.minKNOWmessage = "Creating a New MinION."
+    #     #print("Seen a new run")
+    #     # Test to see if the run exists
+    #     #header = {'Authorization': 'Token ' + self.args.api_key, 'Content-Type': 'application/json'}
+    #     r = requests.get(self.args.full_host + 'api/v1/minions', headers=self.header)
+    #     if minION not in r.text:
+    #         #print ('Need to create minION:', minION)
+    #         createminION = requests.post(self.args.full_host + 'api/v1/minions/', headers=self.header,
+    #                                   json={"minION_name": minION})
+    #         #print(createminION.text)
+    #         if createminION.status_code != 201:
+    #             print(createminION.status_code)
+    #             print(createminION.text)
+    #             print("Houston - we have a problem!")
+    #         else:
+    #             print(json.loads(createminION.text))
 
     def create_flowcell(self, name):
         r = requests.get(self.args.full_host+'api/v1/flowcells', headers=self.header)
@@ -678,10 +700,10 @@ class MinControlAPI:
             has_fastq = True  # TODO do we known this info at this moment?
 
             print(">>> before self.minotourapi.create_run")
-            createrun = self.minotourapi.create_run(self.status_summary['run_name'], runid, is_barcoded, has_fastq, flowcell)
+            createrun = self.minotourapi.create_run(self.status_summary['run_name'], runid, is_barcoded, has_fastq, flowcell, self.minion)
             print(">>> after self.minotourapi.create_run")
 
-            # createrun = requests.post(self.args.full_host+'api/v1/runs/', headers=self.header, json={"run_name": self.status_summary['run_name'], "run_id": runid, "barcode": barcoded, "is_barcoded":is_barcoded, "minION":self.minionidlink})
+            # createrun = requests.post(self.args.full_host+'api/v1/runs/', headers=self.header, json={"run_name": self.status_summary['run_name'], "run_id": runid, "barcode": barcoded, "is_barcoded":is_barcoded, "minION":self.minion["url"]})
 
             if not createrun:
 
@@ -702,37 +724,43 @@ class MinControlAPI:
 
         self.update_minion_run_stats()
 
-    def update_minion_run_stats (self):
-        payload = {"minION": self.minionidlink,
-                   "minKNOW_current_script": self.status_summary['current_script'],
-                   "minKNOW_sample_name": self.status_summary['sample_name'],
-                   "minKNOW_exp_script_purpose": self.status_summary['exp_script_purpose'],
-                   "minKNOW_flow_cell_id": self.status_summary['flow_cell_id'],
-                   "minKNOW_run_name": self.status_summary['run_name'],
-                   "run_id": self.runidlink,
-                   "minKNOW_version": self.status_summary['minKNOW_version'],
-                   "minKNOW_hash_run_id": self.status_summary['hash_run_id'],
-                   "minKNOW_script_run_id": self.status_summary['script_run_id'],
-                   "minKNOW_real_sample_rate": self.status_summary['real_sample_rate'],
-                   "minKNOW_asic_id": self.status_summary['asic_id'],
-                   "minKNOW_start_time": self.status_summary['start_time'],
-                   "minKNOW_colours_string": self.status_summary['colour_data'],
-                   "minKNOW_computer": self.computer,
-                   }
-        createminIONRunStatus = requests.post(self.runidlink + 'rundetails/', headers=self.header,
-                                           json=payload)
+    def update_minion_run_stats(self):
+
+        payload = {
+            "minION": self.minion["url"],
+            "minKNOW_current_script": self.status_summary['current_script'],
+            "minKNOW_sample_name": self.status_summary['sample_name'],
+            "minKNOW_exp_script_purpose": self.status_summary['exp_script_purpose'],
+            "minKNOW_flow_cell_id": self.status_summary['flow_cell_id'],
+            "minKNOW_run_name": self.status_summary['run_name'],
+            "run_id": self.runidlink,
+            "minKNOW_version": self.status_summary['minKNOW_version'],
+            "minKNOW_hash_run_id": self.status_summary['hash_run_id'],
+            "minKNOW_script_run_id": self.status_summary['script_run_id'],
+            "minKNOW_real_sample_rate": self.status_summary['real_sample_rate'],
+            "minKNOW_asic_id": self.status_summary['asic_id'],
+            "minKNOW_start_time": self.status_summary['start_time'],
+            "minKNOW_colours_string": self.status_summary['colour_data'],
+            "minKNOW_computer": self.computer,
+        }
+
+        requests.post(
+            self.runidlink + 'rundetails/',
+            headers=self.header,
+            json=payload
+        )
 
     def update_message(self,messagestring):
-        payload = {"minION":self.minionidlink,
+        payload = {"minION":self.minion["url"],
                    "run_id":self.runidlink,
                    "minKNOW_message":messagestring["message"],
                    "minKNOW_identifier": messagestring["identifier"],
                    "minKNOW_severity": messagestring["severity"],
                    "minKNOW_message_timestamp": messagestring["timestamp"],
         }
-        #print (self.minionidlink + 'messages/')
+        #print (self.minion["url"] + 'messages/')
         #print (payload)
-        createminIONStatus = requests.post(self.minionidlink + 'messages/', headers=self.header,
+        createminIONStatus = requests.post(self.minion["url"] + 'messages/', headers=self.header,
                                            json=payload)
 
 
@@ -773,7 +801,7 @@ class MinControlAPI:
             self.status_summary['bin_width']=livedata["get_seq_metrics"]["result"]["read_event_count_weighted_hist_bin_width"]
             self.status_summary['read_count'] = livedata["get_seq_metrics"]["result"]["selected_completed_count"]
 
-            payload = {"minION": self.minionidlink,
+            payload = {"minION": self.minion["url"],
                     "minKNOW_status": self.status_summary['status'],
                     "minKNOW_current_script": self.status_summary['current_script'],
                     "minKNOW_sample_name": self.status_summary['sample_name'],
@@ -790,14 +818,14 @@ class MinControlAPI:
                     "minKNOW_warnings": self.status_summary['recommend_alert'],
                 }
             if self.minstatexist is False:
-                r = requests.get(self.minionidlink + 'status/', headers=self.header)
+                r = requests.get(self.minion["url"] + 'status/', headers=self.header)
                 if r.status_code == 200:
                     self.minstatexist = True
                 else:
-                    createminIONStatus = requests.post(self.minionidlink + 'status/', headers=self.header,
+                    createminIONStatus = requests.post(self.minion["url"] + 'status/', headers=self.header,
                                                       json=payload)
             else:
-                createminIONStatus = requests.put(self.minionidlink + 'status/', headers=self.header,
+                createminIONStatus = requests.put(self.minion["url"] + 'status/', headers=self.header,
                                              json=payload)
             if self.status_summary['status'] == 'processing':
 
@@ -863,7 +891,7 @@ class MinControlAPI:
                     openpore = 0
                     instrand = 0
 
-                payload = {"minION": self.minionidlink,
+                payload = {"minION": self.minion["url"],
                    "run_id": self.runidlink,
                    "sample_time": str(datetime.datetime.now()),
                    "event_yield": int(livedata['get_seq_metrics']['result']['read_event_count']),
@@ -889,7 +917,7 @@ class MinControlAPI:
 
     def update_minion_status (self,minION,computer,status):
         self.computer = computer
-        #print (self.minionidlink)
+        #print (self.minion["url"])
         #Second get id of status we are looking for:
         statusidlink=""
         r = requests.get(self.args.full_host + 'api/v1/events', headers=self.header)
@@ -898,12 +926,18 @@ class MinControlAPI:
             if info["name"] == status:
                 #print(info)
                 statusidlink= info["url"]
-        updatestatus = requests.post(self.minionidlink + "events/", headers=self.header,
-                                     json={"computer_name": computer, "datetime": str(datetime.datetime.now()), "event": str(urlparse(statusidlink).path),"minION": str(urlparse(self.minionidlink).path)})
+
+        payload = {"computer_name": computer, "datetime": str(datetime.datetime.now()), "event": str(urlparse(statusidlink).path),"minION": str(self.minion["url"])}
+
+        updatestatus = requests.post(
+            self.minion["url"] + "events/",
+            headers=self.header,
+            json=payload
+        )
         #print (updatestatus.text)
 
     def check_scripts(self,minION):
-        r=requests.get(self.minionidlink + 'scripts/', headers = self.header)
+        r=requests.get(self.minion["url"] + 'scripts/', headers = self.header)
         self.scripts=r.text
 
     def update_script(self,minION,script):
@@ -915,7 +949,7 @@ class MinControlAPI:
         if script["name"] not in self.scripts:
             #so script is not present.
             payload=dict()
-            payload["minION"]=self.minionidlink
+            payload["minION"]=self.minion["url"]
             payload["identifier"]= script["identifier"]
             payload["name"]= script["name"]
             if "experiment type" in script["tags"].keys():
@@ -927,7 +961,7 @@ class MinControlAPI:
             if "kit" in script["tags"].keys():
                 payload["kit"]=script["tags"]["kit"]
             #print ("PAYLOAD", payload)
-            updatestate = requests.post(self.minionidlink + 'scripts/', json=payload, headers=self.header)
+            updatestate = requests.post(self.minion["url"] + 'scripts/', json=payload, headers=self.header)
         else:
             #so script exists, but is the identifier the same or different?
             #print ("so script exists, but is the identifier the same or different?")
@@ -939,7 +973,7 @@ class MinControlAPI:
                     if script["name"] in str(element):
                         #print (element)
                         payload = dict()
-                        payload["minION"] = self.minionidlink
+                        payload["minION"] = self.minion["url"]
                         payload["identifier"] = script["identifier"]
                         payload["name"] = script["name"]
                         if "experiment type" in script["tags"].keys():
@@ -950,7 +984,7 @@ class MinControlAPI:
                             payload["base_calling"] = script["tags"]["base calling"]
                         if "kit" in script["tags"].keys():
                             payload["kit"] = script["tags"]["kit"]
-                        update = requests.put(self.minionidlink + "scripts/" + str(element["id"]) + "/", json=payload, headers=self.header )
+                        update = requests.put(self.minion["url"] + "scripts/" + str(element["id"]) + "/", json=payload, headers=self.header )
                         #print (update.text)
             else:
                 pass
@@ -1369,9 +1403,15 @@ class HelpTheMinion(WebSocketClient):
                                                                                           self.minIONdict[minION]['detailsdata'],
                                                                                           self.minIONdict[minION]["simplesummary"],
                                                                                           self.minIONdict[minION]["channelstuff"])
-                                        self.minIONdict[minION]["APIHelp"].check_jobs(minION)
-                                    except:
+                                    except Exception as exception:
                                         print ("update failed")
+                                        print(">>> Exception")
+                                        print(exception)
+                                        print("<<< Exception")
+
+
+                                    self.minIONdict[minION]["APIHelp"].check_jobs(minION)
+
                             else:  # minION state is inactive
                                 # print minION, "INACTIVE"
                                 if minION in self.minIONclassdict:
