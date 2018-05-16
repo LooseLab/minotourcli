@@ -97,6 +97,8 @@ class Runcollection():
 
                 self.readnames.append(read)
 
+        print("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
+
     def add_run(self, descriptiondict):
 
         self.args.fastqmessage = "Adding run."
@@ -174,6 +176,8 @@ class Runcollection():
                 item['name']: item['url']
             })
 
+        self.get_readnames_by_run()
+
     def commit_reads(self):
 
         self.minotourapi.create_reads(self.read_list)
@@ -246,3 +250,4 @@ class Runcollection():
                 self.commit_reads()
 
             self.readcount += 1
+
