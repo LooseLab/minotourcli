@@ -36,7 +36,10 @@ setup(
                       'numpy',
                       'watchdog',
                       'ws4py',
-                      'configargparse'
+                      'configargparse',
+                      'grpcio',
+                      'google',
+                      'protobuf'
                       ],
     package_data={'minFQ': []},
     package_dir={'minFQ': 'minFQ'},

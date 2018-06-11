@@ -1,11 +1,18 @@
 import os
 import platform
 import sys
+root_directory = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0,os.path.join(root_directory, 'rpc'))
+print (sys.path)
+#sys.path.append(os.path.join(root_directory, 'minFQ'))
+#sys.path.append(os.path.join(root_directory, 'minFQ', 'rpc'))
+#print (os.path.join(root_directory, 'minFQ', 'rpc'))
 import time
 import threading
 
 from minFQ.fastqutils import FastqHandler
 from minFQ.minknowcontrolutils import HelpTheMinion
+from minFQ.minknowconnection import MinknowConnect
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
