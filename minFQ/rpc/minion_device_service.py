@@ -2,7 +2,7 @@
 from .minion_device_pb2_grpc import *
 import minion_device_pb2
 from .minion_device_pb2 import *
-from rpc._support import MessageWrapper, ArgumentError
+from ._support import MessageWrapper, ArgumentError
 
 __all__ = [
     "MinionDeviceService",

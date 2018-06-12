@@ -2,7 +2,7 @@
 from .keystore_pb2_grpc import *
 import keystore_pb2
 from .keystore_pb2 import *
-from rpc._support import MessageWrapper, ArgumentError
+from ._support import MessageWrapper, ArgumentError
 
 __all__ = [
     "KeyStoreService",

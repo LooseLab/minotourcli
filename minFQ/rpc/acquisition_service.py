@@ -2,7 +2,7 @@
 from .acquisition_pb2_grpc import *
 import acquisition_pb2
 from .acquisition_pb2 import *
-from rpc._support import MessageWrapper, ArgumentError
+from ._support import MessageWrapper, ArgumentError
 
 __all__ = [
     "AcquisitionService",

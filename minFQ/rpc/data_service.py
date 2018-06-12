@@ -2,7 +2,7 @@
 from .data_pb2_grpc import *
 import data_pb2
 from .data_pb2 import *
-from rpc._support import MessageWrapper, ArgumentError
+from ._support import MessageWrapper, ArgumentError
 
 __all__ = [
     "DataService",
