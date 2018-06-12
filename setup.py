@@ -39,8 +39,9 @@ setup(
                       'configargparse',
                       'grpcio',
                       'google',
-                      'protobuf'
-                      ],
+                      'protobuf',
+                      'pandas',  
+                     ],
     package_data={'minFQ': []},
     package_dir={'minFQ': 'minFQ'},
     include_package_data=True,
