@@ -599,10 +599,7 @@ class MinControlAPI:
                 r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
 
-            if job["job"] == "stopminion":
-                stoprun(self.args.ip,self.minIONdict[self.minion['name']]["port"])
-                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
-                #print(r.text)
+
 
             if job["job"] == "startminion":
                 startrun(job["custom"],self.args.ip, self.minIONdict[self.minion['name']]["port"])

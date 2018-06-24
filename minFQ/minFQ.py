@@ -3,7 +3,7 @@ import platform
 import sys
 root_directory = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0,os.path.join(root_directory, 'rpc'))
-print (sys.path)
+#print (sys.path)
 #sys.path.append(os.path.join(root_directory, 'minFQ'))
 #sys.path.append(os.path.join(root_directory, 'minFQ', 'rpc'))
 #print (os.path.join(root_directory, 'minFQ', 'rpc'))
@@ -17,6 +17,7 @@ import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
 from minFQ.minotourapi import MinotourAPI
+from minFQ.minknowconnection import MinknowConnect
 
 CLIENT_VERSION = '1.0'
 
@@ -224,8 +225,11 @@ def main():
         if not args.noMinKNOW:
             # this block is going to handle the running of minControl.
             minwsip = "ws://" + args.ip + ":9500/"
-            helper = HelpTheMinion(minwsip, args, header)
-            helper.connect()
+            #helper = HelpTheMinion(minwsip, args, header)
+            #helper.connect()
+
+            MinKNOWConnection = MinknowConnect(minwsip, args, header)
+            MinKNOWConnection.connect()
 
         try:
 
@@ -233,11 +237,11 @@ def main():
 
                 observer.start()
 
-            if not args.noMinKNOW:
+            #if not args.noMinKNOW:
 
-                t = threading.Thread(target=helper.process_minion())
-                t.daemon = True
-                t.start()
+                #t = threading.Thread(target=helper.process_minion())
+                #t.daemon = True
+                #t.start()
 
             while 1:
 
@@ -248,8 +252,10 @@ def main():
             print(": Exiting")
 
             if not args.noMinKNOW:
-                helper.mcrunning = False
-                helper.hang_up()
+                #helper.mcrunning = False
+                #helper.hang_up()
+                pass
+            MinKNOWConnection.disconnect_nicely()
 
             if not args.noFastQ:
                 observer.stop()

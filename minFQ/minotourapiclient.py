@@ -3,10 +3,13 @@ A class to handle the collection of run statistics and information from fastq fi
 """
 import json
 import sys
+import datetime
 
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from urllib.parse import urlparse
+
 
 
 # https://www.peterbe.com/plog/best-practice-with-retries-with-requests
