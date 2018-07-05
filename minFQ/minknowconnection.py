@@ -19,6 +19,9 @@ from minFQ.minotourutils import determinetype, parse_ports
 from minFQ.minotourapi import MinotourAPI as MinotourAPINew
 from google.protobuf.json_format import MessageToJson
 
+
+rpc._load()
+
 #from minotourAPI import
 
 class DeviceConnect(WebSocketClient):
@@ -580,22 +583,22 @@ class MinknowConnect(WebSocketClient):
                         """
                         port = minIONports[0]
                         ws_longpoll_port = minIONports[1]
-                        ws_event_sampler_port = minIONports[2]
-                        ws_raw_data_sampler_port = minIONports[3]
-                        grpc_port = minIONports[4]
-                        grpc_web_port = minIONports[5]
+                        #ws_event_sampler_port = minIONports[2]
+                        ws_raw_data_sampler_port = minIONports[2]
+                        grpc_port = minIONports[3]
+                        grpc_web_port = minIONports[4]
                     except:
                         minIONports = list(map(lambda x: x - 192 + 8000 + 128, filter(lambda x: x > 120, map(ord, thing))))
                         self.minIONdict[deviceid]["state"] = "active"
                         port = minIONports[0]
                         ws_longpoll_port = minIONports[1]
-                        ws_event_sampler_port = minIONports[2]
-                        ws_raw_data_sampler_port = minIONports[3]
-                        grpc_port = minIONports[4]
-                        grpc_web_port = minIONports[5]
+                        #ws_event_sampler_port = minIONports[2]
+                        ws_raw_data_sampler_port = minIONports[2]
+                        grpc_port = minIONports[3]
+                        grpc_web_port = minIONports[4]
                     self.minIONdict[deviceid]["port"] = port
                     self.minIONdict[deviceid]["ws_longpoll_port"] = ws_longpoll_port
-                    self.minIONdict[deviceid]["ws_event_sampler_port"] = ws_event_sampler_port
+                    #self.minIONdict[deviceid]["ws_event_sampler_port"] = ws_event_sampler_port
                     self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ws_raw_data_sampler_port
                     self.minIONdict[deviceid]["grpc_port"] = grpc_port
                     self.minIONdict[deviceid]["grpc_web_port"] = grpc_web_port
@@ -615,7 +618,7 @@ class MinknowConnect(WebSocketClient):
                     self.minIONdict[deviceid]["state"] = "inactive"
                     self.minIONdict[deviceid]["port"] = ""
                     self.minIONdict[deviceid]["ws_longpoll_port"] = ""
-                    self.minIONdict[deviceid]["ws_event_sampler_port"] = ""
+                    #self.minIONdict[deviceid]["ws_event_sampler_port"] = ""
                     self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ""
                     self.minIONdict[deviceid]["grpc_port"] = ""
                     self.minIONdict[deviceid]["grpc_web_port"] = ""

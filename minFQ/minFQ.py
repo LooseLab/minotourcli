@@ -1,8 +1,37 @@
 import os
 import platform
 import sys
+import fnmatch, shutil, platform
+import fileinput
+
+
 root_directory = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0,os.path.join(root_directory, 'rpc'))
+
+"""We are setting up the code to copy and import the rpc service from minKNOW and make
+it work on our own code. This prevents us from having to distribute ONT code ourselves."""
+
+def copyfiles(srcdir, dstdir, filepattern):
+    def failed(exc):
+        raise exc
+
+    for dirpath, dirs, files in os.walk(srcdir, topdown=True, onerror=failed):
+        for file in fnmatch.filter(files, filepattern):
+            shutil.copy2(os.path.join(dirpath, file), dstdir)
+        break # no recursion
+
+def editfile(filename,text_to_search,replacement_text):
+    with fileinput.FileInput(filename, inplace=True, backup='.bak') as file:
+        for line in file:
+            print(line.replace(text_to_search, replacement_text), end='')
+
+dstdir = "rpc2"
+
+
+
+
+
+
 #print (sys.path)
 #sys.path.append(os.path.join(root_directory, 'minFQ'))
 #sys.path.append(os.path.join(root_directory, 'minFQ', 'rpc'))

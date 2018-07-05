@@ -12,7 +12,7 @@ class StatusWatcher(object):
     be immediately notified that the stream has been cancelled
 
     >>> watcher = StatusWatcher(rpc_connection)
-    >>> msgs = rpc.acquisition_service
+    >>> msgs = minFQ.rpc.acquisition_service
     >>> for status in status_watcher.wait():
     >>>     if status.status == msgs.PROCESSING:
     >>>         connection.acquisition.stop(data_action_on_stop=msgs.StopRequest.STOP_KEEP_ALL_DATA, wait_until_ready=True)

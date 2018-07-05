@@ -1,1 +1,5 @@
 **/*pyc
+
+#Ignore python files in the rpc folder
+minFQ/rpc/
+!minFQ/rpc/README.txt

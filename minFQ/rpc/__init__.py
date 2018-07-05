@@ -15,7 +15,7 @@ The core class is :py:class:`Connection` - this provides a connection to MinKNOW
 property for each service.
 
 For each service, the related Protobuf messages are available from
-``rpc.<service>_service``, or as ``connection.<service>._pb``
+``minFQ.rpc.<service>_service``, or as ``connection.<service>._pb``
 (if ``connection`` is a Connection object).
 
 
@@ -93,13 +93,27 @@ from .wrappers import StatusWatcher
 
 # Convenience imports for each service
 import importlib
-for svc in _services:
-    try:
-        # effectively does `import .{svc}_service as {svc}_service`
-        vars()[svc + '_service'] = importlib.import_module('.{}_service'.format(svc), __name__)
-    except ImportError:
-        if svc not in _optional_services:
-            raise
+
+# The reason this _load function has to be here (and not just run as part of the init setup) is because trying
+# to import the grpc services will eventually try to access the minFQ.rpc submodule before we have created it.
+#
+# For example, acquisition_service.py will load acquisition_pb2_grpc.py, which will try to run:
+#       `import minFQ.rpc.acquisition_pb2 as minknow_dot_rpc_dot_acquisition__pb2`
+#
+# The `import minFQ.rpc` part is the problem here. Because we are in the rpc module's __init__.py, we are trying to create the module,
+# so naturally trying to reference that module before it has been fully loaded results in an AttributeError saying the minknow module has no
+# attribute 'rpc'
+#
+# The fix is to first load the rpc module and and then call this _load() function which will load the services after the rpc module.
+loaded_services = {}
+def _load():
+    for svc in _services:
+        try:
+            # effectively does `import .{svc}_service as {svc}_service`
+            loaded_services[svc] = importlib.import_module('.{}_service'.format(svc), __name__)
+        except ImportError:
+            if svc not in _optional_services:
+                raise
 
 
 logger = logging.getLogger(__name__)
