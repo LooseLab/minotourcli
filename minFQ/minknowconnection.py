@@ -134,7 +134,7 @@ class DeviceConnect(WebSocketClient):
             print("RUNID",self.runinformation.start_time)
             print(self.channelstatesdesc)
             print(self.channels)
-            print("FLOWCELL DATA", self.flowcelldata.user_specified_flow_cell_id)
+            print("FLOWCELL DATA", self.get_flowcell_id())
         self.create_run(self.runinformation.run_id)
 
         self.update_minion_run_info()
@@ -146,7 +146,7 @@ class DeviceConnect(WebSocketClient):
             "minKNOW_current_script": str(self.rpc_connection.protocol.get_run_info().protocol_id),
             "minKNOW_sample_name": str(self.sampleid.sample_id),
             "minKNOW_exp_script_purpose": str(self.rpc_connection.protocol.get_protocol_purpose()),
-            "minKNOW_flow_cell_id": str(self.flowcelldata.user_specified_flow_cell_id),
+            "minKNOW_flow_cell_id": self.get_flowcell_id(),
             "minKNOW_run_name": str(self.sampleid.sample_id),
             "run_id": str(self.runidlink),
             "minKNOW_version": str(self.rpc_connection.instance.get_version_info().minknow.full),
@@ -298,12 +298,22 @@ class DeviceConnect(WebSocketClient):
         """
         pass
 
+    def get_flowcell_id(self):
+        if len(self.flowcelldata.user_specified_flow_cell_id) > 0:
+            print ("We have a self named flowcell")
+            return str(self.flowcelldata.user_specified_flow_cell_id)
+        else:
+            print ("the flowcell id is fixed")
+            return str(self.flowcelldata.flow_cell_id)
+
+
     def flowcellmonitor(self):
         while True:
             flowcellinfo = self.rpc_connection.device.stream_flow_cell_info()
             for event in flowcellinfo:
                 print (event)
                 self.flowcelldata = event
+                print (self.get_flowcell_id())
                 self.update_minion_status()
 
     def newchannelstatemonitor(self):
@@ -354,12 +364,14 @@ class DeviceConnect(WebSocketClient):
 
         acquisition_data = self.acquisition_data
 
+
+
         payload = {"minION": str(self.minion["url"]),
                    "minKNOW_status": acquisition_data['state'],
                    "minKNOW_current_script": str(self.rpc_connection.protocol.get_run_info().protocol_id),
                    #"minKNOW_sample_name": None,
                    "minKNOW_exp_script_purpose": str(self.rpc_connection.protocol.get_protocol_purpose()),
-                   "minKNOW_flow_cell_id": str(self.flowcelldata.user_specified_flow_cell_id),
+                   "minKNOW_flow_cell_id": self.get_flowcell_id(),
                    #"minKNOW_run_name": str(self.sampleid.sample_id),
                    #"minKNOW_hash_run_id": str(self.runinformation.run_id),
                    #"minKNOW_script_run_id": str(

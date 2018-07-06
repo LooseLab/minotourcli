@@ -29,6 +29,7 @@ def editfile(filename,text_to_search,replacement_text):
         for line in file:
             print(line.replace(text_to_search, replacement_text), end='')
 
+
 dstRPC = "rpc"
 
 OPER = platform.system()
@@ -41,6 +42,10 @@ else:
     print ("No RPC")
     if OPER == "Darwin":
         minknowbase = os.path.join(os.sep,'Applications','MinKNOW.app','Contents','Resources')
+    elif OPER == "Linux":
+        minknowbase = os.path.join(os.sep,'opt','ONT','MinKNOW')
+    elif OPER == "Windows":
+        minknowbase = os.path.join(os.sep,"Program Files",'OxfordNanopore','MinKNOW')
     else:
         print ("Not configured for {} yet. Sorry.".format(OPER))
         sys.exit()
