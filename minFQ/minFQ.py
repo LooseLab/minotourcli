@@ -17,7 +17,7 @@ it work on our own code. This prevents us from having to distribute ONT code our
 def copyfiles(srcdir, dstdir, filepattern):
     def failed(exc):
         raise exc
-
+    dstdir = os.path.join(root_directory,dstdir)
     for dirpath, dirs, files in os.walk(srcdir, topdown=True, onerror=failed):
         for file in fnmatch.filter(files, filepattern):
             shutil.copy2(os.path.join(dirpath, file), dstdir)
@@ -51,6 +51,7 @@ else:
         sys.exit()
     sourceRPC = os.path.join(minknowbase,RPCPATH)
     copyfiles(sourceRPC,dstRPC,'*.py')
+    print ('RPC Configured')
 
 
 sys.path.insert(0,os.path.join(root_directory, 'rpc'))
