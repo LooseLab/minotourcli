@@ -20,6 +20,11 @@ from minFQ.minotourapi import MinotourAPI as MinotourAPINew
 from google.protobuf.json_format import MessageToJson
 
 
+def parsemessage(message):
+    return json.loads(MessageToJson(message, preserving_proto_field_name=True, including_default_value_fields=True))
+
+
+
 rpc._load()
 
 #from minotourAPI import
@@ -35,7 +40,7 @@ class DeviceConnect(WebSocketClient):
         self.rpc_connection=rpcconnection
         self.header=header
         self.args = args
-        self.channels = self.rpc_connection.device.get_flow_cell_info().channel_count
+        self.channels = parsemessage(self.rpc_connection.device.get_flow_cell_info())['channel_count']
         self.channelstatesdesc = self.rpc_connection.analysis_configuration.get_channel_states_desc()
         self.channelstates = dict()
         for i in range(self.channels):
@@ -153,12 +158,21 @@ class DeviceConnect(WebSocketClient):
             "minKNOW_hash_run_id": str(self.runinformation.run_id),
             "minKNOW_script_run_id": str(self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0]),
             "minKNOW_real_sample_rate": int(str(self.rpc_connection.device.get_sample_rate().sample_rate            )),
-            #"minKNOW_asic_id": self.status_summary['asic_id'],
+            "minKNOW_asic_id": self.flowcelldata['asic_id'],
             "minKNOW_start_time": self.runinformation.start_time.ToDatetime().strftime('%Y-%m-%d %H:%M:%S'),
             #"minKNOW_colours_string": str(self.rpc_connection.analysis_configuration.get_channel_states_desc()),
             "minKNOW_colours_string": str(MessageToJson(self.rpc_connection.analysis_configuration.get_channel_states_desc(), preserving_proto_field_name=True, including_default_value_fields=True)),
             "minKNOW_computer": str(self.computer_name),
         }
+
+        contextinfo = parsemessage(self.rpc_connection.protocol.get_context_info())['context_info']
+        for k, v in contextinfo.items():
+            payload[k]=v
+
+        ruinfo = parsemessage(self.rpc_connection.protocol.get_run_info())
+
+        payload['experiment_id']=ruinfo['user_info']['protocol_group_id']
+
         if self.args.verbose:
             print (">>>>>>>>", payload)
         updateruninfo = self.minotourapi.update_minion_run_info(payload,self.runid)
@@ -191,14 +205,14 @@ class DeviceConnect(WebSocketClient):
             #
             # get or create a flowcell
             #
-            flowcell = self.minotourapi.get_flowcell_by_name(self.flowcelldata.user_specified_flow_cell_id)
+            flowcell = self.minotourapi.get_flowcell_by_name(self.get_flowcell_id())
             if self.args.verbose:
                 print(flowcell)
 
             if not flowcell:
                 if self.args.verbose:
                     print(">>> no flowcell")
-                flowcell = self.minotourapi.create_flowcell(self.flowcelldata.user_specified_flow_cell_id)
+                flowcell = self.minotourapi.create_flowcell(self.get_flowcell_id())
 
             is_barcoded = False  # TODO do we known this info at this moment? This can be determined from run info.
 
@@ -299,12 +313,12 @@ class DeviceConnect(WebSocketClient):
         pass
 
     def get_flowcell_id(self):
-        if len(self.flowcelldata.user_specified_flow_cell_id) > 0:
+        if len(self.flowcelldata['user_specified_flow_cell_id']) > 0:
             print ("We have a self named flowcell")
-            return str(self.flowcelldata.user_specified_flow_cell_id)
+            return str(self.flowcelldata['user_specified_flow_cell_id'])
         else:
             print ("the flowcell id is fixed")
-            return str(self.flowcelldata.flow_cell_id)
+            return str(self.flowcelldata['flow_cell_id'])
 
 
     def flowcellmonitor(self):
@@ -312,7 +326,7 @@ class DeviceConnect(WebSocketClient):
             flowcellinfo = self.rpc_connection.device.stream_flow_cell_info()
             for event in flowcellinfo:
                 print (event)
-                self.flowcelldata = event
+                self.flowcelldata = parsemessage(event)
                 print (self.get_flowcell_id())
                 self.update_minion_status()
 
@@ -378,7 +392,7 @@ class DeviceConnect(WebSocketClient):
                    #    self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0]),
                    "minKNOW_real_sample_rate": int(
                        str(self.rpc_connection.device.get_sample_rate().sample_rate)),
-                   "minKNOW_asic_id": "",  # self.status_summary['asic_id'],
+                   "minKNOW_asic_id": self.flowcelldata['asic_id'],  # self.status_summary['asic_id'],
                    "minKNOW_total_drive_space": self.disk_space_info["filesystem_disk_space_info"][0]["bytes_capacity"],
                    "minKNOW_disk_space_till_shutdown": self.disk_space_info["filesystem_disk_space_info"][0]["bytes_when_alert_issued"],
                    "minKNOW_disk_available": self.disk_space_info["filesystem_disk_space_info"][0]["bytes_available"],
