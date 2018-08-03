@@ -1,6 +1,7 @@
 """
 File Routines for handling fastq files and monitoring locations. Built on watchdog.
 """
+import logging
 import os,sys
 import threading
 import time
@@ -12,6 +13,8 @@ from minFQ.minotourapiclient import Runcollection
 from Bio import SeqIO
 from watchdog.events import FileSystemEventHandler
 
+
+log = logging.getLogger(__name__)
 
 def check_is_pass(path):
 
@@ -42,6 +45,8 @@ def parse_fastq_description(description):
 
 
 def parse_fastq_record(record, fastq, rundict, args, header):
+
+    log.info("Parsing reads from file {}".format(fastq))
 
     fastq_read = {}
 
@@ -102,6 +107,8 @@ def parse_fastq_record(record, fastq, rundict, args, header):
 
 def parse_fastq_file(fastq, rundict, args, header):
 
+    log.info("Parsing fastq file {}".format(fastq))
+
     counter = 0
 
     if fastq.endswith(".gz"):
@@ -130,20 +137,34 @@ def parse_fastq_file(fastq, rundict, args, header):
 
         rundict[runs].commit_reads()
 
-def file_dict_of_folder_simple(path,args):
+def file_dict_of_folder_simple(path, args):
+
     file_list_dict = dict()
+    
     counter = 0
+    
     if os.path.isdir(path):
-        print("caching existing fastq files in: %s" % (path))
+    
+        log.info("caching existing fastq files in: %s" % (path))
+    
         args.fastqmessage = "caching existing fastq files in: %s" % (path)
+    
         for path, dirs, files in os.walk(path):
+            
             for f in files:
+            
                 counter += 1
+            
                 if (f.endswith(".fastq") or f.endswith(".fastq.gz")):
+            
                     file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
-    print("processed %s files" % (counter))
+    
+    log.info("processed %s files" % (counter))
+    
     args.fastqmessage = "processed %s files" % (counter)
-    print("found %d existing fastq files to process first." % (len(file_list_dict)))
+    
+    log.info("found %d existing fastq files to process first." % (len(file_list_dict)))
+    
     return file_list_dict
 
 

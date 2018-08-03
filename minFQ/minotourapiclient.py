@@ -1,9 +1,11 @@
 """
-A class to handle the collection of run statistics and information from fastq files and upload to minotour.
+A class to handle the collection of run statistics and information 
+from fastq files and upload to minotour.
 """
-import json
-import sys
 import datetime
+import json
+import logging
+import sys
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -11,6 +13,7 @@ from requests.packages.urllib3.util.retry import Retry
 from urllib.parse import urlparse
 
 
+log = logging.getLogger(__name__)
 
 # https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 def requests_retry_session(
@@ -39,6 +42,8 @@ from minFQ.minotourapi import MinotourAPI
 class Runcollection():
 
     def __init__(self, args, header):
+
+        log.info("Initialising Runcollection")
 
         self.base_url = args.full_host
 
@@ -69,6 +74,7 @@ class Runcollection():
 
         self.read_type_list = read_type_dict
 
+
     def get_readnames_by_run(self):
 
         # TODO move this function to MinotourAPI class.
@@ -84,23 +90,25 @@ class Runcollection():
 
         number_pages = readname_list['number_pages']
 
-        self.args.fastqmessage = "Fetching reads to check if we've uploaded these before."
+        log.info("Fetching reads to check if we've uploaded these before.")
 
         #for page in tqdm(range(number_pages)):
         for page in range(number_pages):
 
             self.args.fastqmessage = "Fetching {} of {} pages.".format(page,number_pages)
 
-            url += '?page={}'.format(page)
+            new_url = url + '?page={}'.format(page)
 
-            content = requests.get(url, headers=self.header)
+            content = requests.get(new_url, headers=self.header)
+
+            log.info("Requesting {}".format(new_url))
 
             # We have to recover the data component and loop through that to get the read names.
             for read in json.loads(content.text)["data"]:
 
                 self.readnames.append(read)
 
-        print("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
+        log.info("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
 
     def add_run(self, descriptiondict):
 
@@ -248,6 +256,8 @@ class Runcollection():
                 self.args.qualitysum += fastq_read_payload['quality_average']
 
             self.read_list.append(fastq_read_payload)
+
+            log.info('Checking read_list size {} - {}'.format(len(self.read_list), self.batchsize))
 
             if len(self.read_list) >= self.batchsize:
                 self.commit_reads()

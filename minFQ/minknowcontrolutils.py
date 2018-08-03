@@ -7,6 +7,8 @@ import json
 import os
 import sys
 import time
+import logging
+
 from urllib.parse import urlparse
 
 import requests
@@ -15,7 +17,11 @@ from ws4py.client.threadedclient import WebSocketClient
 from minFQ.channelmaps import chanlookup_type
 from minFQ.minotourapi import MinotourAPI as MinotourAPINew
 
-global channel_data
+
+log = logging.getLogger(__name__)
+
+global channel_data  # TODO does it need to be global?
+
 channel_data=dict()
 
 def startstop(command,minION):

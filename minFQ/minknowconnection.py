@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import datetime
 import time
+import logging
 
 from ws4py.client.threadedclient import WebSocketClient
 from minFQ.minotourutils import determinetype, parse_ports
@@ -19,6 +20,8 @@ from minFQ.minotourutils import determinetype, parse_ports
 from minFQ.minotourapi import MinotourAPI as MinotourAPINew
 from google.protobuf.json_format import MessageToJson
 
+
+log = logging.getLogger(__name__)
 
 def parsemessage(message):
     return json.loads(MessageToJson(message, preserving_proto_field_name=True, including_default_value_fields=True))

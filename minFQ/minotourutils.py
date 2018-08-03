@@ -1,9 +1,12 @@
 import gzip
+import logging
 
 from Bio import SeqIO
 
 from minFQ.minotourapiclient import Runcollection
 
+
+log = logging.getLogger(__name__)
 
 def parsefastq(fastq, rundict, args, header):
 

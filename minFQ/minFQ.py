@@ -3,16 +3,26 @@ import platform
 import sys
 import fnmatch, shutil, platform
 import fileinput
-
+import logging
+import logging.handlers
 import time
 import threading
 
 
+logging.basicConfig(
+    format='%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s',
+    filename='minFQ.log', 
+    level=os.environ.get('LOGLEVEL', 'INFO')
+)
 
-root_directory = os.path.dirname(os.path.realpath(__file__))
+log = logging.getLogger(__name__)
+
+log.info("Initialising minFQ.")
 
 """We are setting up the code to copy and import the rpc service from minKNOW and make
 it work on our own code. This prevents us from having to distribute ONT code ourselves."""
+
+root_directory = os.path.dirname(os.path.realpath(__file__))
 
 def copyfiles(srcdir, dstdir, filepattern):
     def failed(exc):
@@ -29,7 +39,6 @@ def editfile(filename,text_to_search,replacement_text):
         for line in file:
             print(line.replace(text_to_search, replacement_text), end='')
 
-
 dstRPC = "rpc"
 
 OPER = platform.system()
@@ -38,6 +47,7 @@ RPCPATH = os.path.join('ont-python','lib','python2.7','site-packages','minknow',
 
 if os.path.isfile(os.path.join(root_directory, 'rpc', '__init__.py')):
     pass
+
 else:
     print ("No RPC")
     if OPER == "Darwin":
@@ -53,10 +63,7 @@ else:
     copyfiles(sourceRPC,dstRPC,'*.py')
     print ('RPC Configured')
 
-
 sys.path.insert(0,os.path.join(root_directory, 'rpc'))
-
-
 
 from minFQ.fastqutils import FastqHandler
 from minFQ.minknowcontrolutils import HelpTheMinion
