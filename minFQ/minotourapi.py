@@ -15,7 +15,7 @@ class MinotourAPI:
 
         self.base_url = base_url
         self.request_headers = request_headers
-        # self.minion_event_types = self.get_minion_event_types()
+        self.minion_event_types = self.get_minion_event_types()
 
 
     def test(self):

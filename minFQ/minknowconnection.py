@@ -450,6 +450,7 @@ class DeviceConnect(WebSocketClient):
             openpore=0
             pass
 
+
         payload = {"minION": str(self.minion["url"]),
                    "run_id": self.runidlink,
                    "sample_time": str(datetime.datetime.now()),
@@ -560,8 +561,12 @@ class DeviceConnect(WebSocketClient):
                         #print (json_object[key].keys())
                         if "read_event_count_weighted_hist_bin_width" in json_object[key]:
                             self.read_hist_bin_width = json_object[key]["read_event_count_weighted_hist_bin_width"]
+                        else:
+                            self.read_hist_bin_width = 0
                         if "read_event_count_weighted_hist" in json_object[key]:
                             self.read_event_weighted_hist = json_object[key]["read_event_count_weighted_hist"]
+                        else:
+                            self.read_event_weighted_hist = ""
                 #print (json_object.keys())
             except:
                 print ("key error")
@@ -603,12 +608,12 @@ class MinknowConnect(WebSocketClient):
                     try:
                         self.minIONdict[deviceid]["state"] = "active"
                         """
-                        "port": 8001,
-                        "ws_longpoll_port": 8003,
-                        "ws_event_sampler_port": 8002,
-                        "ws_raw_data_sampler_port": 8006,
-                        "grpc_port": 8007,
-                        "grpc_web_port": 8008
+                        "port": 8000,
+                        "ws_longpoll_port": 8002,
+                        "ws_raw_data_sampler_port": 8003,
+                        "grpc_port": 8004,
+                        "grpc_web_port": 8005,
+                        "grpc_web_insecure_port": 8001
                         """
                         port = minIONports[0]
                         ws_longpoll_port = minIONports[1]
@@ -631,6 +636,7 @@ class MinknowConnect(WebSocketClient):
                     self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ws_raw_data_sampler_port
                     self.minIONdict[deviceid]["grpc_port"] = grpc_port
                     self.minIONdict[deviceid]["grpc_web_port"] = grpc_web_port
+                    # Create an rpc connection to look at minknow api
                     self.minIONdict[deviceid]["grpc_connection"] = rpc.Connection(port=self.minIONdict[deviceid]["grpc_port"])
                     connectip = "ws://" + self.args.ip + ":" + str(self.minIONdict[deviceid]["ws_longpoll_port"]) + "/"
                     print ("setting up the goldmine")

@@ -48,6 +48,7 @@ setup(
     entry_points={
         'console_scripts': [
             'minFQ=minFQ.minFQ:main',
+            'minFlow=minFQ.flowcellmaker:main',
         ],
     },
 )
