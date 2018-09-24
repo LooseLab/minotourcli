@@ -7,6 +7,8 @@ import json
 import os
 import sys
 import time
+import logging
+
 from urllib.parse import urlparse
 
 import requests
@@ -15,7 +17,11 @@ from ws4py.client.threadedclient import WebSocketClient
 from minFQ.channelmaps import chanlookup_type
 from minFQ.minotourapi import MinotourAPI as MinotourAPINew
 
-global channel_data
+
+log = logging.getLogger(__name__)
+
+global channel_data  # TODO does it need to be global?
+
 channel_data=dict()
 
 def startstop(command,minION):
@@ -596,10 +602,7 @@ class MinControlAPI:
                 r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
                 #print(r.text)
 
-            if job["job"] == "stopminion":
-                stoprun(self.args.ip,self.minIONdict[self.minion['name']]["port"])
-                r = requests.post(self.minion["url"] + 'control/' + str(job["id"]) + '/', headers=self.header)
-                #print(r.text)
+
 
             if job["job"] == "startminion":
                 startrun(job["custom"],self.args.ip, self.minIONdict[self.minion['name']]["port"])

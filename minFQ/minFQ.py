@@ -1,15 +1,78 @@
 import os
 import platform
 import sys
+import fnmatch, shutil, platform
+import fileinput
+import logging
+import logging.handlers
 import time
 import threading
 
+
+logging.basicConfig(
+    format='%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s',
+    filename='minFQ.log', 
+    level=os.environ.get('LOGLEVEL', 'INFO')
+)
+
+log = logging.getLogger(__name__)
+
+log.info("Initialising minFQ.")
+
+"""We are setting up the code to copy and import the rpc service from minKNOW and make
+it work on our own code. This prevents us from having to distribute ONT code ourselves."""
+
+root_directory = os.path.dirname(os.path.realpath(__file__))
+
+def copyfiles(srcdir, dstdir, filepattern):
+    def failed(exc):
+        raise exc
+    dstdir = os.path.join(root_directory,dstdir)
+    for dirpath, dirs, files in os.walk(srcdir, topdown=True, onerror=failed):
+        for file in fnmatch.filter(files, filepattern):
+            shutil.copy2(os.path.join(dirpath, file), dstdir)
+            editfile(os.path.join(dstdir,file),'minknow.rpc','minFQ.rpc')
+        break # no recursion
+
+def editfile(filename,text_to_search,replacement_text):
+    with fileinput.FileInput(filename, inplace=True) as file:
+        for line in file:
+            print(line.replace(text_to_search, replacement_text), end='')
+
+dstRPC = "rpc"
+
+OPER = platform.system()
+
+RPCPATH = os.path.join('ont-python','lib','python2.7','site-packages','minknow','rpc')
+
+if os.path.isfile(os.path.join(root_directory, 'rpc', '__init__.py')):
+    pass
+
+else:
+    print ("No RPC")
+    if OPER == "Darwin":
+        minknowbase = os.path.join(os.sep,'Applications','MinKNOW.app','Contents','Resources')
+    elif OPER == "Linux":
+        minknowbase = os.path.join(os.sep,'opt','ONT','MinKNOW')
+    elif OPER == "Windows":
+        minknowbase = os.path.join(os.sep,"Program Files",'OxfordNanopore','MinKNOW')
+    else:
+        print ("Not configured for {} yet. Sorry.".format(OPER))
+        sys.exit()
+    sourceRPC = os.path.join(minknowbase,RPCPATH)
+    copyfiles(sourceRPC,dstRPC,'*.py')
+    print ('RPC Configured')
+
+sys.path.insert(0,os.path.join(root_directory, 'rpc'))
+
 from minFQ.fastqutils import FastqHandler
 from minFQ.minknowcontrolutils import HelpTheMinion
+from minFQ.minknowconnection import MinknowConnect
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
 from minFQ.minotourapi import MinotourAPI
+from minFQ.minknowconnection import MinknowConnect
 
 CLIENT_VERSION = '1.0'
 
@@ -185,23 +248,23 @@ def main():
 
     minotourapi = MinotourAPI(args.full_host, header)
 
-    version = minotourapi.get_server_version()
+    # version = minotourapi.get_server_version()
 
     shall_exit = False
 
-    if not version:
-
-        print("Server does not support this client. Please change the client to a previous version or upgrade server.")
-
-        shall_exit = True
-
-    clients = version['clients']
-
-    if CLIENT_VERSION not in clients:
-
-        print("Server does not support this client. Please change the client to a previous version or upgrade server.")
-
-        shall_exit = True
+    # if not version:
+    #
+    #     print("Server does not support this client. Please change the client to a previous version or upgrade server.")
+    #
+    #     shall_exit = True
+    #
+    # clients = version['clients']
+    #
+    # if CLIENT_VERSION not in clients:
+    #
+    #     print("Server does not support this client. Please change the client to a previous version or upgrade server.")
+    #
+    #     shall_exit = True
 
     if not shall_exit:
 
@@ -217,8 +280,11 @@ def main():
         if not args.noMinKNOW:
             # this block is going to handle the running of minControl.
             minwsip = "ws://" + args.ip + ":9500/"
-            helper = HelpTheMinion(minwsip, args, header)
-            helper.connect()
+            #helper = HelpTheMinion(minwsip, args, header)
+            #helper.connect()
+
+            MinKNOWConnection = MinknowConnect(minwsip, args, header)
+            MinKNOWConnection.connect()
 
         try:
 
@@ -226,11 +292,11 @@ def main():
 
                 observer.start()
 
-            if not args.noMinKNOW:
+            #if not args.noMinKNOW:
 
-                t = threading.Thread(target=helper.process_minion())
-                t.daemon = True
-                t.start()
+                #t = threading.Thread(target=helper.process_minion())
+                #t.daemon = True
+                #t.start()
 
             while 1:
 
@@ -241,8 +307,10 @@ def main():
             print(": Exiting")
 
             if not args.noMinKNOW:
-                helper.mcrunning = False
-                helper.hang_up()
+                #helper.mcrunning = False
+                #helper.hang_up()
+                pass
+            MinKNOWConnection.disconnect_nicely()
 
             if not args.noFastQ:
                 observer.stop()
