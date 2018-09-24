@@ -137,6 +137,7 @@ def parse_fastq_file(fastq, rundict, args, header):
 
         rundict[runs].commit_reads()
 
+
 def file_dict_of_folder_simple(path, args):
 
     file_list_dict = dict()
@@ -153,10 +154,10 @@ def file_dict_of_folder_simple(path, args):
             
             for f in files:
             
-                counter += 1
-            
-                if (f.endswith(".fastq") or f.endswith(".fastq.gz")):
-            
+                if f.endswith(".fastq") or f.endswith(".fastq.gz"):
+
+                    counter += 1
+
                     file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
     
     log.info("processed %s files" % (counter))
@@ -170,24 +171,21 @@ def file_dict_of_folder_simple(path, args):
 
 class FastqHandler(FileSystemEventHandler):
 
-    def __init__(self, args,header,rundict):
-        """Collect information about files already in the folders"""
+    def __init__(self, args, header, rundict):
+        """
+        Collect information about files already in the folders
+        """
+
         self.file_descriptor = dict()
         self.args = args
-        self.header=header
+        self.header = header
         # adding files to the file_descriptor is really slow - therefore lets skip that and only update the files when we want to basecall thread_number
-        self.creates = file_dict_of_folder_simple(args.watchdir,args)
+        self.creates = file_dict_of_folder_simple(args.watchdir, args)
         self.processing = dict()
         self.running = True
         self.rundict = rundict
-        self.t = threading.Thread(target=self.processfiles)
+        # self.t = threading.Thread(target=self.processfiles)
         self.grouprun = None
-
-        try:
-            self.t.start()
-        except KeyboardInterrupt:
-            self.t.stop()
-            raise
 
     def stopt(self):
         self.running=False
@@ -212,39 +210,24 @@ class FastqHandler(FileSystemEventHandler):
                     del self.creates[fastqfile]
                     parse_fastq_file(fastqfile, self.rundict, self.args, self.header)
 
-            # readsuploaded=0
-            #
-            # for runid in self.rundict:
-            #
-            #     print("RunID", runid)
-            #     if self.rundict[runid].readcount > 0:
-            #         print("Read Number:", self.rundict[runid].readcount, "Total Length:", self.rundict[runid].cumulength,
-            #           "Average Length", self.rundict[runid].cumulength / self.rundict[runid].readcount, "Chan Count",
-            #           len(self.rundict[runid].chandict))
-            #     readsuploaded+=self.rundict[runid].readcount
-            #     if self.args.GUI:
-            #         try:
-            #             (mean, median, std, maxval, minval) = self.rundict[runid].mean_median_std_max_min()
-            #             print("mean", mean, "median", median, "std", std, "max", maxval, "min", minval)
-            #         except:
-            #             pass
-            # print ("Uploaded {} reads in total.".format(readsuploaded))
-            # self.args.fastqmessage ="Uploaded {} reads in total.".format(readsuploaded)
-
             time.sleep(5)
+
+    def process_fastqfile(self, filename):
+
+        parse_fastq_file(filename, self.rundict, self.args, self.header)
 
     def on_created(self, event):
         """Watchdog counts a new file in a folder it is watching as a new file"""
         """This will add a file which is added to the watchfolder to the creates and the info file."""
-        if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
-            self.creates[event.src_path] = time.time()
+        # if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
+        #     self.creates[event.src_path] = time.time()
 
-    def on_modified(self, event):
-        if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
-            self.creates[event.src_path] = time.time()
+        log.info("Processing file {}".format(event.src_path))
+        time.sleep(5)
+        self.process_fastqfile(event.src_path)
 
-    def on_moved(self, event):
-        """Watchdog considers a file which is moved within its domain to be a move"""
-        """When a file is moved, we just want to update its location in the master dictionary."""
-        if (event.dest_path.endswith(".fastq") or event.dest_path.endswith(".fastq.gz")):
-            print("seen a fastq file move")
+        # f = open(event.src_path, "r")
+        # counter = 0
+        # for line in f:
+        #     log.info("{} - {}".format(event.src_path, counter))
+        #     counter = counter + 1
