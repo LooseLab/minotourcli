@@ -486,7 +486,7 @@ class MinotourAPI:
         req = self.post(url, json=payload)
 
         if req.status_code != 201:
-
+            print (req.text)
             log.info('runid {} could not be updated.'.format(runid))
             log.info('Status-code {}'.format(req.status_code))
             log.info('Text {}'.format(req.text))
