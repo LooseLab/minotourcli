@@ -103,7 +103,7 @@ def main():
                     "minKNOW_run_name": str(""),
                     "run_id": str(run['url']),
                     "minKNOW_version": str(flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['version']),
-                    "minKNOW_hash_run_id": str(run_id),
+                    #"minKNOW_hash_run_id": str(run_id),
                     "minKNOW_script_run_id": str(""),
                     "minKNOW_real_sample_rate": int(str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['sample_frequency'])),
                     "minKNOW_asic_id": flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['asic_id'],
