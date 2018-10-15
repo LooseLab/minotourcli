@@ -42,12 +42,12 @@ def main():
                         run_id = myfile.get_tracking_id()['run_id']
                         if sample_id not in flowcelldict.keys():
                             flowcelldict[sample_id]=dict()
-                            if flowcell not in flowcelldict[sample_id].keys():
-                                flowcelldict[sample_id][flowcell] = dict()
-                                if run_id not in flowcelldict[sample_id][flowcell].keys():
-                                    flowcelldict[sample_id][flowcell][run_id]=dict()
-                                    flowcelldict[sample_id][flowcell][run_id]["tracking_id"]=myfile.get_tracking_id()
-                                    flowcelldict[sample_id][flowcell][run_id]["context_tags"]=myfile.get_context_tags()
+                        if flowcell not in flowcelldict[sample_id].keys():
+                            flowcelldict[sample_id][flowcell] = dict()
+                        if run_id not in flowcelldict[sample_id][flowcell].keys():
+                            flowcelldict[sample_id][flowcell][run_id]=dict()
+                            flowcelldict[sample_id][flowcell][run_id]["tracking_id"]=myfile.get_tracking_id()
+                            flowcelldict[sample_id][flowcell][run_id]["context_tags"]=myfile.get_context_tags()
                     except:
                         print ("Non fast5file seen.")
                 else:
