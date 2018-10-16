@@ -6,19 +6,7 @@ from ont_fast5_api import fast5_file
 
 from minFQ.minotourapi import MinotourAPI
 
-#walk_dir = sys.argv[1]
-
-#api_key = "73800956cdb157d48493a4f07711a69450cfdb3e"
-
-#print('walk_dir = ' + walk_dir)
-
-# If your current working directory may change during script execution, it's recommended to
-# immediately convert program arguments to an absolute path. Then the variable root below will
-# be an absolute path as well. Example:
-# walk_dir = os.path.abspath(walk_dir)
-
-#create a dictionary of minIONS that we have seen
-
+from tqdm import tqdm
 
 
 def main():
@@ -73,14 +61,14 @@ def main():
     flowcelldict = dict()
     rundict = dict()
 
-    print('walk_dir (absolute) = ' + os.path.abspath(args.watchdir))
+    print('Searching for files in {}'.format(os.path.abspath(args.watchdir)))
     last_seen=""
     for root, subdirs, files in os.walk(args.watchdir):
         files.sort()
-        for file in files:
+        for file in tqdm(files):
             if file.endswith("fast5"):
                 if file.split('_read_')[0] != last_seen:
-                    print (last_seen,file.split('_read_')[0])
+                    #print (last_seen,file.split('_read_')[0])
                     last_seen = file.split('_read_')[0]
                     try:
                         myfile  = fast5_file.Fast5File(os.path.join(root,file))
@@ -100,16 +88,19 @@ def main():
                             flowcelldict[sample_id][flowcell][run_id]["context_tags"]=myfile.get_context_tags()
                     except:
                         print ("Non fast5file seen.")
-                else:
-                    print ("same read")
+                #else:
+                    #print ("same read")
 
                 #print (myfile.get_context_tags())
 
 
-    print (minION)
-    print (flowcelldict)
+    #print (minION)
+    #print (flowcelldict)
+
+    print ("Adding new runs.")
 
     full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+
 
     header = {
         'Authorization': 'Token {}'.format(args.api_key),
@@ -120,20 +111,20 @@ def main():
 
 
     for minIONs in minION:
-        print ("Create {}".format(minIONs))
+        #print ("Create {}".format(minIONs))
         minion = minotourapi.get_minion_by_name(minIONs)
         if not minion:
             minion = minotourapi.create_minion(minIONs)
         minion = minion
 
-    for sample_id in flowcelldict:
+    for sample_id in tqdm(flowcelldict):
         for flowcellid in flowcelldict[sample_id]:
             flowcell = minotourapi.get_flowcell_by_name(flowcellid)
             if not flowcell:
                 flowcell = minotourapi.create_flowcell(flowcellid)
 
             for run_id in flowcelldict[sample_id][flowcellid]:
-                print (run_id)
+                #print (run_id)
                 run = minotourapi.get_run_by_runid(run_id)
                 if not run:
                     is_barcoded = False  # TODO do we known this info at this moment? This can be determined from run info.
@@ -166,6 +157,8 @@ def main():
                 }
                 payload['flowcell_type']=str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['flowcell_type'])
                 payload['sequencing_kit']=str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['sequencing_kit'])
-                print (run)
+                #print (run)
                 updateruninfo = minotourapi.update_minion_run_info(payload, run['id'])
-                print (updateruninfo)
+                #print (updateruninfo)
+
+    print ("Metadata Uploaded to MinoTour.")
