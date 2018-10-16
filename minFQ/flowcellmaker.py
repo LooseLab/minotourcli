@@ -1,15 +1,16 @@
 import os
 import sys
 import datetime
+import configargparse
 from ont_fast5_api import fast5_file
 
 from minFQ.minotourapi import MinotourAPI
 
-walk_dir = sys.argv[1]
+#walk_dir = sys.argv[1]
 
-api_key = "73800956cdb157d48493a4f07711a69450cfdb3e"
+#api_key = "73800956cdb157d48493a4f07711a69450cfdb3e"
 
-print('walk_dir = ' + walk_dir)
+#print('walk_dir = ' + walk_dir)
 
 # If your current working directory may change during script execution, it's recommended to
 # immediately convert program arguments to an absolute path. Then the variable root below will
@@ -18,14 +19,63 @@ print('walk_dir = ' + walk_dir)
 
 #create a dictionary of minIONS that we have seen
 
-minION = set()
-flowcelldict = dict()
-rundict = dict()
+
 
 def main():
-    print('walk_dir (absolute) = ' + os.path.abspath(walk_dir))
+    parser = \
+        configargparse.ArgParser(
+            description='minFQ: A program to analyse minION fastq files in real-time or post-run and monitor the activity of MinKNOW.'
+        )
+
+    parser.add(
+        '-w',
+        '--watch-dir',
+        type=str,
+        required=True,
+        default=None,
+        help='The path to the folders containing fast5 reads to analyse - e.g. C:\\data\\minion\\downloads (for windows).',
+        dest='watchdir'
+    )
+
+    parser.add(
+        '-k',
+        '--key',
+        type=str,
+        required=True,
+        default=None,
+        help='The api key for uploading data.',
+        dest='api_key',
+    )
+
+    parser.add(
+        '-p',
+        '--port',
+        type=int,
+        # required=True,
+        default=8100,
+        help='The port number for the local server.',
+        dest='port_number',
+    )
+
+    parser.add(
+        '-hn',
+        '--hostname',
+        type=str,
+        # required=True,
+        default='127.0.0.1',
+        help='The host name you are loading data too.',
+        dest='host_name',
+    )
+
+    args = parser.parse_args()
+
+    minION = set()
+    flowcelldict = dict()
+    rundict = dict()
+
+    print('walk_dir (absolute) = ' + os.path.abspath(args.watchdir))
     last_seen=""
-    for root, subdirs, files in os.walk(walk_dir):
+    for root, subdirs, files in os.walk(args.watchdir):
         files.sort()
         for file in files:
             if file.endswith("fast5"):
@@ -59,7 +109,7 @@ def main():
     print (minION)
     print (flowcelldict)
 
-    full_host = "http://{}:{}/".format("147.188.173.55", str(80))
+    full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
 
     header = {
         'Authorization': 'Token {}'.format(api_key),
@@ -103,7 +153,7 @@ def main():
                     "minKNOW_run_name": str(""),
                     "run_id": str(run['url']),
                     "minKNOW_version": str(flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['version']),
-                    #"minKNOW_hash_run_id": str(run_id),
+                    "minKNOW_hash_run_id": str(run_id),
                     "minKNOW_script_run_id": str(""),
                     "minKNOW_real_sample_rate": int(str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['sample_frequency'])),
                     "minKNOW_asic_id": flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['asic_id'],
