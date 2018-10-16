@@ -112,7 +112,7 @@ def main():
     full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
 
     header = {
-        'Authorization': 'Token {}'.format(api_key),
+        'Authorization': 'Token {}'.format(args.api_key),
         'Content-Type': 'application/json'
     }
 
