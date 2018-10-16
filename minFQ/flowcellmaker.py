@@ -63,7 +63,7 @@ def main():
 
     print('Searching for files in {}'.format(os.path.abspath(args.watchdir)))
     last_seen=""
-    for root, subdirs, files in os.walk(args.watchdir):
+    for root, subdirs, files in tqdm(os.walk(args.watchdir)):
         files.sort()
         for file in tqdm(files):
             if file.endswith("fast5"):
