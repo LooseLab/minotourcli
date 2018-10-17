@@ -270,21 +270,28 @@ def main():
 
         rundict = dict()
 
+
         if not args.noFastQ:
+            print ("Setting up FastQ monitoring.")
             event_handler = FastqHandler(args, header, rundict)
             # This block handles the fastq
             observer = Observer()
             observer.schedule(event_handler, path=args.watchdir, recursive=True)
             observer.daemon = True
+            print ("FastQ Monitoring Running.")
 
         if not args.noMinKNOW:
             # this block is going to handle the running of minControl.
+            print ("Configuring MinKNOW Monitoring.")
             minwsip = "ws://" + args.ip + ":9500/"
             #helper = HelpTheMinion(minwsip, args, header)
             #helper.connect()
 
             MinKNOWConnection = MinknowConnect(minwsip, args, header)
             MinKNOWConnection.connect()
+            print ("MinKNOW Monitoring Working.")
+
+        print ("To stop minFQ use CTRL-C.")
 
         try:
 
@@ -304,13 +311,10 @@ def main():
 
         except KeyboardInterrupt:
 
-            print(": Exiting")
+            print("Exiting - Will take a few seconds to clean up!")
 
             if not args.noMinKNOW:
-                #helper.mcrunning = False
-                #helper.hang_up()
-                pass
-            MinKNOWConnection.disconnect_nicely()
+                MinKNOWConnection.disconnect_nicely()
 
             if not args.noFastQ:
                 observer.stop()
