@@ -138,18 +138,22 @@ class DeviceConnect(WebSocketClient):
             print("MINION:", self.minion)
         #We wait for 10 seconds to allow the run to start
         time.sleep(self.interval)
-        self.runinformation = self.rpc_connection.acquisition.get_current_acquisition_run()
-        if self.args.verbose:
-            print(self.runinfo_api)
-            print(self.sampleid)
-            print(self.runinformation)
-            print("RUNID",self.runinformation.start_time)
-            print(self.channelstatesdesc)
-            print(self.channels)
-            print("FLOWCELL DATA", self.get_flowcell_id())
-        self.create_run(self.runinformation.run_id)
+        try:
+            self.runinformation = self.rpc_connection.acquisition.get_current_acquisition_run()
+            if self.args.verbose:
+                print(self.runinfo_api)
+                print(self.sampleid)
+                print(self.runinformation)
+                print("RUNID", self.runinformation.start_time)
+                print(self.channelstatesdesc)
+                print(self.channels)
+                print("FLOWCELL DATA", self.get_flowcell_id())
+            self.create_run(self.runinformation.run_id)
 
-        self.update_minion_run_info()
+            self.update_minion_run_info()
+
+        except:
+            pass
         pass
 
     def update_minion_run_info(self):

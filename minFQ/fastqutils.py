@@ -184,7 +184,7 @@ class FastqHandler(FileSystemEventHandler):
         self.processing = dict()
         self.running = True
         self.rundict = rundict
-        # self.t = threading.Thread(target=self.processfiles)
+        self.t = threading.Thread(target=self.processfiles)
         self.grouprun = None
 
     def stopt(self):
