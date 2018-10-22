@@ -166,6 +166,8 @@ def file_dict_of_folder_simple(path, args):
 
                     counter += 1
 
+                    args.files_seen += 1
+
                     file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
     
     log.info("processed %s files" % (counter))
@@ -187,16 +189,17 @@ class FastqHandler(FileSystemEventHandler):
         self.file_descriptor = dict()
         self.args = args
         self.header = header
+        self.args.files_seen = 0
+        self.args.files_processed = 0
+        self.args.reads_seen = 0
+        self.args.reads_skipped = 0
+        self.args.reads_uploaded = 0
         # adding files to the file_descriptor is really slow - therefore lets skip that and only update the files when we want to basecall thread_number
         self.creates = file_dict_of_folder_simple(args.watchdir, args)
         self.processing = dict()
         self.running = True
         self.rundict = rundict
-        self.args.files_seen = self.lencreates()
-        self.args.files_processed = 0
-        self.args.reads_seen = 0
-        self.args.reads_skipped = 0
-        self.args.reads_uploaded = 0
+
         self.t = threading.Thread(target=self.processfiles)
         self.grouprun = None
 
