@@ -152,8 +152,6 @@ def parse_fastq_file(fastq, rundict, args, header):
 
             except:
 
-                except:
-
                 args.reads_corrupt += 1
 
                 log.error("Corrupt read observed in {}.".format(fastq))
