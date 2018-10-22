@@ -116,9 +116,8 @@ def parse_fastq_file(fastq, rundict, args, header):
     if fastq.endswith(".gz"):
 
         with gzip.open(fastq, "rt") as handle:
-
-            for record in SeqIO.parse(handle, "fastq"):
-                try:
+            try:
+                for record in SeqIO.parse(handle, "fastq"):
 
                     counter += 1
 
@@ -128,19 +127,19 @@ def parse_fastq_file(fastq, rundict, args, header):
 
                     parse_fastq_record(record, fastq, rundict, args, header)
 
-                except:
+            except:
 
-                    args.reads_corrupt += 1
+                args.reads_corrupt += 1
 
-                    log.error("Corrupt read observed in {}.".format(fastq))
+                log.error("Corrupt file observed in {}.".format(fastq))
 
-                    continue
+                #continue
 
     else:
 
-        for record in SeqIO.parse(fastq, "fastq"):
+        try:
 
-            try:
+            for record in SeqIO.parse(fastq, "fastq"):
 
                 counter += 1
 
@@ -150,13 +149,13 @@ def parse_fastq_file(fastq, rundict, args, header):
 
                 parse_fastq_record(record, fastq, rundict, args, header)
 
-            except:
+        except:
 
-                args.reads_corrupt += 1
+            args.reads_corrupt += 1
 
-                log.error("Corrupt read observed in {}.".format(fastq))
+            log.error("Corrupt file observed in {}.".format(fastq))
 
-                continue
+            #continue
 
     for runs in rundict:
 
