@@ -118,6 +118,29 @@ def parse_fastq_file(fastq, rundict, args, header):
         with gzip.open(fastq, "rt") as handle:
 
             for record in SeqIO.parse(handle, "fastq"):
+                try:
+
+                    counter += 1
+
+                    args.reads_seen += 1
+
+                    args.fastqmessage = "processing read {}".format(counter)
+
+                    parse_fastq_record(record, fastq, rundict, args, header)
+
+                except:
+
+                    args.reads_corrupt += 1
+
+                    log.error("Corrupt read observed in {}.".format(fastq))
+
+                    continue
+
+    else:
+
+        for record in SeqIO.parse(fastq, "fastq"):
+
+            try:
 
                 counter += 1
 
@@ -127,17 +150,15 @@ def parse_fastq_file(fastq, rundict, args, header):
 
                 parse_fastq_record(record, fastq, rundict, args, header)
 
-    else:
+            except:
 
-        for record in SeqIO.parse(fastq, "fastq"):
+                except:
 
-            counter += 1
+                args.reads_corrupt += 1
 
-            args.reads_seen += 1
+                log.error("Corrupt read observed in {}.".format(fastq))
 
-            args.fastqmessage = "processing read {}".format(counter)
-
-            parse_fastq_record(record, fastq, rundict, args, header)
+                continue
 
     for runs in rundict:
 
@@ -192,6 +213,7 @@ class FastqHandler(FileSystemEventHandler):
         self.args.files_seen = 0
         self.args.files_processed = 0
         self.args.reads_seen = 0
+        self.args.reads_corrupt = 0
         self.args.reads_skipped = 0
         self.args.reads_uploaded = 0
         # adding files to the file_descriptor is really slow - therefore lets skip that and only update the files when we want to basecall thread_number
