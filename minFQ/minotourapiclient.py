@@ -52,7 +52,7 @@ class Runcollection():
         self.readnames = list()
         self.readcount = 0
         self.read_type_list = dict()
-        self.batchsize = 200
+        self.batchsize = 2000
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
