@@ -603,6 +603,8 @@ class MinknowConnect(WebSocketClient):
         #self.minknow_version = ""
         #self.minknow_status = ""
 
+    def minIONnumber(self):
+        return len(self.minIONdict)
 
     def reportinformation(self):
         for minION in self.minIONdict:

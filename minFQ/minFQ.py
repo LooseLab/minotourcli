@@ -76,6 +76,12 @@ from minFQ.minknowconnection import MinknowConnect
 
 CLIENT_VERSION = '1.0'
 
+def up(lines=1):
+    clearline = '\033[2K' # clear a line
+    upline = '\033[1A'    # Move cursor up a line
+    for _ in range(lines):
+        sys.stdout.write(upline)
+        sys.stdout.write(clearline)
 
 def main():
 
@@ -291,7 +297,7 @@ def main():
             MinKNOWConnection.connect()
             print ("MinKNOW Monitoring Working.")
 
-        print ("To stop minFQ use CTRL-C.")
+        print ("To stop minFQ use CTRL-C.\n")
 
         try:
 
@@ -306,8 +312,30 @@ def main():
                 #t.start()
 
             while 1:
+                linecounter = 0
+                if not args.noFastQ:
+                    sys.stdout.write('FastQ Upload Status:\n')
+                    sys.stdout.write('Files queued/processed:{}/{}\n'.format(
+                        args.files_seen - args.files_processed,
+                        args.files_processed
+                    ))
+                    sys.stdout.write('Reads seen/uploaded/skipped:{}/{}/{}\n'.format(
+                        args.reads_seen-args.reads_uploaded-args.reads_skipped,
+                        args.reads_uploaded,
+                        args.reads_skipped
+                    ))
+                    linecounter+=3
+
+                if not args.noMinKNOW:
+                    sys.stdout.write('MinKNOW Monitoring Status:\n')
+                    sys.stdout.write("Connected minIONs: {}\n".format(MinKNOWConnection.minIONnumber()))
+                    linecounter+=2
+
+
+                sys.stdout.flush()
 
                 time.sleep(1)
+                up(linecounter)
 
         except KeyboardInterrupt:
 

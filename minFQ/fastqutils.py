@@ -102,6 +102,8 @@ def parse_fastq_record(record, fastq, rundict, args, header):
 
         rundict[fastq_read['runid']].add_run(description_dict)
 
+
+
     rundict[fastq_read['runid']].add_read(fastq_read)
 
 
@@ -119,6 +121,8 @@ def parse_fastq_file(fastq, rundict, args, header):
 
                 counter += 1
 
+                args.reads_seen += 1
+
                 args.fastqmessage = "processing read {}".format(counter)
 
                 parse_fastq_record(record, fastq, rundict, args, header)
@@ -129,6 +133,8 @@ def parse_fastq_file(fastq, rundict, args, header):
 
             counter += 1
 
+            args.reads_seen += 1
+
             args.fastqmessage = "processing read {}".format(counter)
 
             parse_fastq_record(record, fastq, rundict, args, header)
@@ -136,6 +142,8 @@ def parse_fastq_file(fastq, rundict, args, header):
     for runs in rundict:
 
         rundict[runs].commit_reads()
+
+    return counter
 
 
 def file_dict_of_folder_simple(path, args):
@@ -184,8 +192,19 @@ class FastqHandler(FileSystemEventHandler):
         self.processing = dict()
         self.running = True
         self.rundict = rundict
+        self.args.files_seen = self.lencreates()
+        self.args.files_processed = 0
+        self.args.reads_seen = 0
+        self.args.reads_skipped = 0
+        self.args.reads_uploaded = 0
         self.t = threading.Thread(target=self.processfiles)
         self.grouprun = None
+
+        try:
+            self.t.start()
+        except KeyboardInterrupt:
+            self.t.stop()
+            raise
 
     def stopt(self):
         self.running=False
@@ -199,8 +218,9 @@ class FastqHandler(FileSystemEventHandler):
     def processfiles(self):
 
         while self.running:
-
-            for fastqfile, createtime in tqdm(sorted(self.creates.items(), key=lambda x: x[1])):
+            currenttime = time.time()
+            #for fastqfile, createtime in tqdm(sorted(self.creates.items(), key=lambda x: x[1])):
+            for fastqfile, createtime in sorted(self.creates.items(), key=lambda x: x[1]):
 
                 delaytime = 0
 
@@ -208,9 +228,13 @@ class FastqHandler(FileSystemEventHandler):
                 if (int(createtime) + delaytime < time.time()):
 
                     del self.creates[fastqfile]
+
                     parse_fastq_file(fastqfile, self.rundict, self.args, self.header)
 
-            time.sleep(5)
+                    self.args.files_processed += 1
+
+            if currenttime+5 < time.time():
+                time.sleep(5)
 
     def process_fastqfile(self, filename):
 

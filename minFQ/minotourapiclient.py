@@ -52,7 +52,7 @@ class Runcollection():
         self.readnames = list()
         self.readcount = 0
         self.read_type_list = dict()
-        self.batchsize = 2000
+        self.batchsize = 200
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
@@ -193,6 +193,8 @@ class Runcollection():
 
         self.minotourapi.create_reads(self.read_list)
 
+        self.args.reads_uploaded += len(self.read_list)
+
         self.read_list = list()
 
     def update_read_type(self, read_id, type):
@@ -264,3 +266,5 @@ class Runcollection():
 
             self.readcount += 1
 
+        else:
+            self.args.reads_skipped += 1
