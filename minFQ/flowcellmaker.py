@@ -119,7 +119,11 @@ def main():
 
     for sample_id in tqdm(flowcelldict):
         for flowcellid in flowcelldict[sample_id]:
+            print ("Looking for {}".format(flowcellid))
             flowcell = minotourapi.get_flowcell_by_name(flowcellid)
+
+            print (flowcell)
+
             if not flowcell:
                 flowcell = minotourapi.create_flowcell(flowcellid)
 
@@ -129,6 +133,9 @@ def main():
                 if not run:
                     is_barcoded = False  # TODO do we known this info at this moment? This can be determined from run info.
                     has_fastq = True  # TODO do we known this info at this moment? This can be determined from run info
+
+                    print (flowcell)
+
                     run = minotourapi.create_run(sample_id, run_id, is_barcoded, has_fastq,
                                                             flowcell, minion,
                                                             flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['exp_start_time'])

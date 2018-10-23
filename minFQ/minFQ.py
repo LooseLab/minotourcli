@@ -7,6 +7,7 @@ import logging
 import logging.handlers
 import time
 import threading
+import validators
 
 
 logging.basicConfig(
@@ -191,7 +192,7 @@ def main():
         '--port',
         type=int,
         # required=True,
-        default=8100,
+        default=80,
         help='The port number for the local server.',
         dest='port_number',
     )
@@ -243,7 +244,16 @@ def main():
         print("This program will now exit.")
         os._exit(0)
 
-    args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+    if args.host_name.startswith("http://"):
+        args.full_host = "{}:{}/".format(args.host_name, str(args.port_number))
+    else:
+        args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+
+    if not validators.url(args.full_host):
+        print ("Please check your url.")
+        print ("You entered:")
+        print ("{}".format(args.host_name))
+        sys.exit()
 
     args.read_count = 0
 
