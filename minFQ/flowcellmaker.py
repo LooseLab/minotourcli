@@ -76,6 +76,11 @@ def main():
                         minIONid = myfile.get_tracking_id()['device_id']
                         minION.add(minIONid)
                         flowcell = myfile.get_tracking_id()['flow_cell_id']
+                        print ("seen flowcell:{}".format(flowcell))
+                        if len(flowcell) < 1:
+                            print ("Flowcell ID missing from file {}.".format(file))
+                            flowcell = input('Enter a flowcell name: ')
+                            
                         sample_id = myfile.get_tracking_id()['sample_id']
                         run_id = myfile.get_tracking_id()['run_id']
                         if sample_id not in flowcelldict.keys():
@@ -117,13 +122,14 @@ def main():
             minion = minotourapi.create_minion(minIONs)
         minion = minion
 
+#    print (flowcelldict)
+
     for sample_id in tqdm(flowcelldict):
-        for flowcellid in flowcelldict[sample_id]:
-            print ("Looking for {}".format(flowcellid))
+#        print ("sample_id:{}".format(sample_id))
+        for flowcellid in flowcelldict[sample_id].keys():
+#            print ("Looking for {}".format(flowcellid))
             flowcell = minotourapi.get_flowcell_by_name(flowcellid)
-
-            print (flowcell)
-
+#            print ("found flowcell {}".format(flowcell))
             if not flowcell:
                 flowcell = minotourapi.create_flowcell(flowcellid)
 
@@ -134,7 +140,11 @@ def main():
                     is_barcoded = False  # TODO do we known this info at this moment? This can be determined from run info.
                     has_fastq = True  # TODO do we known this info at this moment? This can be determined from run info
 
+<<<<<<< HEAD
                     print (flowcell)
+=======
+#                    print (flowcell)
+>>>>>>> cac5ab494a3d3db6e9309a78af85739e5e6ce522
 
                     run = minotourapi.create_run(sample_id, run_id, is_barcoded, has_fastq,
                                                             flowcell, minion,
