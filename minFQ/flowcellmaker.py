@@ -140,12 +140,6 @@ def main():
                     is_barcoded = False  # TODO do we known this info at this moment? This can be determined from run info.
                     has_fastq = True  # TODO do we known this info at this moment? This can be determined from run info
 
-<<<<<<< HEAD
-                    print (flowcell)
-=======
-#                    print (flowcell)
->>>>>>> cac5ab494a3d3db6e9309a78af85739e5e6ce522
-
                     run = minotourapi.create_run(sample_id, run_id, is_barcoded, has_fastq,
                                                             flowcell, minion,
                                                             flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['exp_start_time'])
