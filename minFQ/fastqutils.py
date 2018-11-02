@@ -7,14 +7,28 @@ import threading
 import time
 import gzip
 import numpy as np
+import hashlib #for checking if a file is different to the value stored in the database
 
 from tqdm import tqdm
 from minFQ.minotourapiclient import Runcollection
+from minFQ.minotourapi import MinotourAPI
 from Bio import SeqIO
 from watchdog.events import FileSystemEventHandler
 
 
 log = logging.getLogger(__name__)
+
+
+
+def md5Checksum(filePath):
+    with open(filePath, 'rb') as fh:
+        m = hashlib.md5()
+        while True:
+            data = fh.read(8192)
+            if not data:
+                break
+            m.update(data)
+        return m.hexdigest()
 
 def check_is_pass(path):
 
@@ -44,13 +58,15 @@ def parse_fastq_description(description):
     return descriptiondict
 
 
-def parse_fastq_record(record, fastq, rundict, args, header):
+def parse_fastq_record(record, fastq, rundict, args, header, fastqfile):
 
     log.info("Parsing reads from file {}".format(fastq))
 
     fastq_read = {}
 
     description_dict = parse_fastq_description(record.description)
+
+    #print (fastqfile)
 
     fastq_read['read'] = description_dict.get('read', None)
     fastq_read['runid'] = description_dict.get('runid', None)
@@ -59,42 +75,13 @@ def parse_fastq_record(record, fastq, rundict, args, header):
     fastq_read['is_pass'] = check_is_pass(fastq)
     fastq_read['read_id'] = record.id
     fastq_read['sequence_length'] = len(str(record.seq))
+    fastq_read['fastqfile'] = fastqfile["url"]
 
-    quality = record.format('fastq').split('\n')[3]
+    # get or create fastfile if not in dictionary?
 
-    fastq_read['quality_average'] = quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
+    #fastq_read['fastqfilename'] = fastqfileid
 
-    # use 'No barcode' for non-barcoded reads
-    barcode_name = description_dict.get('barcode', None)
-    if barcode_name:
 
-        fastq_read['barcode_name'] = barcode_name
-        
-    else:
-
-        fastq_read['barcode_name'] = 'No barcode'
-
-    # add control-treatment if passed as argument
-    if args.treatment_control:
-
-        if int(fastq_read['channel']) % args.treatment_control == 0:
-
-            fastq_read['barcode_name'] = fastq_read['barcode_name'] + ' - control'
-
-        else:
-
-            fastq_read['barcode_name'] = fastq_read['barcode_name'] + ' - treatment'
-
-    # check if sequence is sent or not
-    if args.skip_sequence:
-
-        fastq_read['sequence'] = ''
-        fastq_read['quality'] = ''
-
-    else:
-
-        fastq_read['sequence'] = str(record.seq)
-        fastq_read['quality'] = record.format('fastq').split('\n')[3]
 
     if fastq_read['runid'] not in rundict:
 
@@ -102,14 +89,69 @@ def parse_fastq_record(record, fastq, rundict, args, header):
 
         rundict[fastq_read['runid']].add_run(description_dict)
 
+    if fastq_read['read_id'] not in rundict[fastq_read['runid']].readnames:
+
+        quality = record.format('fastq').split('\n')[3]
+
+        fastq_read['quality_average'] = quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
+
+        # use 'No barcode' for non-barcoded reads
+        barcode_name = description_dict.get('barcode', None)
+        if barcode_name:
+
+            fastq_read['barcode_name'] = barcode_name
+
+        else:
+
+            fastq_read['barcode_name'] = 'No barcode'
+
+        # add control-treatment if passed as argument
+        if args.treatment_control:
+
+            if int(fastq_read['channel']) % args.treatment_control == 0:
+
+                fastq_read['barcode_name'] = fastq_read['barcode_name'] + ' - control'
+
+            else:
+
+                fastq_read['barcode_name'] = fastq_read['barcode_name'] + ' - treatment'
+
+        # check if sequence is sent or not
+        if args.skip_sequence:
+
+            fastq_read['sequence'] = ''
+            fastq_read['quality'] = ''
+
+        else:
+
+            fastq_read['sequence'] = str(record.seq)
+            fastq_read['quality'] = record.format('fastq').split('\n')[3]
+
+        rundict[fastq_read['runid']].add_read(fastq_read)
 
 
-    rundict[fastq_read['runid']].add_read(fastq_read)
-
-
-def parse_fastq_file(fastq, rundict, args, header):
+def parse_fastq_file(fastq, rundict, args, header, MinotourConnection):
 
     log.info("Parsing fastq file {}".format(fastq))
+
+    ## Get fastqfile id from database here
+
+    #As it is the first time we are looking at this file, we set the md5 in the database to be 0
+
+    print (rundict)
+
+
+    with open(fastq, "r") as file:
+        for _ in range(1):
+            line = file.readline()
+    for _ in line.split():
+        if _.startswith("runid"):
+            # print (_.split("=")[1])
+            runid = _.split("=")[1]
+
+    fastqfile = MinotourConnection.create_file_info(str(os.path.basename(fastq)), runid, 0)
+
+    #rundict
 
     counter = 0
 
@@ -125,7 +167,7 @@ def parse_fastq_file(fastq, rundict, args, header):
 
                     args.fastqmessage = "processing read {}".format(counter)
 
-                    parse_fastq_record(record, fastq, rundict, args, header)
+                    parse_fastq_record(record, fastq, rundict, args, header,fastqfile)
 
             except:
 
@@ -147,7 +189,7 @@ def parse_fastq_file(fastq, rundict, args, header):
 
                 args.fastqmessage = "processing read {}".format(counter)
 
-                parse_fastq_record(record, fastq, rundict, args, header)
+                parse_fastq_record(record, fastq, rundict, args, header,fastqfile)
 
         except:
 
@@ -164,7 +206,7 @@ def parse_fastq_file(fastq, rundict, args, header):
     return counter
 
 
-def file_dict_of_folder_simple(path, args):
+def file_dict_of_folder_simple(path, args, MinotourConnection, rundict):
 
     file_list_dict = dict()
     
@@ -175,6 +217,8 @@ def file_dict_of_folder_simple(path, args):
         log.info("caching existing fastq files in: %s" % (path))
     
         args.fastqmessage = "caching existing fastq files in: %s" % (path)
+
+
     
         for path, dirs, files in os.walk(path):
             
@@ -185,8 +229,55 @@ def file_dict_of_folder_simple(path, args):
                     counter += 1
 
                     args.files_seen += 1
+                    #### Here is where we want to check if the files have been created and what the checksums are
+                    #### If the file checksums do not match, we pass the file to the rest of the script.
+                    #### When we finish analysing a file, we will need to update this information n the server.
+                    md5Check = md5Checksum(os.path.join(path, f))
+                    #print (f, md5Check)
+                    with open(os.path.join(path, f), "r") as file:
+                        for _ in range(1):
+                            line = file.readline()
+                    for _ in  line.split():
+                        if _.startswith("runid"):
+                            #print (_.split("=")[1])
+                            runid = _.split("=")[1]
+                            result = (MinotourConnection.get_file_info_by_runid(_.split("=")[1]))
+                    #if f not in rundict.keys():
+                    #    rundict[f]=dict()
 
-                    file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
+                    #rundict[f]["runid"] = runid
+                    #rundict[f]["md5"] = md5Check
+
+                    print (result)
+
+                    if result is None or len(result)< 1 :
+                        """This adds the fastq file to the database if it isn't already there """
+                        #print ("trying {} {} {}".format(f,runid,md5Check))
+                        file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
+                        ### We don't want to create the record till we have finished processing the file!±
+                        #result2 = MinotourConnection.create_file_info(f,runid,md5Check)
+                        #print ("done {} {} {}".format(f, runid, md5Check))
+                        #print (result2)
+
+                    else:
+                        """Here we are going to check if the files match or not. """
+                        seenfile = False
+                        for file in result:
+
+                            if file["name"] == f:
+                                seenfile = True
+                                if file["md5"]==md5Check:
+                                    pass
+                                    #print ("File {} is not different.".format(f))
+                                else:
+                                    #print ("File {} is different.".format(f))
+                                    file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
+                                    #result2 = MinotourConnection.create_file_info(f, runid, md5Check)
+                                break
+
+                        if not seenfile:
+                            file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
+                            #result2 = MinotourConnection.create_file_info(f, runid, md5Check)
     
     log.info("processed %s files" % (counter))
     
@@ -214,10 +305,12 @@ class FastqHandler(FileSystemEventHandler):
         self.args.reads_skipped = 0
         self.args.reads_uploaded = 0
         # adding files to the file_descriptor is really slow - therefore lets skip that and only update the files when we want to basecall thread_number
-        self.creates = file_dict_of_folder_simple(args.watchdir, args)
+        self.MinotourConnection = MinotourAPI(self.args.full_host, self.header)
+        self.rundict = rundict
+        self.creates = file_dict_of_folder_simple(self.args.watchdir, args, self.MinotourConnection,self.rundict)
         self.processing = dict()
         self.running = True
-        self.rundict = rundict
+
 
         self.t = threading.Thread(target=self.processfiles)
         self.grouprun = None
@@ -251,7 +344,9 @@ class FastqHandler(FileSystemEventHandler):
 
                     del self.creates[fastqfile]
 
-                    parse_fastq_file(fastqfile, self.rundict, self.args, self.header)
+                    #print (fastqfile,md5Checksum(fastqfile), "\n\n\n\n")
+
+                    parse_fastq_file(fastqfile, self.rundict, self.args, self.header, self.MinotourConnection)
 
                     self.args.files_processed += 1
 
@@ -260,7 +355,7 @@ class FastqHandler(FileSystemEventHandler):
 
     def process_fastqfile(self, filename):
 
-        parse_fastq_file(filename, self.rundict, self.args, self.header)
+        parse_fastq_file(filename, self.rundict, self.args, self.header, self.MinotourConnection)
 
     def on_created(self, event):
         """Watchdog counts a new file in a folder it is watching as a new file"""

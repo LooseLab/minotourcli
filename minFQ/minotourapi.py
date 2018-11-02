@@ -70,6 +70,44 @@ class MinotourAPI:
 
         return requests.delete(url, headers=self.request_headers, json=json)
 
+    def get_file_info_by_runid(self, runid):
+
+        url = '/runs/{}/files/'.format(runid)
+
+        req =self.get(url)
+
+        if req.status_code != 200:
+            log.info('Did not find files for {}.'.format(runid))
+            log.info('Status-code {}'.format(req.status_code))
+            log.info('Text {}'.format(req.text))
+            return None
+
+        else:
+
+            return json.loads(req.text)
+
+    def create_file_info(self, filename, runid, md5check):
+
+        payload = {
+            'name': filename,
+            'runid': runid,
+            'md5' : md5check
+        }
+
+        url = '/runs/{}/files/'.format(runid)
+
+        req = self.post(url, json=payload)
+
+        if req.status_code != 201:
+
+            log.info('File info {} could not be created.')
+            log.info('Status-code {}'.format(req.status_code))
+            log.info('Text {}'.format(req.text))
+            return None
+
+        else:
+            fileinfo = json.loads(req.text)
+            return fileinfo
 
     def get_run_by_runid(self, runid):
 

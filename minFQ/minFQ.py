@@ -128,7 +128,7 @@ def main():
         '--ip-address',
         type=str,
         dest='ip',
-        required=True,
+        required=False,
         default=None,
         help='The IP address of the minKNOW machine.',
     )
@@ -193,7 +193,7 @@ def main():
         type=int,
         # required=True,
         default=80,
-        help='The port number for the local server.',
+        help='The port number for the minoTour server.',
         dest='port_number',
     )
 
@@ -203,7 +203,7 @@ def main():
         type=str,
         # required=True,
         default='127.0.0.1',
-        help='The run name you wish to provide.',
+        help='The host name for the minoTour server.',
         dest='host_name',
     )
 
@@ -237,6 +237,9 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if not args.noMinKNOW and args.ip is None:
+        parser.error("To monitor MinKNOW in real time you must specify the IP address of your local machine.\nUsually:\n-ip 127.0.0.1")
 
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:

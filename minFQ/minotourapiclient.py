@@ -52,12 +52,13 @@ class Runcollection():
         self.readnames = list()
         self.readcount = 0
         self.read_type_list = dict()
-        self.batchsize = 2000
+        #self.batchsize = 2000
+        self.batchsize = 20
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
         self.read_list = []
-
+        self.filemonitor = dict()
         self.minotourapi = MinotourAPI(self.args.full_host, self.header)
         self.get_readtype_list()
 
@@ -231,6 +232,8 @@ class Runcollection():
                 sys.exit()
 
         fastq_read_payload['barcode'] = self.barcode_dict[fastq_read_payload['barcode_name']]
+
+
 
         if read_id not in self.readnames:
 
