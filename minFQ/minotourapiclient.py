@@ -85,7 +85,7 @@ class Runcollection():
 
             #url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
             url = "{}api/v1/runs/{}/readnames/".format(self.base_url, fastqfileid)
-            print (url)
+
             req = requests.get(
                 url,
                 headers=self.header
@@ -113,7 +113,7 @@ class Runcollection():
                 for read in json.loads(content.text)["data"]:
 
                     self.readnames.append(read)
-            print (self.readnames)
+
             log.info("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
 
     def add_run(self, descriptiondict):
@@ -122,7 +122,7 @@ class Runcollection():
 
         runid = descriptiondict["runid"]
 
-        print ("seen new runid:{}".format(runid))
+        #print ("seen new runid:{}".format(runid))
 
         run = self.minotourapi.get_run_by_runid(runid)
 
@@ -190,11 +190,6 @@ class Runcollection():
         if not self.run:
 
             self.run = run
-            print ("setting run {}".format(self.run))
-
-        else:
-
-            print ("run set - not setting")
 
         for item in run['barcodes']:
 

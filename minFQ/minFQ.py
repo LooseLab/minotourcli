@@ -334,7 +334,7 @@ def main():
                         args.files_seen - args.files_processed,
                         args.files_processed
                     ))
-                    sys.stdout.write('Reads seen/uploaded/skipped:{}/{}/{}\n'.format(
+                    sys.stdout.write('New reads seen/uploaded/skipped:{}/{}/{}\n'.format(
                         args.reads_seen-args.reads_uploaded-args.reads_skipped,
                         args.reads_uploaded,
                         args.reads_skipped

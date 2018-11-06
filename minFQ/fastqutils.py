@@ -23,16 +23,32 @@ log = logging.getLogger(__name__)
 def md5Checksum(filePath):
 
     return os.path.getsize(filePath)
-    '''
-    with open(filePath, 'rb') as fh:
-        m = hashlib.md5()
-        while True:
-            data = fh.read(8192)
-            if not data:
-                break
-            m.update(data)
-        return m.hexdigest()
-    '''
+
+def check_fastq_path(path):
+    folders = splitall(path)
+    print (folders)
+    if folders[-2] in ("pass","fail"):
+        return ("{}_{}".format(folders[-2],folders[-1]))
+    elif folders[-3] in ("pass","fail"):
+        return ("{}_{}_{}".format(folders[-3],folders[-2],folders[-1]))
+    else:
+        return ("{}".format(folders[-1]))
+
+
+def splitall(path):
+    allparts = []
+    while 1:
+        parts = os.path.split(path)
+        if parts[0] == path:  # sentinel for absolute paths
+            allparts.insert(0, parts[0])
+            break
+        elif parts[1] == path: # sentinel for relative paths
+            allparts.insert(0, parts[1])
+            break
+        else:
+            path = parts[0]
+            allparts.insert(0, parts[1])
+    return allparts
 
 def check_is_pass(path):
 
@@ -135,19 +151,23 @@ def parse_fastq_record(record, fastq, rundict, args, header, fastqfile):
 
         rundict[fastq_read['runid']].add_read(fastq_read)
 
+    else:
+        args.reads_skipped += 1
+
 
 def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection):
 
     log.info("Parsing fastq file {}".format(fastq))
 
-    print (fastqdict[str(os.path.basename(fastq))]["md5"])
+    print (fastqdict)
+
+    print (fastqdict[str(check_fastq_path(fastq))]["md5"])
+
 
 
     ## Get fastqfile id from database here
 
     #As it is the first time we are looking at this file, we set the md5 in the database to be 0
-
-    print (fastqdict)
 
 
     with open(fastq, "r") as file:
@@ -158,10 +178,9 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
             # print (_.split("=")[1])
             runid = _.split("=")[1]
 
-    fastqfile = MinotourConnection.create_file_info(str(os.path.basename(fastq)), runid, "0", None)
-    print ("Run")
-    print (fastqfile)
-    print ("\n\n\n\n")
+
+    fastqfile = MinotourConnection.create_file_info(str(check_fastq_path(fastq)), runid, "0", None)
+
     counter = 0
 
     if fastq.endswith(".gz"):
@@ -210,25 +229,14 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
             #continue
 
     for runs in rundict:
-        print (runs)
-        print (rundict[runs].run)
+
         rundict[runs].commit_reads()
 
-    print ("rundict {}".format(rundict))
-    print ("file {}".format(fastqfile))
-    print ("runid {}".format(runid))
-    print ("run {}".format(rundict[runid].run))
     try:
-        print (rundict[runid].run['url'])
-    except Exception as err:
-        print ("url problem {}".format(err))
-    try:
-        fastqfile = MinotourConnection.create_file_info(str(os.path.basename(fastq)), runid, fastqdict[str(os.path.basename(fastq))]["md5"], rundict[runid].run)
+        fastqfile = MinotourConnection.create_file_info(str(check_fastq_path(fastq)), runid, md5Checksum(fastq), rundict[runid].run)
     except Exception as err:
         print ("Problem with uploading file {}".format(err))
-    print (fastqfile)
 
-    print ("finished and returning")
     return counter
 
 
@@ -268,15 +276,11 @@ def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
                             #print (_.split("=")[1])
                             runid = _.split("=")[1]
                             result = (MinotourConnection.get_file_info_by_runid(_.split("=")[1]))
-                    if f not in fastqdict.keys():
-                        fastqdict[f]=dict()
+                    if check_fastq_path(os.path.join(path, f)) not in fastqdict.keys():
+                        fastqdict[check_fastq_path(os.path.join(path, f))]=dict()
 
-                    fastqdict[f]["runid"] = runid
-                    fastqdict[f]["md5"] = md5Check
-
-                    print (result)
-
-                    print (len(result))
+                    fastqdict[check_fastq_path(os.path.join(path, f))]["runid"] = runid
+                    fastqdict[check_fastq_path(os.path.join(path, f))]["md5"] = md5Check
 
                     if result is None or len(result)< 1 :
                         """This adds the fastq file to the database if it isn't already there """
@@ -294,17 +298,16 @@ def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
 
                             if file["name"] == f:
                                 seenfile = True
-                                print ("md5check : {} stored : {}".format(md5Check,file["md5"]))
                                 if int(file["md5"])==int(md5Check):
-                                    print ("File {} is not different.".format(f))
+                                    args.files_processed += 1
                                 else:
-                                    print ("File {} is different.".format(f))
                                     file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
                                     #result2 = MinotourConnection.create_file_info(f, runid, md5Check)
                                 break
 
                         if not seenfile:
                             file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
+
                             #result2 = MinotourConnection.create_file_info(f, runid, md5Check)
     
     log.info("processed %s files" % (counter))
@@ -336,7 +339,7 @@ class FastqHandler(FileSystemEventHandler):
         self.MinotourConnection = MinotourAPI(self.args.full_host, self.header)
         self.rundict = rundict
         self.fastqdict= dict()
-        self.creates = file_dict_of_folder_simple(self.args.watchdir, args, self.MinotourConnection,self.fastqdict)
+        self.creates = file_dict_of_folder_simple(self.args.watchdir, self.args, self.MinotourConnection,self.fastqdict)
         print (self.rundict)
         self.processing = dict()
         self.running = True
