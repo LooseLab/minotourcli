@@ -327,6 +327,7 @@ def main():
             while 1:
                 linecounter = 0
                 if not args.noFastQ:
+
                     sys.stdout.write('{}\n'.format(args.fastqmessage))
                     sys.stdout.write('FastQ Upload Status:\n')
                     sys.stdout.write('Files queued/processed:{}/{}\n'.format(
@@ -338,6 +339,7 @@ def main():
                         args.reads_uploaded,
                         args.reads_skipped
                     ))
+
                     linecounter+=4
 
                 if not args.noMinKNOW:

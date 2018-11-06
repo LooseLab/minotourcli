@@ -86,12 +86,13 @@ class MinotourAPI:
 
             return json.loads(req.text)
 
-    def create_file_info(self, filename, runid, md5check):
+    def create_file_info(self, filename, runid, md5check, run):
 
         payload = {
             'name': filename,
             'runid': runid,
-            'md5' : md5check
+            'md5' : md5check,
+            'run' : run
         }
 
         url = '/runs/{}/files/'.format(runid)

@@ -59,6 +59,7 @@ class Runcollection():
         self.barcode_dict = {}
         self.read_list = []
         self.filemonitor = dict()
+        self.fastqfileid = None
         self.minotourapi = MinotourAPI(self.args.full_host, self.header)
         self.get_readtype_list()
 
@@ -76,40 +77,44 @@ class Runcollection():
         self.read_type_list = read_type_dict
 
 
-    def get_readnames_by_run(self):
+    def get_readnames_by_run(self,fastqfileid):
 
-        # TODO move this function to MinotourAPI class.
+        if fastqfileid != self.fastqfileid:
+            self.fastqfileid = fastqfileid
+            # TODO move this function to MinotourAPI class.
 
-        url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
+            #url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
+            url = "{}api/v1/runs/{}/readnames/".format(self.base_url, fastqfileid)
+            print (url)
+            req = requests.get(
+                url,
+                headers=self.header
+            )
 
-        req = requests.get(
-            url,
-            headers=self.header
-        )
+            readname_list = json.loads(req.text)
 
-        readname_list = json.loads(req.text)
+            number_pages = readname_list['number_pages']
 
-        number_pages = readname_list['number_pages']
+            log.info("Fetching reads to check if we've uploaded these before.")
+            log.info("Wiping previous reads seen.")
+            self.readnames = list()
+            #for page in tqdm(range(number_pages)):
+            for page in range(number_pages):
 
-        log.info("Fetching reads to check if we've uploaded these before.")
+                self.args.fastqmessage = "Fetching {} of {} pages.".format(page,number_pages)
 
-        #for page in tqdm(range(number_pages)):
-        for page in range(number_pages):
+                new_url = url + '?page={}'.format(page)
 
-            self.args.fastqmessage = "Fetching {} of {} pages.".format(page,number_pages)
+                content = requests.get(new_url, headers=self.header)
 
-            new_url = url + '?page={}'.format(page)
+                log.info("Requesting {}".format(new_url))
 
-            content = requests.get(new_url, headers=self.header)
+                # We have to recover the data component and loop through that to get the read names.
+                for read in json.loads(content.text)["data"]:
 
-            log.info("Requesting {}".format(new_url))
-
-            # We have to recover the data component and loop through that to get the read names.
-            for read in json.loads(content.text)["data"]:
-
-                self.readnames.append(read)
-
-        log.info("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
+                    self.readnames.append(read)
+            print (self.readnames)
+            log.info("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
 
     def add_run(self, descriptiondict):
 
@@ -117,16 +122,20 @@ class Runcollection():
 
         runid = descriptiondict["runid"]
 
+        print ("seen new runid:{}".format(runid))
+
         run = self.minotourapi.get_run_by_runid(runid)
 
         if not run:
 
             runname = self.args.run_name
 
+
             #
             # get or create a flowcell
+            # I THINK THIS IS WHY I AM HAVING A PROBLEM
             #
-            flowcell = self.minotourapi.get_flowcell_by_name(runname)
+            flowcell = self.minotourapi.get_flowcell_by_name(runname)['data']
 
             if not flowcell:
 
@@ -152,12 +161,12 @@ class Runcollection():
                 has_fastq = True
 
             createrun = self.minotourapi.create_run(runname, runid, is_barcoded, has_fastq, flowcell)
-
             if not createrun:
 
                 print('There is a problem creating run')
                 sys.exit()
-
+            else:
+                print ("run created")
             #
             # get or create a grouprun
             #
@@ -181,6 +190,11 @@ class Runcollection():
         if not self.run:
 
             self.run = run
+            print ("setting run {}".format(self.run))
+
+        else:
+
+            print ("run set - not setting")
 
         for item in run['barcodes']:
 
@@ -188,7 +202,7 @@ class Runcollection():
                 item['name']: item['url']
             })
 
-        self.get_readnames_by_run()
+        #self.get_readnames_by_run()
 
     def commit_reads(self):
 
@@ -270,4 +284,5 @@ class Runcollection():
             self.readcount += 1
 
         else:
+            print ("Skipping read")
             self.args.reads_skipped += 1
