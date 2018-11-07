@@ -26,7 +26,7 @@ def md5Checksum(filePath):
 
 def check_fastq_path(path):
     folders = splitall(path)
-    print (folders)
+    #print (folders)
     if folders[-2] in ("pass","fail"):
         return ("{}_{}".format(folders[-2],folders[-1]))
     elif folders[-3] in ("pass","fail"):
@@ -159,9 +159,9 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
 
     log.info("Parsing fastq file {}".format(fastq))
 
-    print (fastqdict)
+    #print (fastqdict)
 
-    print (fastqdict[str(check_fastq_path(fastq))]["md5"])
+    #print (fastqdict[str(check_fastq_path(fastq))]["md5"])
 
 
 
@@ -296,10 +296,10 @@ def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
                         seenfile = False
                         for file in result:
 
-                            if file["name"] == f:
+                            if file["name"] == check_fastq_path(os.path.join(path, f)):
                                 seenfile = True
                                 if int(file["md5"])==int(md5Check):
-                                    args.files_processed += 1
+                                    args.files_skipped += 1
                                 else:
                                     file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
                                     #result2 = MinotourConnection.create_file_info(f, runid, md5Check)
@@ -331,6 +331,7 @@ class FastqHandler(FileSystemEventHandler):
         self.header = header
         self.args.files_seen = 0
         self.args.files_processed = 0
+        self.args.files_skipped = 0
         self.args.reads_seen = 0
         self.args.reads_corrupt = 0
         self.args.reads_skipped = 0

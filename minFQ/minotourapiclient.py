@@ -53,7 +53,7 @@ class Runcollection():
         self.readcount = 0
         self.read_type_list = dict()
         #self.batchsize = 2000
-        self.batchsize = 20
+        self.batchsize = 500
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}

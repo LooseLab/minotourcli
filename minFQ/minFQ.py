@@ -330,9 +330,10 @@ def main():
 
                     sys.stdout.write('{}\n'.format(args.fastqmessage))
                     sys.stdout.write('FastQ Upload Status:\n')
-                    sys.stdout.write('Files queued/processed:{}/{}\n'.format(
-                        args.files_seen - args.files_processed,
-                        args.files_processed
+                    sys.stdout.write('Files queued/processed/skipped:{}/{}/{}\n'.format(
+                        args.files_seen - args.files_processed - args.files_skipped,
+                        args.files_processed,
+                        args.files_skipped
                     ))
                     sys.stdout.write('New reads seen/uploaded/skipped:{}/{}/{}\n'.format(
                         args.reads_seen-args.reads_uploaded-args.reads_skipped,
