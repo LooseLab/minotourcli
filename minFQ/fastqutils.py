@@ -82,11 +82,11 @@ def parse_fastq_record(record, fastq, rundict, args, header, fastqfile):
 
     log.info("Parsing reads from file {}".format(fastq))
 
+
+
     fastq_read = {}
 
     description_dict = parse_fastq_description(record.description)
-
-    #print (fastqfile)
 
     fastq_read['read'] = description_dict.get('read', None)
     fastq_read['runid'] = description_dict.get('runid', None)
@@ -97,11 +97,10 @@ def parse_fastq_record(record, fastq, rundict, args, header, fastqfile):
     fastq_read['sequence_length'] = len(str(record.seq))
     fastq_read['fastqfile'] = fastqfile["url"]
 
+
     # get or create fastfile if not in dictionary?
 
     #fastq_read['fastqfilename'] = fastqfileid
-
-
 
     if fastq_read['runid'] not in rundict:
 
@@ -224,7 +223,7 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
             args.reads_corrupt += 1
 
             log.error("Corrupt file observed in {}.".format(fastq))
-            raise CommandError(repr(e))
+            print (e)
 
             #continue
 

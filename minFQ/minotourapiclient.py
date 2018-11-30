@@ -122,8 +122,6 @@ class Runcollection():
 
         runid = descriptiondict["runid"]
 
-        #print ("seen new runid:{}".format(runid))
-
         run = self.minotourapi.get_run_by_runid(runid)
 
         if not run:
@@ -135,11 +133,23 @@ class Runcollection():
             # get or create a flowcell
             # I THINK THIS IS WHY I AM HAVING A PROBLEM
             #
+
+            log.info("Looking for flowcell {}".format(runname))
+
             flowcell = self.minotourapi.get_flowcell_by_name(runname)['data']
+
+            log.info("found {}".format(flowcell))
 
             if not flowcell:
 
+                log.info("Trying to create flowcell {}".format(runname))
+
                 flowcell = self.minotourapi.create_flowcell(runname)
+
+                log.info("Created flowcell {}".format(runname))
+
+
+
 
             #
             # create a run

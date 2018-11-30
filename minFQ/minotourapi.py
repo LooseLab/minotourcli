@@ -1,7 +1,8 @@
 import datetime
-import json
+import json as jsonlibrary
 import logging
 import requests
+import gzip
 
 from urllib.parse import urlparse
 
@@ -44,6 +45,11 @@ class MinotourAPI:
 
             url = '{}api/v1{}?{}'.format(self.base_url, partial_url, parameters)
 
+        #test = jsonlibrary.dumps(json)
+
+        #self.request_headers["Content-Encoding"]="gzip"
+        #print (self.request_headers)
+
         return requests.post(url, headers=self.request_headers, json=json)
 
     def put(self, partial_url, json, parameters=None):
@@ -84,7 +90,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
     def create_file_info(self, filename, runid, md5check, run):
 
@@ -107,7 +113,7 @@ class MinotourAPI:
             return None
 
         else:
-            fileinfo = json.loads(req.text)
+            fileinfo = jsonlibrary.loads(req.text)
             return fileinfo
 
     def get_run_by_runid(self, runid):
@@ -125,7 +131,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
     def get_grouprun_by_name(self, name):
 
@@ -142,7 +148,7 @@ class MinotourAPI:
 
         else:
 
-            grouprun = json.loads(req.text)
+            grouprun = jsonlibrary.loads(req.text)
             return grouprun
 
     def create_run(self, name, runid, is_barcoded, has_fastq, flowcell, minion = None, start_time = None):
@@ -172,7 +178,7 @@ class MinotourAPI:
 
         else:
 
-            run = json.loads(req.text)
+            run = jsonlibrary.loads(req.text)
             return run
 
     def create_grouprun(self, name):
@@ -192,7 +198,7 @@ class MinotourAPI:
 
         else:
 
-            grouprun = json.loads(req.text)
+            grouprun = jsonlibrary.loads(req.text)
             return grouprun
 
     def create_grouprun_membership(self, grouprun, run):
@@ -213,7 +219,7 @@ class MinotourAPI:
 
         else:
 
-            grouprun = json.loads(req.text)
+            grouprun = jsonlibrary.loads(req.text)
             return grouprun
 
     def create_reads(self, reads):
@@ -233,7 +239,7 @@ class MinotourAPI:
 
         else:
 
-            grouprun = json.loads(req.text)
+            grouprun = jsonlibrary.loads(req.text)
             return grouprun
 
     def get_read_type_list(self):
@@ -251,7 +257,7 @@ class MinotourAPI:
 
         else:
 
-            read_type_list = json.loads(req.text)
+            read_type_list = jsonlibrary.loads(req.text)
             return read_type_list
 
     def create_barcode(self, barcode_name, run_url):
@@ -272,7 +278,7 @@ class MinotourAPI:
 
         else:
 
-            barcode = json.loads(req.text)
+            barcode = jsonlibrary.loads(req.text)
             return barcode
 
     def get_flowcell_by_name(self, name):
@@ -290,7 +296,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
     def create_flowcell(self, name):
 
@@ -310,7 +316,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
     def get_minion_by_name(self, name):
 
@@ -327,7 +333,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
     def create_minion(self, name):
 
@@ -348,7 +354,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
     def get_server_version(self):
 
@@ -365,14 +371,14 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
     ### New functions being added for minknowconnection use.
     def identify_minion(self,minION):
         #print ("args full host {}".format(self.args.full_host))
         r = requests.get(self.args.full_host + 'api/v1/minions', headers=self.header)
         minionidlink = ""
-        for minion in json.loads(r.text):
+        for minion in jsonlibrary.loads(r.text):
             if minion["minION_name"] == minION:
                 minionidlink = minion["url"]
         return(minionidlink)
@@ -398,7 +404,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
         pass
 
@@ -417,7 +423,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
 
     def fetch_minion_scripts(self,minion):
@@ -434,12 +440,12 @@ class MinotourAPI:
             return None
 
         else:
-            minIONscripts = json.loads(req.text)
+            minIONscripts = jsonlibrary.loads(req.text)
             scriptidlist = list()
             for script in minIONscripts:
                 scriptidlist.append(script["identifier"])
             self.minIONscripts = scriptidlist  # TODO we should move this code to minknowconnection
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
 
     def update_minion_script(self,minion,scriptdictionary):
@@ -472,7 +478,7 @@ class MinotourAPI:
 
             else:
 
-                return json.loads(req.text)
+                return jsonlibrary.loads(req.text)
 
             pass
 
@@ -512,7 +518,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
         pass
 
@@ -533,7 +539,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
         pass
 
@@ -552,7 +558,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
         pass
 
@@ -574,7 +580,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
         pass
 
@@ -595,7 +601,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
         pass
 
@@ -616,7 +622,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
         pass
 
@@ -637,7 +643,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
         pass
 
@@ -656,7 +662,7 @@ class MinotourAPI:
 
         else:
 
-            return json.loads(req.text)
+            return jsonlibrary.loads(req.text)
 
     def complete_minion_job(self,minion,job):
 
