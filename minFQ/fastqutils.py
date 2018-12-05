@@ -251,64 +251,64 @@ def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
     
         args.fastqmessage = "caching existing fastq files in: %s" % (path)
 
+        novelrunset=set()
 
+        seenfiletracker = dict()
     
         for path, dirs, files in os.walk(path):
             
             for f in files:
             
                 if f.endswith(".fastq") or f.endswith(".fastq.gz"):
-
+                    print ("Processing File {}\r".format(f))
                     counter += 1
 
                     args.files_seen += 1
                     #### Here is where we want to check if the files have been created and what the checksums are
                     #### If the file checksums do not match, we pass the file to the rest of the script.
                     #### When we finish analysing a file, we will need to update this information n the server.
+                    #### Currently just using size.
                     md5Check = md5Checksum(os.path.join(path, f))
-                    #print (f, md5Check)
                     with open(os.path.join(path, f), "r") as file:
                         for _ in range(1):
                             line = file.readline()
                     for _ in  line.split():
                         if _.startswith("runid"):
-                            #print (_.split("=")[1])
                             runid = _.split("=")[1]
-                            result = (MinotourConnection.get_file_info_by_runid(_.split("=")[1]))
-                    if check_fastq_path(os.path.join(path, f)) not in fastqdict.keys():
-                        fastqdict[check_fastq_path(os.path.join(path, f))]=dict()
-
-                    fastqdict[check_fastq_path(os.path.join(path, f))]["runid"] = runid
-                    fastqdict[check_fastq_path(os.path.join(path, f))]["md5"] = md5Check
-
-                    if result is None or len(result)< 1 :
-                        """This adds the fastq file to the database if it isn't already there """
-                        #print ("trying {} {} {}".format(f,runid,md5Check))
-                        file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
-                        ### We don't want to create the record till we have finished processing the file!±
-                        #result2 = MinotourConnection.create_file_info(f,runid,md5Check)
-                        #print ("done {} {} {}".format(f, runid, md5Check))
-                        #print (result2)
-
+                    if runid not in novelrunset and runid not in seenfiletracker.keys():
+                        result = (MinotourConnection.get_file_info_by_runid(runid))
+                        #### Here we want to parse through the results and store them in some kind of dictionary in order that we can check what is happening
+                        if result is not None:
+                            for entry in result:
+                                if entry["runid"] not in seenfiletracker.keys():
+                                    seenfiletracker[entry["runid"]]=dict()
+                                seenfiletracker[entry["runid"]][entry["name"]]=entry["md5"]
                     else:
-                        """Here we are going to check if the files match or not. """
-                        seenfile = False
-                        for file in result:
+                        result = None
 
-                            if file["name"] == check_fastq_path(os.path.join(path, f)):
-                                seenfile = True
-                                if int(file["md5"])==int(md5Check):
-                                    args.files_skipped += 1
-                                else:
-                                    file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
-                                    #result2 = MinotourConnection.create_file_info(f, runid, md5Check)
-                                break
+                    filepath = os.path.join(path, f)
+                    checkfilepath = check_fastq_path(filepath)
+                    if checkfilepath not in fastqdict.keys():
+                        fastqdict[checkfilepath]=dict()
 
-                        if not seenfile:
-                            file_list_dict[os.path.join(path, f)] = os.stat(os.path.join(path, f)).st_mtime
+                    fastqdict[checkfilepath]["runid"] = runid
+                    fastqdict[checkfilepath]["md5"] = md5Check
 
-                            #result2 = MinotourConnection.create_file_info(f, runid, md5Check)
-    
+
+                    """Here we are going to check if the files match or not. """
+                    seenfile = False
+                    if runid in seenfiletracker.keys() and checkfilepath in seenfiletracker[runid].keys():
+                        seenfile = True
+                        if int(md5Check) == int(seenfiletracker[runid][checkfilepath]):
+                            args.files_skipped += 1
+                        else:
+                            file_list_dict[filepath] = os.stat(filepath).st_mtime
+                            novelrunset.add(runid)
+
+                    if not seenfile:
+                        file_list_dict[filepath] = os.stat(filepath).st_mtime
+                        novelrunset.add(runid)
+
     log.info("processed %s files" % (counter))
     
     args.fastqmessage = "processed %s files" % (counter)
