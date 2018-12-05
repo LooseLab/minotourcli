@@ -95,7 +95,7 @@ def parse_fastq_record(record, fastq, rundict, args, header, fastqfile):
     fastq_read['is_pass'] = check_is_pass(fastq)
     fastq_read['read_id'] = record.id
     fastq_read['sequence_length'] = len(str(record.seq))
-    fastq_read['fastqfile'] = fastqfile["url"]
+    fastq_read['fastqfile'] = fastqfile["id"]
 
 
     # get or create fastfile if not in dictionary?

@@ -53,7 +53,7 @@ class Runcollection():
         self.readcount = 0
         self.read_type_list = dict()
         #self.batchsize = 2000
-        self.batchsize = 500
+        self.batchsize = 2000
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
@@ -72,7 +72,7 @@ class Runcollection():
 
         for read_type in read_type_list:
 
-            read_type_dict[read_type["name"]] = read_type["url"]
+            read_type_dict[read_type["name"]] = read_type["id"]
 
         self.read_type_list = read_type_dict
 
@@ -128,10 +128,8 @@ class Runcollection():
 
             runname = self.args.run_name
 
-
             #
             # get or create a flowcell
-            # I THINK THIS IS WHY I AM HAVING A PROBLEM
             #
 
             log.info("Looking for flowcell {}".format(runname))
@@ -147,9 +145,6 @@ class Runcollection():
                 flowcell = self.minotourapi.create_flowcell(runname)
 
                 log.info("Created flowcell {}".format(runname))
-
-
-
 
             #
             # create a run
@@ -171,29 +166,14 @@ class Runcollection():
                 has_fastq = True
 
             createrun = self.minotourapi.create_run(runname, runid, is_barcoded, has_fastq, flowcell)
+
             if not createrun:
 
                 print('There is a problem creating run')
                 sys.exit()
+
             else:
-                print ("run created")
-            #
-            # get or create a grouprun
-            #
-            if not self.grouprun:
-
-                grouprun = self.minotourapi.get_grouprun_by_name(runname)
-
-                if not grouprun:
-
-                    grouprun = self.minotourapi.create_grouprun(runname)
-
-                self.grouprun = grouprun
-
-                self.minotourapi.create_grouprun_membership(
-                    grouprun['id'],
-                    createrun['id']
-                )
+                print("run created")
 
             run = createrun
 
@@ -204,7 +184,7 @@ class Runcollection():
         for item in run['barcodes']:
 
             self.barcode_dict.update({
-                item['name']: item['url']
+                item['name']: item['id']
             })
 
         #self.get_readnames_by_run()
@@ -232,7 +212,7 @@ class Runcollection():
         runid = fastq_read_payload['runid']
         read_id = fastq_read_payload['read_id']
 
-        fastq_read_payload['run'] = self.run['url']
+        fastq_read_payload['run'] = self.run['id']
 
         if barcode_name not in self.barcode_dict:
 
@@ -243,7 +223,7 @@ class Runcollection():
             if barcode:
 
                 self.barcode_dict.update({
-                    barcode['name']: barcode['url']
+                    barcode['name']: barcode['id']
                 })
 
             else:
@@ -251,8 +231,6 @@ class Runcollection():
                 sys.exit()
 
         fastq_read_payload['barcode'] = self.barcode_dict[fastq_read_payload['barcode_name']]
-
-
 
         if read_id not in self.readnames:
 
