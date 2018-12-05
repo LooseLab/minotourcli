@@ -11,6 +11,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from urllib.parse import urlparse
+from threading import Thread
 
 
 log = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class Runcollection():
         self.header = header
         self.readnames = list()
         self.readcount = 0
+        self.basecount = 0
         self.read_type_list = dict()
         #self.batchsize = 2000
         self.batchsize = 500
@@ -211,8 +213,8 @@ class Runcollection():
 
     def commit_reads(self):
 
+        #Thread(target=self.minotourapi.create_reads(self.read_list)).start()
         self.minotourapi.create_reads(self.read_list)
-
         self.args.reads_uploaded += len(self.read_list)
 
         self.read_list = list()
@@ -275,6 +277,7 @@ class Runcollection():
 
             if self.args.GUI:
                 self.args.basecount += fastq_read_payload['sequence_length']
+            self.basecount += fastq_read_payload['sequence_length']
 
             if self.args.GUI:
                 self.args.qualitysum += fastq_read_payload['quality_average']
@@ -284,6 +287,7 @@ class Runcollection():
             log.info('Checking read_list size {} - {}'.format(len(self.read_list), self.batchsize))
 
             if len(self.read_list) >= self.batchsize:
+                self.batchsize = int(5000000/(int(self.basecount)/self.readcount))
                 self.commit_reads()
 
             self.readcount += 1
