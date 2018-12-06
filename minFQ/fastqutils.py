@@ -18,6 +18,38 @@ from watchdog.events import FileSystemEventHandler
 
 log = logging.getLogger(__name__)
 
+###Function modified from https://raw.githubusercontent.com/lh3/readfq/master/readfq.py
+
+def readfq(fp): # this is a generator function
+    last = None # this is a buffer keeping the last unprocessed line
+    while True: # mimic closure; is it a bad idea?
+        if not last: # the first record or a record following a fastq
+            for l in fp: # search for the start of the next record
+                if l[0] in '>@': # fasta/q header line
+                    last = l[:-1] # save this line
+                    break
+        if not last: break
+        desc, name, seqs, last = last[1:], last[1:].partition(" ")[0], [], None
+        for l in fp: # read the sequence
+            if l[0] in '@+>':
+                last = l[:-1]
+                break
+            seqs.append(l[:-1])
+        if not last or last[0] != '+': # this is a fasta record
+            yield desc,name, ''.join(seqs), None # yield a fasta record
+            if not last: break
+        else: # this is a fastq record
+            seq, leng, seqs = ''.join(seqs), 0, []
+            for l in fp: # read the quality
+                seqs.append(l[:-1])
+                leng += len(l) - 1
+                if leng >= len(seq): # have read enough quality
+                    last = None
+                    yield desc, name, seq, ''.join(seqs); # yield a fastq record
+                    break
+            if last: # reach EOF before reading enough quality
+                yield desc, name, seq, None # yield a fasta record instead
+                break
 
 
 def md5Checksum(filePath):
@@ -78,7 +110,7 @@ def parse_fastq_description(description):
     return descriptiondict
 
 
-def parse_fastq_record(record, fastq, rundict, args, header, fastqfile):
+def parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fastqfile):
 
     log.info("Parsing reads from file {}".format(fastq))
 
@@ -86,15 +118,15 @@ def parse_fastq_record(record, fastq, rundict, args, header, fastqfile):
 
     fastq_read = {}
 
-    description_dict = parse_fastq_description(record.description)
+    description_dict = parse_fastq_description(desc)
 
     fastq_read['read'] = description_dict.get('read', None)
     fastq_read['runid'] = description_dict.get('runid', None)
     fastq_read['channel'] = description_dict.get('ch', None)
     fastq_read['start_time'] = description_dict.get('start_time', None)
     fastq_read['is_pass'] = check_is_pass(fastq)
-    fastq_read['read_id'] = record.id
-    fastq_read['sequence_length'] = len(str(record.seq))
+    fastq_read['read_id'] = name
+    fastq_read['sequence_length'] = len(str(seq))
     fastq_read['fastqfile'] = fastqfile["id"]
 
 
@@ -112,7 +144,7 @@ def parse_fastq_record(record, fastq, rundict, args, header, fastqfile):
 
     if fastq_read['read_id'] not in rundict[fastq_read['runid']].readnames:
 
-        quality = record.format('fastq').split('\n')[3]
+        quality = qual
 
         fastq_read['quality_average'] = quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
 
@@ -145,13 +177,28 @@ def parse_fastq_record(record, fastq, rundict, args, header, fastqfile):
 
         else:
 
-            fastq_read['sequence'] = str(record.seq)
-            fastq_read['quality'] = record.format('fastq').split('\n')[3]
+            fastq_read['sequence'] = str(seq)
+            fastq_read['quality'] = qual
 
         rundict[fastq_read['runid']].add_read(fastq_read)
 
     else:
         args.reads_skipped += 1
+
+def get_runid(fastq):
+    if fastq.endswith(".gz"):
+        with gzip.open(fastq, "rt") as file:
+            for _ in range(1):
+                line = file.readline()
+    else:
+        with open(fastq, "r") as file:
+            for _ in range(1):
+                line = file.readline()
+    for _ in line.split():
+        if _.startswith("runid"):
+            # print (_.split("=")[1])
+            runid = _.split("=")[1]
+    return runid
 
 
 def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection):
@@ -168,14 +215,7 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
 
     #As it is the first time we are looking at this file, we set the md5 in the database to be 0
 
-
-    with open(fastq, "r") as file:
-        for _ in range(1):
-            line = file.readline()
-    for _ in line.split():
-        if _.startswith("runid"):
-            # print (_.split("=")[1])
-            runid = _.split("=")[1]
+    runid=get_runid(fastq)
 
 
     fastqfile = MinotourConnection.create_file_info(str(check_fastq_path(fastq)), runid, "0", None)
@@ -184,17 +224,16 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
 
     if fastq.endswith(".gz"):
 
-        with gzip.open(fastq, "rt") as handle:
+        with gzip.open(fastq, "rt") as fp:
             try:
-                for record in SeqIO.parse(handle, "fastq"):
-
+                for desc, name, seq, qual in readfq(fp):
                     counter += 1
 
                     args.reads_seen += 1
 
                     args.fastqmessage = "processing read {}".format(counter)
 
-                    parse_fastq_record(record, fastq, rundict, args, header,fastqfile)
+                    parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header,fastqfile)
 
             except:
 
@@ -208,15 +247,17 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
 
         try:
 
-            for record in SeqIO.parse(fastq, "fastq"):
+            #for record in SeqIO.parse(fastq, "fastq"):
+            with open(fastq, "r") as fp:
+                
+                for desc, name, seq, qual in readfq(fp):
+                    counter += 1
 
-                counter += 1
+                    args.reads_seen += 1
 
-                args.reads_seen += 1
+                    args.fastqmessage = "processing read {}".format(counter)
 
-                args.fastqmessage = "processing read {}".format(counter)
-
-                parse_fastq_record(record, fastq, rundict, args, header,fastqfile)
+                    parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header,fastqfile)
 
         except Exception as e:
 
@@ -269,12 +310,8 @@ def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
                     #### When we finish analysing a file, we will need to update this information n the server.
                     #### Currently just using size.
                     md5Check = md5Checksum(os.path.join(path, f))
-                    with open(os.path.join(path, f), "r") as file:
-                        for _ in range(1):
-                            line = file.readline()
-                    for _ in  line.split():
-                        if _.startswith("runid"):
-                            runid = _.split("=")[1]
+
+                    runid = get_runid(os.path.join(path, f))
                     if runid not in novelrunset and runid not in seenfiletracker.keys():
                         result = (MinotourConnection.get_file_info_by_runid(runid))
                         #### Here we want to parse through the results and store them in some kind of dictionary in order that we can check what is happening
