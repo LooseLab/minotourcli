@@ -407,7 +407,7 @@ class FastqHandler(FileSystemEventHandler):
             #for fastqfile, createtime in tqdm(sorted(self.creates.items(), key=lambda x: x[1])):
             for fastqfile, createtime in sorted(self.creates.items(), key=lambda x: x[1]):
 
-                delaytime = 0
+                delaytime = 10
 
                 # file created 5 sec ago, so should be complete. For simulations we make the time longer.
                 if (int(createtime) + delaytime < time.time()):
