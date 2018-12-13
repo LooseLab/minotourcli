@@ -401,7 +401,7 @@ class FastqHandler(FileSystemEventHandler):
         return len(self.processed)
 
     def processfiles(self):
-
+        #print ("Process Files Inititated")
         while self.running:
             currenttime = time.time()
             #for fastqfile, createtime in tqdm(sorted(self.creates.items(), key=lambda x: x[1])):
@@ -420,8 +420,9 @@ class FastqHandler(FileSystemEventHandler):
 
                     self.args.files_processed += 1
 
-            if currenttime+5 < time.time():
+            if currenttime+5 > time.time():
                 time.sleep(5)
+            #print ("still ticking")
 
     def process_fastqfile(self, filename):
 
@@ -434,8 +435,18 @@ class FastqHandler(FileSystemEventHandler):
         #     self.creates[event.src_path] = time.time()
 
         log.info("Processing file {}".format(event.src_path))
-        time.sleep(5)
-        self.process_fastqfile(event.src_path)
+        #time.sleep(5)
+        if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
+            self.args.files_seen += 1
+            self.creates[event.src_path] = time.time()
+
+    def on_modified(self, event):
+        log.info("Modified file {}".format(event.src_path))
+        if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
+            #self.args.files_seen += 1
+            self.creates[event.src_path] = time.time()
+
+        #self.process_fastqfile(event.src_path)
 
         # f = open(event.src_path, "r")
         # counter = 0
