@@ -123,6 +123,7 @@ class FastqHandler(FileSystemEventHandler):
     def on_created(self, event):
         """Watchdog counts a new file in a folder it is watching as a new file"""
         """This will add a file which is added to the watchfolder to the creates and the info file."""
+        print ("seen a new file")
         if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
             self.creates[event.src_path] = time.time()
 
@@ -131,6 +132,7 @@ class FastqHandler(FileSystemEventHandler):
             self.creates[event.src_path] = time.time()
 
     def on_moved(self, event):
+        print ("seen a file move")
         """Watchdog considers a file which is moved within its domain to be a move"""
         """When a file is moved, we just want to update its location in the master dictionary."""
         if (event.dest_path.endswith(".fastq") or event.dest_path.endswith(".fastq.gz")):
