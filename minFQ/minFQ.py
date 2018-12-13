@@ -1,29 +1,103 @@
 import os
 import platform
 import sys
+import fnmatch, shutil, platform
+import fileinput
+import logging
+import logging.handlers
 import time
 import threading
 
+
+logging.basicConfig(
+    format='%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s',
+    filename='minFQ.log', 
+    level=os.environ.get('LOGLEVEL', 'INFO')
+)
+
+log = logging.getLogger(__name__)
+
+log.info("Initialising minFQ.")
+
+"""We are setting up the code to copy and import the rpc service from minKNOW and make
+it work on our own code. This prevents us from having to distribute ONT code ourselves."""
+
+root_directory = os.path.dirname(os.path.realpath(__file__))
+
+def copyfiles(srcdir, dstdir, filepattern):
+    def failed(exc):
+        raise exc
+    dstdir = os.path.join(root_directory,dstdir)
+    for dirpath, dirs, files in os.walk(srcdir, topdown=True, onerror=failed):
+        for file in fnmatch.filter(files, filepattern):
+            shutil.copy2(os.path.join(dirpath, file), dstdir)
+            editfile(os.path.join(dstdir,file),'minknow.rpc','minFQ.rpc')
+        break # no recursion
+
+def editfile(filename,text_to_search,replacement_text):
+    with fileinput.FileInput(filename, inplace=True) as file:
+        for line in file:
+            print(line.replace(text_to_search, replacement_text), end='')
+
+dstRPC = "rpc"
+
+OPER = platform.system()
+
+RPCPATH = os.path.join('ont-python','lib','python2.7','site-packages','minknow','rpc')
+
+if os.path.isfile(os.path.join(root_directory, 'rpc', '__init__.py')):
+    pass
+
+else:
+    print ("No RPC")
+    if OPER == "Darwin":
+        minknowbase = os.path.join(os.sep,'Applications','MinKNOW.app','Contents','Resources')
+    elif OPER == "Linux":
+        minknowbase = os.path.join(os.sep,'opt','ONT','MinKNOW')
+    elif OPER == "Windows":
+        minknowbase = os.path.join(os.sep,"Program Files",'OxfordNanopore','MinKNOW')
+    else:
+        print ("Not configured for {} yet. Sorry.".format(OPER))
+        sys.exit()
+    sourceRPC = os.path.join(minknowbase,RPCPATH)
+    copyfiles(sourceRPC,dstRPC,'*.py')
+    print ('RPC Configured')
+
+sys.path.insert(0,os.path.join(root_directory, 'rpc'))
+
 from minFQ.fastqutils import FastqHandler
 from minFQ.minknowcontrolutils import HelpTheMinion
+from minFQ.minknowconnection import MinknowConnect
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
+from minFQ.minotourapi import MinotourAPI
+from minFQ.minknowconnection import MinknowConnect
+
+CLIENT_VERSION = '1.0'
+
+
 def main():
+
     global OPER
 
     OPER = platform.system()
+
     if OPER is 'Windows':  # MS
+
         OPER = 'windows'
+
     else:
+
         OPER = 'linux'  # MS
-    # print(OPER)  # MS
 
     if OPER is 'linux':
+
         config_file = os.path.join(os.path.sep, \
                                    os.path.dirname(os.path.realpath('__file__' \
                                                                     )), 'minfq_posix.config')
     if OPER is 'windows':
+
         config_file = os.path.join(os.path.sep, sys.prefix,
                                    'minfq_windows.config')
 
@@ -31,6 +105,7 @@ def main():
         configargparse.ArgParser(
             description='minFQ: A program to analyse minION fastq files in real-time or post-run and monitor the activity of MinKNOW.' \
             , default_config_files=[config_file])
+
     parser.add(
         '-w',
         '--watch-dir',
@@ -126,13 +201,13 @@ def main():
     )
 
     parser.add(
-        '-c',
-        '--custom_barcode',
-        type=str,
+        '-tc',
+        '--treatment-control',
+        type=int,
         required=False,
         default=None,
-        help='Optionally split reads based on odd/even channel description. Not a standard option.',
-        dest='cust_barc'
+        help='Optionally split reads based in treatment and control groups based on the channel number. The integer value informed is used to mover ish read to the control group.',
+        dest='treatment_control'
     )
 
     parser.add(
@@ -155,53 +230,95 @@ def main():
     )
 
     args = parser.parse_args()
+
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:
         print("You must monitor either FastQ or MinKNOW.")
         print("This program will now exit.")
         os._exit(0)
 
-    args.full_host = "http://" + args.host_name + ":" + str(args.port_number) + "/"
+    args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+
     args.read_count = 0
 
-    # GLobal creation of header (needs fixing)
-    global header
-    header = {'Authorization': 'Token ' + args.api_key, 'Content-Type': 'application/json'}
-    rundict=dict()
+    header = {
+        'Authorization': 'Token {}'.format(args.api_key),
+        'Content-Type': 'application/json'
+    }
 
-    if not args.noFastQ:
-        event_handler = FastqHandler(args, header,rundict)
-        # This block handles the fastq
-        observer = Observer()
-        observer.schedule(event_handler, path=args.watchdir, recursive=True)
-        observer.daemon = True
+    minotourapi = MinotourAPI(args.full_host, header)
 
-    if not args.noMinKNOW:
-        # this block is going to handle the running of minControl.
-        minwsip = "ws://" + args.ip + ":9500/"
-        helper = HelpTheMinion(minwsip, args)
-        helper.connect()
+    # version = minotourapi.get_server_version()
 
-    try:
+    shall_exit = False
+
+    # if not version:
+    #
+    #     print("Server does not support this client. Please change the client to a previous version or upgrade server.")
+    #
+    #     shall_exit = True
+    #
+    # clients = version['clients']
+    #
+    # if CLIENT_VERSION not in clients:
+    #
+    #     print("Server does not support this client. Please change the client to a previous version or upgrade server.")
+    #
+    #     shall_exit = True
+
+    if not shall_exit:
+
+        rundict = dict()
+
         if not args.noFastQ:
-            observer.start()
+            event_handler = FastqHandler(args, header, rundict)
+            # This block handles the fastq
+            observer = Observer()
+            observer.schedule(event_handler, path=args.watchdir, recursive=True)
+            observer.daemon = True
+
         if not args.noMinKNOW:
-            t = threading.Thread(target=helper.process_minion())
-            t.daemon = True
-            t.start()
-        while 1:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print(": Exiting")
-        if not args.noMinKNOW:
-            helper.mcrunning = False
-            helper.hang_up()
-        if not args.noFastQ:
-            observer.stop()
-            observer.join()
-        os._exit(0)
+            # this block is going to handle the running of minControl.
+            minwsip = "ws://" + args.ip + ":9500/"
+            #helper = HelpTheMinion(minwsip, args, header)
+            #helper.connect()
+
+            MinKNOWConnection = MinknowConnect(minwsip, args, header)
+            MinKNOWConnection.connect()
+
+        try:
+
+            if not args.noFastQ:
+
+                observer.start()
+
+            #if not args.noMinKNOW:
+
+                #t = threading.Thread(target=helper.process_minion())
+                #t.daemon = True
+                #t.start()
+
+            while 1:
+
+                time.sleep(1)
+
+        except KeyboardInterrupt:
+
+            print(": Exiting")
+
+            if not args.noMinKNOW:
+                #helper.mcrunning = False
+                #helper.hang_up()
+                pass
+            MinKNOWConnection.disconnect_nicely()
+
+            if not args.noFastQ:
+                observer.stop()
+                observer.join()
+
+            os._exit(0)
 
 
-# noinspection PyGlobalUndefined
 if __name__ == '__main__':
+
     main()

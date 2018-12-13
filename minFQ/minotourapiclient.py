@@ -1,218 +1,199 @@
 """
-A class to handle the collection of run statistics and information from fastq files and upload to minotour.
+A class to handle the collection of run statistics and information 
+from fastq files and upload to minotour.
 """
 import datetime
-import dateutil.parser
-import requests
-import os,sys
 import json
-from tqdm import tqdm
-import numpy as np
+import logging
+import sys
 
-#from concurrent.futures import ThreadPoolExecutor
-#from requests_futures.sessions import FuturesSession
+import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+from urllib.parse import urlparse
 
-#session = FuturesSession(executor=ThreadPoolExecutor(max_workers=10))
+
+log = logging.getLogger(__name__)
+
+# https://www.peterbe.com/plog/best-practice-with-retries-with-requests
+def requests_retry_session(
+    retries=3,
+    backoff_factor=0.3,
+    status_forcelist=(500, 502, 504),
+    session=None,
+):
+
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
+from minFQ.minotourapi import MinotourAPI
+
 
 class Runcollection():
 
     def __init__(self, args, header):
+
+        log.info("Initialising Runcollection")
+
+        self.base_url = args.full_host
+
         self.args = args
         self.header = header
-        self.readid = dict()
         self.readnames = list()
-        self.cumulength = 0
         self.readcount = 0
-        self.readlengths = list()
-        self.timeid = dict()
-        self.chandict = list()
-        self.runidlink = ""
-        self.readtypes = dict()
-        self.statsrecord = dict()
-        self.barcodes = dict()
-        self.runid = 0
-        self.readstore = list()
-        self.flowcelllink = ""
+        self.read_type_list = dict()
         self.batchsize = 2000
+        self.run = None
+        self.grouprun = None
+        self.barcode_dict = {}
+        self.read_list = []
+
+        self.minotourapi = MinotourAPI(self.args.full_host, self.header)
+        self.get_readtype_list()
+
+
+    def get_readtype_list(self):
+
+        read_type_list = self.minotourapi.get_read_type_list()
+
+        read_type_dict = {}
+
+        for read_type in read_type_list:
+
+            read_type_dict[read_type["name"]] = read_type["url"]
+
+        self.read_type_list = read_type_dict
+
 
     def get_readnames_by_run(self):
-        content = requests.get(self.runidlink + 'readnames', headers=self.header)
-        content_json = json.loads(content.text)
-        number_pages = content_json.get('number_pages')
-        self.args.fastqmessage = "Fetching reads to check if we've uploaded these before."
-        #for page in tqdm(range(number_pages)):
-        for page in range(number_pages):
-            self.args.fastqmessage = "Fetching {} of {} pages.".format(page,number_pages)
-            url = self.runidlink + 'readnames?page={}'.format(page)
-            content = requests.get(url, headers=self.header)
-            # We have to recover the data component and loop through that to get the read names.
-            for read in json.loads(content.text)["data"]:
-                self.readnames.append(read)
 
-    def create_flowcell(self, name):
-        # Test to see if the flowcell exists.
-        r = requests.get(self.args.full_host + 'api/v1/flowcells', headers=self.header)
-        print (r.text)
-        print (name)
-        flowcellname = name
-        flowcelllist = json.loads(r.text)
-        if flowcellname not in [x["name"] for x in flowcelllist]:
-            if self.args.GUI:
-                self.args.flowcellcount += 1
-            createflowcell = requests.post(self.args.full_host + 'api/v1/flowcells/', headers=self.header,
-                                           json={"name": flowcellname})
-            self.flowcelllink = json.loads(createflowcell.text)["url"]
-        else:
-            for flowcell in json.loads(r.text):
-                if flowcell["name"] == flowcellname:
-                    self.flowcelllink = flowcell["url"]
-                    break
+        # TODO move this function to MinotourAPI class.
 
-    def create_flowcell_run(self):
-        print ("Adding run to flowcell")
-        print (self.flowcelllink)
-        if self.args.GUI:
-            self.args.flowcellruncount+=1
-        createflowcellrun = requests.post(self.flowcelllink, headers=self.header,
-                                          json={"flowcell": self.flowcelllink, "run": self.runidlink})
+        url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
 
-    def add_run(self, descriptiondict):
-        print("Seen a new run")
-        # Test to see if the run exists
-        """
-        Note we need to do this properly - too many runs and this
-        response will start to be a dramatic bottleneck.
-        """
-        self.args.fastqmessage = "Adding run."
-        r = requests.get(self.args.full_host + 'api/v1/runs', headers=self.header)
-        runid = descriptiondict["runid"]
-        if runid not in r.text:
-            runname = self.args.run_name
-            if "barcode" in descriptiondict.keys():
-                is_barcoded = True
-                barcoded = "barcoded"
-            else:
-                is_barcoded = False
-                barcoded = "unclassified"
-            if self.args.skip_sequence:
-                has_fastq = False
-            else:
-                has_fastq = True
-            createrun = requests.post(self.args.full_host + 'api/v1/runs/', headers=self.header,
-                                      json={"run_name": runname, "run_id": runid, "barcode": barcoded,
-                                            "is_barcoded": is_barcoded, "has_fastq": has_fastq})
-            if createrun.status_code != 201:
-                print (createrun.status_code)
-                print (createrun.text)
-                print ("Error - we have been unable to create a run.")
-            else:
-                self.runidlink = json.loads(createrun.text)["url"]
-                self.runid = json.loads(createrun.text)["id"]
-                if self.args.noMinKNOW:
-                    if self.args.is_flowcell:
-                        self.create_flowcell(self.args.run_name)
-                        self.create_flowcell_run()
-                #else:
-                #    print ("$$$$$$$$$$$$$$$$$$$$$$$$$$ skipping flowcell creation as minKNOW monitoring is live.")
-        else:
-            for run in json.loads(r.text):
-                if run["run_id"] == runid:
-                    print (run)
-                    self.runidlink = run["url"]
-                    self.runid = run["id"]
-            #
-            # Now fetch a list of reads that already exist at that location
-            #
-            self.get_readnames_by_run()
-        readtypes = requests.get(self.args.full_host + 'api/v1/readtypes', headers=self.header)
-        for readtype in json.loads(readtypes.text):
-            self.readtypes[readtype["name"]] = readtype["url"]
-        response = requests.get(
-            str(self.runidlink) + "barcodes/",
+        req = requests.get(
+            url,
             headers=self.header
         )
-        for item in json.loads(response.text):
-            self.barcodes.update({
+
+        readname_list = json.loads(req.text)
+
+        number_pages = readname_list['number_pages']
+
+        log.info("Fetching reads to check if we've uploaded these before.")
+
+        #for page in tqdm(range(number_pages)):
+        for page in range(number_pages):
+
+            self.args.fastqmessage = "Fetching {} of {} pages.".format(page,number_pages)
+
+            new_url = url + '?page={}'.format(page)
+
+            content = requests.get(new_url, headers=self.header)
+
+            log.info("Requesting {}".format(new_url))
+
+            # We have to recover the data component and loop through that to get the read names.
+            for read in json.loads(content.text)["data"]:
+
+                self.readnames.append(read)
+
+        log.info("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
+
+    def add_run(self, descriptiondict):
+
+        self.args.fastqmessage = "Adding run."
+
+        runid = descriptiondict["runid"]
+
+        run = self.minotourapi.get_run_by_runid(runid)
+
+        if not run:
+
+            runname = self.args.run_name
+
+            #
+            # get or create a flowcell
+            #
+            flowcell = self.minotourapi.get_flowcell_by_name(runname)
+
+            if not flowcell:
+
+                flowcell = self.minotourapi.create_flowcell(runname)
+
+            #
+            # create a run
+            #
+            if "barcode" in descriptiondict.keys():
+
+                is_barcoded = True
+
+            else:
+
+                is_barcoded = False
+
+            if self.args.skip_sequence:
+
+                has_fastq = False
+
+            else:
+
+                has_fastq = True
+
+            createrun = self.minotourapi.create_run(runname, runid, is_barcoded, has_fastq, flowcell)
+
+            if not createrun:
+
+                print('There is a problem creating run')
+                sys.exit()
+
+            #
+            # get or create a grouprun
+            #
+            if not self.grouprun:
+
+                grouprun = self.minotourapi.get_grouprun_by_name(runname)
+
+                if not grouprun:
+
+                    grouprun = self.minotourapi.create_grouprun(runname)
+
+                self.grouprun = grouprun
+
+                self.minotourapi.create_grouprun_membership(
+                    grouprun['id'],
+                    createrun['id']
+                )
+
+            run = createrun
+
+        if not self.run:
+
+            self.run = run
+
+        for item in run['barcodes']:
+
+            self.barcode_dict.update({
                 item['name']: item['url']
             })
 
+        self.get_readnames_by_run()
+
     def commit_reads(self):
-        runlinkaddread = self.runidlink + "reads/"
-        #createread = session.post(runlinkaddread, headers=self.header, json=self.readstore)
-        createread = requests.post(runlinkaddread, headers=self.header, json=self.readstore)
-        self.readstore = list()
 
-    def add_read_db(self, runid, readid, read, channel, barcode, sequence, quality, ispass, type, starttime):
-        runlink = self.runidlink
-        typelink = type
-        if readid not in self.readnames:
-            self.readnames.append(readid)
-            if self.args.GUI:
-                self.args.readcount += 1
-            sequence_length = len(sequence)
-            if self.args.GUI:
-                self.args.basecount += sequence_length
-            quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
-            if self.args.GUI:
-                self.args.qualitysum += quality_average
-            if self.args.skip_sequence:
-                payload = {
-                    'run_id': runlink,
-                    'read_id': readid,
-                    'read': read,
-                    "channel": channel,
-                    'barcode': barcode,
-                    'sequence': '',
-                    'quality': '',
-                    'sequence_length': sequence_length,
-                    'quality_average': quality_average,
-                    'is_pass': ispass,
-                    'start_time': starttime,
-                    'type': typelink
-                }
-            else:
-                payload = {
-                    'run_id': runlink,
-                    'read_id': readid,
-                    'read': read,
-                    "channel": channel,
-                    'barcode': barcode,
-                    'sequence': sequence,
-                    'quality': quality,
-                    'sequence_length': sequence_length,
-                    'quality_average': quality_average,
-                    'is_pass': ispass,
-                    'start_time': starttime,
-                    'type': typelink
-                }
-            self.readstore.append(payload)
-            if len(self.readstore) >= self.batchsize:
-                self.commit_reads()
-        else:
-            pass
+        self.minotourapi.create_reads(self.read_list)
 
-    def add_or_update_stats(self, sample_time, total_length, max_length, min_length, average_length, number_of_reads,
-                            number_of_channels, type):
-        runlink = self.args.full_host + 'api/v1/runs/' + str(self.runidlink) + "/"
-        typelink = self.args.full_host + 'api/v1/readtypes/' + str(type) + "/"
-        payload = {'run_id': runlink, 'sample_time': sample_time, 'total_length': total_length,
-                   'max_length': max_length, 'min_length': min_length, 'average_length': average_length,
-                   'number_of_reads': number_of_reads, 'number_of_channels': number_of_channels, 'type': typelink}
-        if sample_time not in self.statsrecord.keys():
-            createstats = requests.post(self.args.full_host + 'api/v1/statistics/', headers=self.header, json=payload)
-            self.statsrecord[sample_time] = dict()
-            self.statsrecord[sample_time]["id"] = json.loads(createstats.text)["id"]
-            self.statsrecord[sample_time]['payload'] = payload
-        else:
-            if self.statsrecord[sample_time]['payload'] != payload:
-                deletestats = requests.delete(
-                    self.args.full_host + 'api/v1/statistics/' + str(self.statsrecord[sample_time]['id']) + '/',
-                    headers=self.header)
-                createstats = requests.post(self.args.full_host + 'api/v1/statistics/', headers=self.header, json=payload)
-                self.statsrecord[sample_time]["id"] = json.loads(createstats.text)["id"]
-                self.statsrecord[sample_time]['payload'] = payload
-            else:
-                print ("Record not changed.")
+        self.read_list = list()
 
     def update_read_type(self, read_id, type):
         payload = {'type': type}
@@ -223,122 +204,63 @@ class Runcollection():
         if len(readid) > 64:
             return True
 
-    def check_pass(self, path):
-        folders = os.path.split(path)
-        # print folders[0]
-        if 'pass' in folders[0]:
-            return True
-        elif 'fail' in folders[0]:
-            return False
-        else:
-            return True  # This assumes we have been unable to find either pass or fail and thus we assume the run is a pass run.
+    def add_read(self, fastq_read_payload):
 
-    def add_read(self, record, descriptiondict, fastq):
-        passstatus = (self.check_pass(fastq))
-        self.readid[record.id] = dict()
-        for item in descriptiondict:
-            self.readid[record.id][item] = descriptiondict[item]
-        tm = dateutil.parser.parse(self.readid[record.id]["start_time"])
-        tm = tm - datetime.timedelta(minutes=(tm.minute % 1) - 1,
-                                     seconds=tm.second,
-                                     microseconds=tm.microsecond)
-        if tm not in self.timeid.keys():
-            self.timeid[tm] = dict()
-            self.timeid[tm]["cumulength"] = 0
-            self.timeid[tm]["count"] = 0
-            self.timeid[tm]["readlengths"] = list()
-            self.timeid[tm]["chandict"] = list()
-        if self.readid[record.id]["ch"] not in self.chandict:
-            self.chandict.append(self.readid[record.id]["ch"])
-        if self.readid[record.id]["ch"] not in self.timeid[tm]["chandict"]:
-            self.timeid[tm]["chandict"].append(self.readid[record.id]["ch"])
-        if "barcode" in self.readid[record.id].keys() or self.args.cust_barc == 'oddeven':
-            if "barcode" in self.readid[record.id]:
-                barcode_local = self.readid[record.id]["barcode"]
+        barcode_name = fastq_read_payload['barcode_name']
+        runid = fastq_read_payload['runid']
+        read_id = fastq_read_payload['read_id']
+
+        fastq_read_payload['run'] = self.run['url']
+
+        if barcode_name not in self.barcode_dict:
+
+            # print(">>> Found new barcode {} for run {}.".format(barcode_name, runid))
+
+            barcode = self.minotourapi.create_barcode(barcode_name, self.run['url'])
+
+            if barcode:
+
+                self.barcode_dict.update({
+                    barcode['name']: barcode['url']
+                })
+
             else:
-                barcode_local = ""
-            if self.args.cust_barc == 'oddeven':
-                if int(self.readid[record.id]["ch"]) % 4 == 0:
-                    barcode_local = barcode_local + 'even'
-                else:
-                    barcode_local = barcode_local + 'odd'
-            if barcode_local not in self.barcodes.keys():
-                print(">> Found new barcode {} for run {}.".format(barcode_local, self.runidlink))
-                request_body = {
-                    'name': barcode_local,
-                    'run': str(self.runidlink)
-                }
-                print ("Request body formed.")
-                print (request_body)
-                response = requests.post(
-                    str(self.runidlink) + "barcodes/",
-                    headers=self.header,
-                    json=request_body
-                )
-                print ("response posted {}".format(response.text))
-                if response.status_code == 201:
-                    item = json.loads(response.text)
-                    self.barcodes.update({
-                        item['name']: item['url']
-                    })
-                    print(">> Barcode {} for run {} created with success.".format(item['url'], self.runidlink))
-                else:
-                    print (response.status_code)
-                    sys.exit()
-            barcode_url = self.barcodes[barcode_local]
-        else:
-            #print ("self.barcodes is:")
-            #print (self.barcodes)
-            barcode_url = self.barcodes["No barcode"]
-        if record.id not in self.readnames:
-            if self.check_1d2(record.id):
-                firstread, secondread = record.id[:len(record.id) // 2], record.id[len(record.id) // 2:]
-                self.update_read_type(secondread, self.readtypes["Complement"])
-                self.add_read_db(
-                    self.runidlink,
-                    record.id,
-                    self.readid[record.id]["read"],
-                    self.readid[record.id]["ch"],
-                    barcode_url,
-                    str(record.seq),
-                    record.format('fastq').split('\n')[3],
-                    passstatus,
-                    self.readtypes["1D^2"],
-                    self.readid[record.id]["start_time"]
-                )
+
+                sys.exit()
+
+        fastq_read_payload['barcode'] = self.barcode_dict[fastq_read_payload['barcode_name']]
+
+        if read_id not in self.readnames:
+
+            if self.check_1d2(read_id):
+
+                firstread, secondread = read_id[:len(read_id) // 2], read_id[len(read_id) // 2:]
+
+                self.update_read_type(secondread, self.read_type_list["Complement"])
+
+                fastq_read_payload['type'] = self.read_type_list["1D^2"]
+
             else:
-                self.add_read_db(
-                    self.runidlink,
-                    record.id,
-                    self.readid[record.id]["read"],
-                    self.readid[record.id]["ch"],
-                    barcode_url,
-                    str(record.seq),
-                    record.format('fastq').split('\n')[3],
-                    passstatus,
-                    self.readtypes["Template"],
-                    self.readid[record.id]["start_time"]
-                )
-            self.readid[record.id]["len"] = len(record.seq)
-            self.cumulength += len(record.seq)
-            self.timeid[tm]["cumulength"] += len(record.seq)
+
+                fastq_read_payload['type'] = self.read_type_list["Template"]
+
+            self.readnames.append(read_id)
+
+            if self.args.GUI:
+                self.args.readcount += 1
+
+            if self.args.GUI:
+                self.args.basecount += fastq_read_payload['sequence_length']
+
+            if self.args.GUI:
+                self.args.qualitysum += fastq_read_payload['quality_average']
+
+            self.read_list.append(fastq_read_payload)
+
+            log.info('Checking read_list size {} - {}'.format(len(self.read_list), self.batchsize))
+
+            if len(self.read_list) >= self.batchsize:
+                self.commit_reads()
+
             self.readcount += 1
-            self.timeid[tm]["count"] += 1
-            self.readlengths.append(len(record.seq))
-            self.timeid[tm]["readlengths"].append(len(record.seq))
 
-    def read_count(self):
-        return len(self.readid)
-
-    def mean_median_std_max_min(self):
-        return np.average(self.readlengths), np.median(self.readlengths), np.std(self.readlengths), np.max(
-            self.readlengths), np.min(self.readlengths)
-
-    def parse1minwin(self):
-        for time in sorted(self.timeid):
-            self.add_or_update_stats(str(time), self.timeid[time]["cumulength"],
-                                     np.max(self.timeid[time]["readlengths"]),
-                                     np.min(self.timeid[time]["readlengths"]),
-                                     np.around(np.average(self.timeid[time]["readlengths"]), decimals=2),
-                                     self.timeid[time]["count"], len(self.timeid[time]["chandict"]),
-                                     self.readtypes["Template"])

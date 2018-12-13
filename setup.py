@@ -36,14 +36,19 @@ setup(
                       'numpy',
                       'watchdog',
                       'ws4py',
-                      'configargparse'
-                      ],
+                      'configargparse',
+                      'grpcio',
+                      'google',
+                      'protobuf',
+                      'pandas',  
+                     ],
     package_data={'minFQ': []},
     package_dir={'minFQ': 'minFQ'},
     include_package_data=True,
     entry_points={
         'console_scripts': [
             'minFQ=minFQ.minFQ:main',
+            'minFlow=minFQ.flowcellmaker:main',
         ],
     },
 )
