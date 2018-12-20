@@ -2,7 +2,7 @@ import os
 import sys
 import datetime
 import configargparse
-from ont_fast5_api import fast5_file
+from ont_fast5_api import fast5_file, multi_fast5
 
 from minFQ.minotourapi import MinotourAPI
 
@@ -66,12 +66,21 @@ def main():
     for root, subdirs, files in tqdm(os.walk(args.watchdir)):
         files.sort()
         for file in tqdm(files):
+            #print (file)
             if file.endswith("fast5"):
                 if file.split('_read_')[0] != last_seen:
                     #print (last_seen,file.split('_read_')[0])
                     last_seen = file.split('_read_')[0]
                     try:
-                        myfile  = fast5_file.Fast5File(os.path.join(root,file))
+                        try:
+                            myfile  = fast5_file.Fast5File(os.path.join(root,file))
+
+                        except:
+                            mymultifile = multi_fast5.MultiFast5File(os.path.join(root,file))
+                            myid = mymultifile.get_read_ids()[0]
+                            myfile = mymultifile.get_read(myid)
+
+                        #print (myfile)
                         #print (myfile.get_tracking_id())
                         minIONid = myfile.get_tracking_id()['device_id']
                         minION.add(minIONid)
@@ -93,6 +102,7 @@ def main():
                             flowcelldict[sample_id][flowcell][run_id]["context_tags"]=myfile.get_context_tags()
                     except:
                         print ("Non fast5file seen.")
+
                 #else:
                     #print ("same read")
 
