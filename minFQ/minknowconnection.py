@@ -641,28 +641,39 @@ class MinknowConnect(WebSocketClient):
                         "grpc_web_port": 8005,
                         "grpc_web_insecure_port": 8001
                         """
+
+                        """
+                        They've changed it again the buggers.
+                        "cereal_class_version": 0,
+                        "port": 8000,
+                        "ws_longpoll_port": 8002,
+                        "grpc_port": 8004,
+                        "grpc_web_port": 8005,
+                        "grpc_web_insecure_port": 8001
+                        """
                         port = minIONports[0]
                         ws_longpoll_port = minIONports[1]
                         #ws_event_sampler_port = minIONports[2]
-                        ws_raw_data_sampler_port = minIONports[2]
-                        grpc_port = minIONports[3]
-                        grpc_web_port = minIONports[4]
+                        #ws_raw_data_sampler_port = minIONports[2]
+                        grpc_port = minIONports[2]
+                        grpc_web_port = minIONports[3]
                     except:
                         minIONports = list(map(lambda x: x - 192 + 8000 + 128, filter(lambda x: x > 120, map(ord, thing))))
                         self.minIONdict[deviceid]["state"] = "active"
                         port = minIONports[0]
                         ws_longpoll_port = minIONports[1]
                         #ws_event_sampler_port = minIONports[2]
-                        ws_raw_data_sampler_port = minIONports[2]
-                        grpc_port = minIONports[3]
-                        grpc_web_port = minIONports[4]
+                        #ws_raw_data_sampler_port = minIONports[2]
+                        grpc_port = minIONports[2]
+                        grpc_web_port = minIONports[3]
                     self.minIONdict[deviceid]["port"] = port
                     self.minIONdict[deviceid]["ws_longpoll_port"] = ws_longpoll_port
                     #self.minIONdict[deviceid]["ws_event_sampler_port"] = ws_event_sampler_port
-                    self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ws_raw_data_sampler_port
+                    #self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ws_raw_data_sampler_port
                     self.minIONdict[deviceid]["grpc_port"] = grpc_port
                     self.minIONdict[deviceid]["grpc_web_port"] = grpc_web_port
                     # Create an rpc connection to look at minknow api
+                    print (self.minIONdict[deviceid]["grpc_port"])
                     self.minIONdict[deviceid]["grpc_connection"] = rpc.Connection(port=self.minIONdict[deviceid]["grpc_port"])
                     connectip = "ws://" + self.args.ip + ":" + str(self.minIONdict[deviceid]["ws_longpoll_port"]) + "/"
 
@@ -679,7 +690,7 @@ class MinknowConnect(WebSocketClient):
                     self.minIONdict[deviceid]["port"] = ""
                     self.minIONdict[deviceid]["ws_longpoll_port"] = ""
                     #self.minIONdict[deviceid]["ws_event_sampler_port"] = ""
-                    self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ""
+                    #self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ""
                     self.minIONdict[deviceid]["grpc_port"] = ""
                     self.minIONdict[deviceid]["grpc_web_port"] = ""
                     self.minIONdict[deviceid]["grpc_connection"] = ""
