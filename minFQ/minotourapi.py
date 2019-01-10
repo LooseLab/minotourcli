@@ -3,6 +3,7 @@ import json as jsonlibrary
 import logging
 import requests
 import gzip
+import time
 
 from urllib.parse import urlparse
 
@@ -225,7 +226,7 @@ class MinotourAPI:
     def create_reads(self, reads):
 
         log.info('Creating reads')
-        
+        time.sleep(1)
         payload = reads
 
         req = self.post('/read/', json=payload)
