@@ -303,8 +303,6 @@ def main():
             # this block is going to handle the running of minControl.
             print ("Configuring MinKNOW Monitoring.")
             minwsip = "ws://" + args.ip + ":9500/"
-            #helper = HelpTheMinion(minwsip, args, header)
-            #helper.connect()
 
             MinKNOWConnection = MinknowConnect(minwsip, args, header)
             MinKNOWConnection.connect()
@@ -317,12 +315,6 @@ def main():
             if not args.noFastQ:
 
                 observer.start()
-
-            #if not args.noMinKNOW:
-
-                #t = threading.Thread(target=helper.process_minion())
-                #t.daemon = True
-                #t.start()
 
             while 1:
                 linecounter = 0
@@ -344,6 +336,7 @@ def main():
                     linecounter+=4
 
                 if not args.noMinKNOW:
+
                     sys.stdout.write('MinKNOW Monitoring Status:\n')
                     sys.stdout.write("Connected minIONs: {}\n".format(MinKNOWConnection.minIONnumber()))
                     linecounter+=2

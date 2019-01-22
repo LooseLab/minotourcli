@@ -58,12 +58,14 @@ def md5Checksum(filePath):
 
 def check_fastq_path(path):
     folders = splitall(path)
-    #print (folders)
-    if folders[-2] in ("pass","fail"):
-        return ("{}_{}".format(folders[-2],folders[-1]))
-    elif folders[-3] in ("pass","fail"):
-        return ("{}_{}_{}".format(folders[-3],folders[-2],folders[-1]))
-    else:
+    try:
+        if folders[-2] in ("pass","fail"):
+            return ("{}_{}".format(folders[-2],folders[-1]))
+        elif folders[-3] in ("pass","fail"):
+            return ("{}_{}_{}".format(folders[-3],folders[-2],folders[-1]))
+        else:
+            return ("{}".format(folders[-1]))
+    except:
         return ("{}".format(folders[-1]))
 
 

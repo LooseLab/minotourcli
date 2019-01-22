@@ -226,7 +226,7 @@ class MinotourAPI:
     def create_reads(self, reads):
 
         log.info('Creating reads')
-        time.sleep(1)
+        #time.sleep(1)
         payload = reads
 
         req = self.post('/read/', json=payload)
@@ -607,8 +607,6 @@ class MinotourAPI:
         pass
 
     def create_minion_statistic(self,payload,runid):
-
-        payload = payload
 
         url = '/runs/{}/runstats/'.format(runid)
 
