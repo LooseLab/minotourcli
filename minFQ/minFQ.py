@@ -345,7 +345,7 @@ def main():
                 sys.stdout.flush()
 
                 time.sleep(1)
-                up(linecounter)
+                if not args.verbose: up(linecounter)
 
         except KeyboardInterrupt:
 
