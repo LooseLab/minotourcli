@@ -76,6 +76,12 @@ class DeviceConnect(WebSocketClient):
         self.minion = minion
         self.minIONstatus = self.minotourapi.get_minion_status(self.minion)
         self.runidlink=""
+        try:
+            self.acquisition_data = parsemessage(self.rpc_connection.acquisition.get_acquisition_info())
+        except:
+            if self.args.verbose:
+                print ("No active run")
+            self.acquisition_data = {}
 
         runmonitorthread = threading.Thread(target=self.runmonitor, args=())
         runmonitorthread.daemon = True                            # Daemonize thread
@@ -171,12 +177,14 @@ class DeviceConnect(WebSocketClient):
                 print(self.channelstatesdesc)
                 print(self.channels)
                 print("FLOWCELL DATA", self.get_flowcell_id())
-
+            if self.args.verbose: print ("trying to create run")
             self.create_run(self.runinformation.run_id)
-            #print ("run created!!!!!!!")
+            if self.args.verbose: print ("run created!!!!!!!")
             self.update_minion_run_info()
+            if self.args.verbose: print ("update minion run info complete")
 
-        except:
+        except Exception as err:
+            print ("Problem:", err)
             pass
         pass
 
@@ -206,13 +214,16 @@ class DeviceConnect(WebSocketClient):
 
         ruinfo = parsemessage(self.rpc_connection.protocol.get_run_info())
 
-        payload['experiment_id']=ruinfo['user_info']['protocol_group_id']
+        try:
+            payload['experiment_id']=ruinfo['user_info']['protocol_group_id']
+        except:
+            payload['experiment_id']="Not Known"
 
-        if self.args.verbose:
-            print (">>>>>>>>", payload)
+        #if self.args.verbose:
+        if self.args.verbose: print (">>>>>>>>", payload)
         updateruninfo = self.minotourapi.update_minion_run_info(payload,self.runid)
-        if self.args.verbose:
-            print (updateruninfo)
+        #if self.args.verbose:
+        if self.args.verbose: print (updateruninfo)
 
     def create_run(self, runid):
         if self.args.verbose:
@@ -280,8 +291,16 @@ class DeviceConnect(WebSocketClient):
 
             self.runidlink = run["url"]
             self.runid = run["id"]
+        if self.args.verbose:print ("***** self.runid", self.runid)
         #print (run)
-        #self.update_minion_run_stats()
+        try:
+            ### I don't know what is happening here!
+            #self.minotourapi.update_minion_run_stats()
+            #self.minotourapi.update_minion_run_info()
+            pass
+        except Exception as err:
+            print ("Problem minotourapi", err)
+        if self.args.verbose:print ("**** run stats updated")
 
 
     def run_live(self):
@@ -536,7 +555,7 @@ class DeviceConnect(WebSocketClient):
             if self.args.verbose:
                 print ("Checking run info")
             try:
-                self.acquisition_data = json.loads(MessageToJson(self.rpc_connection.acquisition.get_acquisition_info(), preserving_proto_field_name=True, including_default_value_fields=True))
+                self.acquisition_data = parsemessage(self.rpc_connection.acquisition.get_acquisition_info())
             except:
                 if self.args.verbose:
                     print ("No active run")
@@ -566,7 +585,8 @@ class DeviceConnect(WebSocketClient):
                 try:
                     if self.args.verbose:
                         print ("running update minion stats")
-                    self.update_minion_stats()
+                    if hasattr(self, 'runid'):
+                        self.update_minion_stats()
                 except Exception as err:
                     print ("Problem updating stats to device.", err)
                     pass
