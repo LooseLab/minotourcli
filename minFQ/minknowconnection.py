@@ -66,6 +66,10 @@ class DeviceConnect(WebSocketClient):
         self.minknow_status = self.rpc_connection.instance.get_version_info().protocols
         self.minotourapi = MinotourAPINew(self.args.full_host, self.header)
         self.minotourapi.test()
+        self.disk_space_info = json.loads(
+            MessageToJson(self.rpc_connection.instance.get_disk_space_info(), preserving_proto_field_name=True,
+                          including_default_value_fields=True))
+        self.flowcelldata = parsemessage(self.rpc_connection.device.get_flow_cell_info())
         minion = self.minotourapi.get_minion_by_name(self.minIONid)
         if not minion:
             minion = self.minotourapi.create_minion(self.minIONid)
@@ -426,6 +430,13 @@ class DeviceConnect(WebSocketClient):
             acquisition_data = self.acquisition_data
             currentscript = str(self.rpc_connection.protocol.get_run_info().protocol_id)
 
+        if len(self.disk_space_info)<1:
+            self.disk_space_info = json.loads(
+                MessageToJson(self.rpc_connection.instance.get_disk_space_info(), preserving_proto_field_name=True,
+                              including_default_value_fields=True))
+            if self.args.verbose:
+                print (self.disk_space_info)
+
         payload = {"minION": str(self.minion["url"]),
                    "minKNOW_status": acquisition_data['state'],
                    "minKNOW_current_script": currentscript,
@@ -717,7 +728,7 @@ class MinknowConnect(WebSocketClient):
                     self.minIONdict[deviceid]["grpc_port"] = grpc_port
                     self.minIONdict[deviceid]["grpc_web_port"] = grpc_web_port
                     # Create an rpc connection to look at minknow api
-                    print (self.minIONdict[deviceid]["grpc_port"])
+                    if self.args.verbose: print (self.minIONdict[deviceid]["grpc_port"])
                     self.minIONdict[deviceid]["grpc_connection"] = rpc.Connection(port=self.minIONdict[deviceid]["grpc_port"])
                     connectip = "ws://" + self.args.ip + ":" + str(self.minIONdict[deviceid]["ws_longpoll_port"]) + "/"
 
