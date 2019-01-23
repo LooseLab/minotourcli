@@ -49,8 +49,9 @@ class DeviceConnect(WebSocketClient):
         if str(self.version) != "3.1.13":
             print (self.version)
             print ("This version of minFQ may not be compatible with the MinKNOW version you are running.")
-            print ("As a consequence, live monitoring WILL NOT WORK.")
-            sys.exit()
+            print ("As a consequence, live monitoring MAY NOT WORK.")
+            print ("If you experience problems, let us know.")
+            #sys.exit()
         self.header=header
         self.channels = parsemessage(self.rpc_connection.device.get_flow_cell_info())['channel_count']
         self.channelstatesdesc = self.rpc_connection.analysis_configuration.get_channel_states_desc()
