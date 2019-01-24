@@ -148,7 +148,13 @@ def parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fast
 
         quality = qual
 
-        fastq_read['quality_average'] = quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
+
+        ## Turns out this is not the way to calculate quality...
+        #fastq_read['quality_average'] = quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
+
+        fastq_read['quality_average'] = quality_average = round(-10 * np.log10(np.mean(np.array(list( (10**(-(ord(val)-33)/10)) for val in quality )))),2)
+
+        #print (quality_average)
 
         # use 'No barcode' for non-barcoded reads
         barcode_name = description_dict.get('barcode', None)
