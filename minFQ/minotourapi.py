@@ -84,9 +84,9 @@ class MinotourAPI:
         req =self.get(url)
 
         if req.status_code != 200:
-            log.info('Did not find files for {}.'.format(runid))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Did not find files for {}.'.format(runid))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -108,9 +108,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('File info {} could not be created.')
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('File info {} could not be created.')
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -125,9 +125,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('Did not find run {}.'.format(runid))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Did not find run {}.'.format(runid))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -142,9 +142,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('Did not find grouprun {}.'.format(name))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Did not find grouprun {}.'.format(name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -172,9 +172,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('Run {} could not be created.'.format(name))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Run {} could not be created.'.format(name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -192,9 +192,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('GroupRun {} could not be created.'.format(name))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('GroupRun {} could not be created.'.format(name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -213,9 +213,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('GroupRun membership {} could not be created.')
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('GroupRun membership {} could not be created.')
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -225,7 +225,7 @@ class MinotourAPI:
 
     def create_reads(self, reads):
 
-        log.info('Creating reads')
+        #log.debug('Creating reads')
         #time.sleep(1)
         payload = reads
 
@@ -233,9 +233,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('Reads batch {} could not be created.')
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Reads batch {} could not be created.')
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -251,9 +251,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('FastqReadType list could not be retrieved.')
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('FastqReadType list could not be retrieved.')
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -272,9 +272,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('Barcode {} could not be created.'.format(barcode_name))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Barcode {} could not be created.'.format(barcode_name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -290,9 +290,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('Did not find flowcell {}.'.format(name))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Did not find flowcell {}.'.format(name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -310,9 +310,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('Flowcell {} could not be created.'.format(name))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Flowcell {} could not be created.'.format(name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -327,9 +327,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('Did not find minion {}.'.format(name))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Did not find minion {}.'.format(name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -348,9 +348,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('Minion {} could not be created.'.format(name))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Minion {} could not be created.'.format(name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -365,9 +365,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('Did not find version for server {}.'.format(self.base_url))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Did not find version for server {}.'.format(self.base_url))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -398,9 +398,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('Minion {} could not be updated.'.format(name))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Minion {} could not be updated.'.format(name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -417,9 +417,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('Did not find version for server {}.'.format(self.base_url))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Did not find version for server {}.'.format(self.base_url))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -434,9 +434,9 @@ class MinotourAPI:
         req = self.get(url)
 
         if req.status_code != 200:
-            log.info('Did not find scripts for minion {}.'.format(minion['id']))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Did not find scripts for minion {}.'.format(minion['id']))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             self.minIONscripts = None  # TODO we should move this code to minknowconnection
             return None
 
@@ -472,9 +472,9 @@ class MinotourAPI:
 
             if req.status_code != 201:
 
-                log.info('script {} could not be updated.'.format(payload))
-                log.info('Status-code {}'.format(req.status_code))
-                log.info('Text {}'.format(req.text))
+                log.error('script {} could not be updated.'.format(payload))
+                log.error('Status-code {}'.format(req.status_code))
+                log.error('Text {}'.format(req.text))
                 return None
 
             else:
@@ -512,9 +512,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('event {} could not be updated.'.format(status))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('event {} could not be updated.'.format(status))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -532,10 +532,10 @@ class MinotourAPI:
         req = self.post(url, json=payload)
 
         if req.status_code != 201:
-            print (req.text)
-            log.info('runid {} could not be updated.'.format(runid))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            #print (req.text)
+            log.error('runid {} could not be updated.'.format(runid))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -552,9 +552,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('minion ID {} could not be checked.'.format(minion['id']))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('minion ID {} could not be checked.'.format(minion['id']))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -574,9 +574,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('minion status {} could not be created.'.format(minion['id']))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('minion status {} could not be created.'.format(minion['id']))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -595,9 +595,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('minion status {} could not be updated.'.format(minion['id']))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('minion status {} could not be updated.'.format(minion['id']))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -614,9 +614,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.info('minion statistic {} could not be updated.'.format(runid))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('minion statistic {} could not be updated.'.format(runid))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -635,9 +635,9 @@ class MinotourAPI:
 
         if req.status_code not in  (200,201):
 
-            log.info('minion message {} could not be updated.'.format(minion['id']))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('minion message {} could not be updated.'.format(minion['id']))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -654,9 +654,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.info('Did not find jobs for minion {}.'.format(self.minion['id']))
-            log.info('Status-code {}'.format(req.status_code))
-            log.info('Text {}'.format(req.text))
+            log.error('Did not find jobs for minion {}.'.format(self.minion['id']))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:
@@ -671,9 +671,9 @@ class MinotourAPI:
 
         if req.status_code != 204:
 
-            log.info('Could not complete job for minion {}.'.format(minion['id']))
-            prilog.infont('Status-code {}'.format(req.status_code))
-            prlog.infoint('Text {}'.format(req.text))
+            log.error('Could not complete job for minion {}.'.format(minion['id']))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Text {}'.format(req.text))
             return None
 
         else:

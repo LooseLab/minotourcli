@@ -114,7 +114,7 @@ def parse_fastq_description(description):
 
 def parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fastqfile):
 
-    log.info("Parsing reads from file {}".format(fastq))
+    log.debug("Parsing reads from file {}".format(fastq))
 
 
 
@@ -211,17 +211,7 @@ def get_runid(fastq):
 
 def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection):
 
-    log.info("Parsing fastq file {}".format(fastq))
-
-    #print (fastqdict)
-
-    #print (fastqdict[str(check_fastq_path(fastq))]["md5"])
-
-
-
-    ## Get fastqfile id from database here
-
-    #As it is the first time we are looking at this file, we set the md5 in the database to be 0
+    log.debug("Parsing fastq file {}".format(fastq))
 
     runid=get_runid(fastq)
 
@@ -243,12 +233,12 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
 
                     parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header,fastqfile)
 
-            except:
+            except Exception as e:
 
                 args.reads_corrupt += 1
 
                 log.error("Corrupt file observed in {}.".format(fastq))
-
+                log.error(e)
                 #continue
 
     else:
@@ -272,7 +262,7 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
             args.reads_corrupt += 1
 
             log.error("Corrupt file observed in {}.".format(fastq))
-            print (e)
+            log.error(e)
 
             #continue
 
@@ -283,7 +273,7 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
     try:
         fastqfile = MinotourConnection.create_file_info(str(check_fastq_path(fastq)), runid, md5Checksum(fastq), rundict[runid].run)
     except Exception as err:
-        print ("Problem with uploading file {}".format(err))
+        log.error("Problem with uploading file {}".format(err))
 
     return counter
 
@@ -309,7 +299,7 @@ def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
             for f in files:
             
                 if f.endswith(".fastq") or f.endswith(".fastq.gz"):
-                    print ("Processing File {}\r".format(f))
+                    log.debug("Processing File {}\r".format(f))
                     counter += 1
 
                     args.files_seen += 1
@@ -385,7 +375,6 @@ class FastqHandler(FileSystemEventHandler):
         self.rundict = rundict
         self.fastqdict= dict()
         self.creates = file_dict_of_folder_simple(self.args.watchdir, self.args, self.MinotourConnection,self.fastqdict)
-        print (self.rundict)
         self.processing = dict()
         self.running = True
 

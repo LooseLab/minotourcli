@@ -10,15 +10,7 @@ import threading
 import validators
 
 
-logging.basicConfig(
-    format='%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s',
-    filename='minFQ.log', 
-    level=os.environ.get('LOGLEVEL', 'INFO')
-)
 
-log = logging.getLogger(__name__)
-
-log.info("Initialising minFQ.")
 
 """We are setting up the code to copy and import the rpc service from minKNOW and make
 it work on our own code. This prevents us from having to distribute ONT code ourselves."""
@@ -236,6 +228,16 @@ def main():
         dest='GUI'
     )
 
+    parser.add(
+        '-ll',
+        '--loglevel',
+        type=str,
+        default='INFO',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help='Set the logging level',
+        dest = 'loglevel'
+    )
+
     args = parser.parse_args()
 
     if not args.noMinKNOW and args.ip is None:
@@ -257,6 +259,28 @@ def main():
         print ("You entered:")
         print ("{}".format(args.host_name))
         sys.exit()
+
+    logging.basicConfig(
+        format='%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s',
+        filename='minFQ.log',
+        #level=os.environ.get('LOGLEVEL', 'INFO')
+        level = args.loglevel
+    )
+
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    # set a format which is simpler for console use
+    #formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    formatter = logging.Formatter('%(levelname)-8s %(message)s')
+    # tell the handler to use this format
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logging.getLogger('').addHandler(console)
+
+    log = logging.getLogger(__name__)
+
+    log.info("Initialising minFQ.")
 
     args.read_count = 0
 
@@ -291,24 +315,24 @@ def main():
 
 
         if not args.noFastQ:
-            print ("Setting up FastQ monitoring.")
+            log.info("Setting up FastQ monitoring.")
             event_handler = FastqHandler(args, header, rundict)
             # This block handles the fastq
             observer = Observer()
             observer.schedule(event_handler, path=args.watchdir, recursive=True)
             observer.daemon = True
-            print ("FastQ Monitoring Running.")
+            log.info("FastQ Monitoring Running.")
 
         if not args.noMinKNOW:
             # this block is going to handle the running of minControl.
-            print ("Configuring MinKNOW Monitoring.")
+            log.info("Configuring MinKNOW Monitoring.")
             minwsip = "ws://" + args.ip + ":9500/"
 
             MinKNOWConnection = MinknowConnect(minwsip, args, header)
             MinKNOWConnection.connect()
-            print ("MinKNOW Monitoring Working.")
+            log.info("MinKNOW Monitoring Working.")
 
-        print ("To stop minFQ use CTRL-C.\n")
+        sys.stdout.write("To stop minFQ use CTRL-C.\n")
 
         try:
 
@@ -349,7 +373,7 @@ def main():
 
         except KeyboardInterrupt:
 
-            print("Exiting - Will take a few seconds to clean up!")
+            log.info("Exiting - Will take a few seconds to clean up!")
 
             if not args.noMinKNOW:
                 MinKNOWConnection.disconnect_nicely()

@@ -44,7 +44,7 @@ class Runcollection():
 
     def __init__(self, args, header):
 
-        log.info("Initialising Runcollection")
+        log.debug("Initialising Runcollection")
 
         self.base_url = args.full_host
 
@@ -97,8 +97,8 @@ class Runcollection():
 
             number_pages = readname_list['number_pages']
 
-            log.info("Fetching reads to check if we've uploaded these before.")
-            log.info("Wiping previous reads seen.")
+            log.debug("Fetching reads to check if we've uploaded these before.")
+            log.debug("Wiping previous reads seen.")
             self.readnames = list()
             #for page in tqdm(range(number_pages)):
             for page in range(number_pages):
@@ -109,14 +109,14 @@ class Runcollection():
 
                 content = requests.get(new_url, headers=self.header)
 
-                log.info("Requesting {}".format(new_url))
+                log.debug("Requesting {}".format(new_url))
 
                 # We have to recover the data component and loop through that to get the read names.
                 for read in json.loads(content.text)["data"]:
 
                     self.readnames.append(read)
 
-            log.info("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
+            log.debug("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
 
     def add_run(self, descriptiondict):
 
@@ -134,19 +134,19 @@ class Runcollection():
             # get or create a flowcell
             #
 
-            log.info("Looking for flowcell {}".format(runname))
+            log.debug("Looking for flowcell {}".format(runname))
 
             flowcell = self.minotourapi.get_flowcell_by_name(runname)['data']
 
-            log.info("found {}".format(flowcell))
+            log.debug("found {}".format(flowcell))
 
             if not flowcell:
 
-                log.info("Trying to create flowcell {}".format(runname))
+                log.debug("Trying to create flowcell {}".format(runname))
 
                 flowcell = self.minotourapi.create_flowcell(runname)
 
-                log.info("Created flowcell {}".format(runname))
+                log.debug("Created flowcell {}".format(runname))
 
             #
             # create a run
@@ -171,11 +171,11 @@ class Runcollection():
 
             if not createrun:
 
-                print('There is a problem creating run')
+                log.critical('There is a problem creating run')
                 sys.exit()
 
             else:
-                print("run created")
+                log.debug("run created")
 
             run = createrun
 
@@ -229,7 +229,7 @@ class Runcollection():
                 })
 
             else:
-
+                log.critical("Problem finding barcodes.")
                 sys.exit()
 
         fastq_read_payload['barcode'] = self.barcode_dict[fastq_read_payload['barcode_name']]
@@ -262,7 +262,7 @@ class Runcollection():
 
             self.read_list.append(fastq_read_payload)
 
-            log.info('Checking read_list size {} - {}'.format(len(self.read_list), self.batchsize))
+            log.debug('Checking read_list size {} - {}'.format(len(self.read_list), self.batchsize))
 
             if len(self.read_list) >= self.batchsize:
                 self.batchsize = int(5000000/(int(self.basecount)/self.readcount))
