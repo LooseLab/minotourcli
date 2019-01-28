@@ -9,9 +9,6 @@ import time
 import threading
 import validators
 
-
-
-
 """We are setting up the code to copy and import the rpc service from minKNOW and make
 it work on our own code. This prevents us from having to distribute ONT code ourselves."""
 
