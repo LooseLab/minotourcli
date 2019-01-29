@@ -288,23 +288,26 @@ def main():
 
     minotourapi = MinotourAPI(args.full_host, header)
 
-    # version = minotourapi.get_server_version()
+    version = minotourapi.get_server_version()
+
+    log.info(version)
 
     shall_exit = False
 
-    # if not version:
-    #
-    #     print("Server does not support this client. Please change the client to a previous version or upgrade server.")
-    #
-    #     shall_exit = True
-    #
-    # clients = version['clients']
-    #
-    # if CLIENT_VERSION not in clients:
-    #
-    #     print("Server does not support this client. Please change the client to a previous version or upgrade server.")
-    #
-    #     shall_exit = True
+    if not version:
+
+        log.error("Server does not support this client. Please change the client to a previous version or upgrade server.")
+
+        shall_exit = True
+
+    clients = version['clients']
+
+
+    if CLIENT_VERSION not in clients:
+
+        log.error("Server does not support this client. Please change the client to a previous version or upgrade server.")
+
+        shall_exit = True
 
     if not shall_exit:
 

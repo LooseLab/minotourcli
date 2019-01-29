@@ -125,9 +125,10 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.error('Did not find run {}.'.format(runid))
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
+            log.info('Did not find run {}.'.format(runid))
+            log.info('Creating run {}.'.format(runid))
+            log.debug('Status-code {}'.format(req.status_code))
+            log.debug('Text {}'.format(req.text))
             return None
 
         else:
@@ -398,9 +399,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.error('Minion {} could not be updated.'.format(name))
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
+            log.debug('Minion {} could not be updated.'.format(name))
+            log.debug('Status-code {}'.format(req.status_code))
+            log.debug('Text {}'.format(req.text))
             return None
 
         else:
@@ -472,9 +473,9 @@ class MinotourAPI:
 
             if req.status_code != 201:
 
-                log.error('script {} could not be updated.'.format(payload))
-                log.error('Status-code {}'.format(req.status_code))
-                log.error('Text {}'.format(req.text))
+                log.debug('script {} could not be updated.'.format(payload))
+                log.debug('Status-code {}'.format(req.status_code))
+                log.debug('Text {}'.format(req.text))
                 return None
 
             else:
@@ -512,9 +513,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
 
-            log.error('event {} could not be updated.'.format(status))
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
+            log.debug('event {} could not be updated.'.format(status))
+            log.debug('Status-code {}'.format(req.status_code))
+            log.debug('Text {}'.format(req.text))
             return None
 
         else:
@@ -635,9 +636,9 @@ class MinotourAPI:
 
         if req.status_code not in  (200,201):
 
-            log.error('minion message {} could not be updated.'.format(minion['id']))
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
+            log.debug('minion message {} could not be updated.'.format(minion['id']))
+            log.debug('Status-code {}'.format(req.status_code))
+            log.debug('Text {}'.format(req.text))
             return None
 
         else:

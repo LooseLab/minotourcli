@@ -81,7 +81,7 @@ class DeviceConnect(WebSocketClient):
             self.acquisition_data = parsemessage(self.rpc_connection.acquisition.get_acquisition_info())
         except:
             #if self.args.verbose:
-            log.warning("No active run")
+            log.debug("No active run")
             self.acquisition_data = {}
 
         runmonitorthread = threading.Thread(target=self.runmonitor, args=())
@@ -120,7 +120,7 @@ class DeviceConnect(WebSocketClient):
         self.first_connect()
 
     def disconnect_nicely(self):
-        log.debug("All is well with connection.")("Trying to disconnect nicely")
+        log.debug("Trying to disconnect nicely")
         self.minotourapi.update_minion_event(self.minion, self.computer_name, "unplugged")
         try:
             self.minIONstatus["minKNOW_status"]="unplugged"
@@ -134,8 +134,8 @@ class DeviceConnect(WebSocketClient):
         It will provide the information to minotour necessary to remotely control the minION device.
         :return:
         """
-        log.debug("All is well with connection.")("First connection observed")
-        log.debug("All is well with connection.")(self.minion)
+        log.debug("First connection observed")
+        log.debug("All is well with connection. {}".format(self.minion))
         self.minotourapi.update_minion_event(self.minion,self.computer_name,"active")
         self.minotourapi.fetch_minion_scripts(self.minion)
         for protocol in self.rpc_connection.protocol.list_protocols().ListFields()[0][1]:
@@ -522,7 +522,7 @@ class DeviceConnect(WebSocketClient):
             try:
                 self.acquisition_data = parsemessage(self.rpc_connection.acquisition.get_acquisition_info())
             except:
-                log.error("No active run")
+                log.debug("No active run")
                 self.acquisition_data ={}
             self.temperaturedata = self.rpc_connection.device.get_temperature()
             self.disk_space_info = json.loads(MessageToJson(self.rpc_connection.instance.get_disk_space_info(), preserving_proto_field_name=True, including_default_value_fields=True))
@@ -532,11 +532,11 @@ class DeviceConnect(WebSocketClient):
             try:
                 self.runinfo_api = self.rpc_connection.protocol.get_run_info()
             except:
-                log.error("Run Info not yet known.")
+                log.debug("Run Info not yet known.")
             try:
                 self.sampleid = self.rpc_connection.protocol.get_sample_id()
             except:
-                log.error("Sample ID not yet known.")
+                log.debug("Sample ID not yet known.")
             log.debug("running update minion status")
             self.update_minion_status()
             if str(self.status).startswith("status: PROCESSING"):
@@ -553,7 +553,7 @@ class DeviceConnect(WebSocketClient):
                 log.debug(self.read_event_weighted_hist)
                 log.debug(self.read_hist_bin_width)
             except:
-                log.error()
+                log.debug("Couldn't log histogram data.")
             time.sleep(self.interval)
 
     def sendmessage(self,severitylevel,message):
