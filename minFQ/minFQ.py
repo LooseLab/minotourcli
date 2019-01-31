@@ -35,9 +35,11 @@ OPER = platform.system()
 
 RPCPATH = os.path.join('ont-python','lib','python2.7','site-packages','minknow','rpc')
 
+
+if not os.path.exists(os.path.join(root_directory, 'rpc')):
+    os.makedirs(os.path.join(root_directory, 'rpc'))
 if os.path.isfile(os.path.join(root_directory, 'rpc', '__init__.py')):
     pass
-
 else:
     print ("No RPC")
     if OPER == "Darwin":
