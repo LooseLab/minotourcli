@@ -97,14 +97,19 @@ def check_is_pass(path, avg_quality):
         return False
 
     else:
+        if avg_quality != None:
 
-        if avg_quality >= 7:
+            if avg_quality >= 7:
 
-            return True  # This assumes we have been unable to find either pass or fail and thus we assume the run is a pass run.
+                return True  # This assumes we have been unable to find either pass or fail and thus we assume the run is a pass run.
+
+            else:
+
+                return False
 
         else:
 
-            return False
+            return True
 
 
 def parse_fastq_description(description):
@@ -152,13 +157,16 @@ def parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fast
 
     if fastq_read['read_id'] not in rundict[fastq_read['runid']].readnames:
 
+
         quality = qual
 
 
         ## Turns out this is not the way to calculate quality...
         #fastq_read['quality_average'] = quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
 
-        fastq_read['quality_average'] = quality_average = round(-10 * np.log10(np.mean(np.array(list( (10**(-(ord(val)-33)/10)) for val in quality )))),2)
+        if quality != None:
+            fastq_read['quality_average'] = quality_average = round(-10 * np.log10(np.mean(np.array(list( (10**(-(ord(val)-33)/10)) for val in quality )))),2)
+
         fastq_read['is_pass'] = check_is_pass(fastq,fastq_read['quality_average'])
         #print (quality_average)
 
@@ -255,6 +263,7 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
             with open(fastq, "r") as fp:
                 
                 for desc, name, seq, qual in readfq(fp):
+
                     counter += 1
 
                     args.reads_seen += 1
