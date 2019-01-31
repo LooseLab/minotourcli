@@ -40,7 +40,9 @@ setup(
                       'grpcio',
                       'google',
                       'protobuf',
-                      'pandas',  
+                      'pandas',
+                      'ont-fast5-api',
+                      'validators',
                      ],
     package_data={'minFQ': []},
     package_dir={'minFQ': 'minFQ'},
@@ -49,6 +51,7 @@ setup(
         'console_scripts': [
             'minFQ=minFQ.minFQ:main',
             'minFlow=minFQ.flowcellmaker:main',
+            'minConnect=minFQ.minknowconnection:main'
         ],
     },
 )

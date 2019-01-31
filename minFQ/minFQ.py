@@ -7,17 +7,7 @@ import logging
 import logging.handlers
 import time
 import threading
-
-
-logging.basicConfig(
-    format='%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s',
-    filename='minFQ.log', 
-    level=os.environ.get('LOGLEVEL', 'INFO')
-)
-
-log = logging.getLogger(__name__)
-
-log.info("Initialising minFQ.")
+import validators
 
 """We are setting up the code to copy and import the rpc service from minKNOW and make
 it work on our own code. This prevents us from having to distribute ONT code ourselves."""
@@ -76,6 +66,12 @@ from minFQ.minknowconnection import MinknowConnect
 
 CLIENT_VERSION = '1.0'
 
+def up(lines=1):
+    clearline = '\033[2K' # clear a line
+    upline = '\033[1A'    # Move cursor up a line
+    for _ in range(lines):
+        sys.stdout.write(upline)
+        sys.stdout.write(clearline)
 
 def main():
 
@@ -121,7 +117,7 @@ def main():
         '--ip-address',
         type=str,
         dest='ip',
-        required=True,
+        required=False,
         default=None,
         help='The IP address of the minKNOW machine.',
     )
@@ -185,8 +181,8 @@ def main():
         '--port',
         type=int,
         # required=True,
-        default=8100,
-        help='The port number for the local server.',
+        default=80,
+        help='The port number for the minoTour server.',
         dest='port_number',
     )
 
@@ -196,7 +192,7 @@ def main():
         type=str,
         # required=True,
         default='127.0.0.1',
-        help='The run name you wish to provide.',
+        help='The host name for the minoTour server.',
         dest='host_name',
     )
 
@@ -229,7 +225,20 @@ def main():
         dest='GUI'
     )
 
+    parser.add(
+        '-ll',
+        '--loglevel',
+        type=str,
+        default='INFO',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help='Set the logging level',
+        dest = 'loglevel'
+    )
+
     args = parser.parse_args()
+
+    if not args.noMinKNOW and args.ip is None:
+        parser.error("To monitor MinKNOW in real time you must specify the IP address of your local machine.\nUsually:\n-ip 127.0.0.1")
 
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:
@@ -237,7 +246,38 @@ def main():
         print("This program will now exit.")
         os._exit(0)
 
-    args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+    if args.host_name.startswith("http://"):
+        args.full_host = "{}:{}/".format(args.host_name, str(args.port_number))
+    else:
+        args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+
+    if not validators.url(args.full_host):
+        print ("Please check your url.")
+        print ("You entered:")
+        print ("{}".format(args.host_name))
+        sys.exit()
+
+    logging.basicConfig(
+        format='%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s',
+        filename='minFQ.log',
+        #level=os.environ.get('LOGLEVEL', 'INFO')
+        level = args.loglevel
+    )
+
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    # set a format which is simpler for console use
+    #formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    formatter = logging.Formatter('%(levelname)-8s %(message)s')
+    # tell the handler to use this format
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logging.getLogger('').addHandler(console)
+
+    log = logging.getLogger(__name__)
+
+    log.info("Initialising minFQ.")
 
     args.read_count = 0
 
@@ -248,43 +288,51 @@ def main():
 
     minotourapi = MinotourAPI(args.full_host, header)
 
-    # version = minotourapi.get_server_version()
+    version = minotourapi.get_server_version()
+
+    log.info(version)
 
     shall_exit = False
 
-    # if not version:
-    #
-    #     print("Server does not support this client. Please change the client to a previous version or upgrade server.")
-    #
-    #     shall_exit = True
-    #
-    # clients = version['clients']
-    #
-    # if CLIENT_VERSION not in clients:
-    #
-    #     print("Server does not support this client. Please change the client to a previous version or upgrade server.")
-    #
-    #     shall_exit = True
+    if not version:
+
+        log.error("Server does not support this client. Please change the client to a previous version or upgrade server.")
+
+        shall_exit = True
+
+    clients = version['clients']
+
+
+    if CLIENT_VERSION not in clients:
+
+        log.error("Server does not support this client. Please change the client to a previous version or upgrade server.")
+
+        shall_exit = True
 
     if not shall_exit:
 
         rundict = dict()
 
+
         if not args.noFastQ:
+            log.info("Setting up FastQ monitoring.")
             event_handler = FastqHandler(args, header, rundict)
             # This block handles the fastq
             observer = Observer()
             observer.schedule(event_handler, path=args.watchdir, recursive=True)
             observer.daemon = True
+            log.info("FastQ Monitoring Running.")
 
         if not args.noMinKNOW:
             # this block is going to handle the running of minControl.
+            log.info("Configuring MinKNOW Monitoring.")
             minwsip = "ws://" + args.ip + ":9500/"
-            #helper = HelpTheMinion(minwsip, args, header)
-            #helper.connect()
 
             MinKNOWConnection = MinknowConnect(minwsip, args, header)
             MinKNOWConnection.connect()
+            log.info("MinKNOW Monitoring Working.")
+
+        sys.stdout.write("To stop minFQ use CTRL-C.\n")
 
         try:
 
@@ -292,25 +340,43 @@ def main():
 
                 observer.start()
 
-            #if not args.noMinKNOW:
-
-                #t = threading.Thread(target=helper.process_minion())
-                #t.daemon = True
-                #t.start()
-
             while 1:
+                linecounter = 0
+                if not args.noFastQ:
+
+                    sys.stdout.write('{}\n'.format(args.fastqmessage))
+                    sys.stdout.write('FastQ Upload Status:\n')
+                    sys.stdout.write('Files queued/processed/skipped:{}/{}/{}\n'.format(
+                        args.files_seen - args.files_processed - args.files_skipped,
+                        args.files_processed,
+                        args.files_skipped
+                    ))
+                    sys.stdout.write('New reads seen/uploaded/skipped:{}/{}/{}\n'.format(
+                        args.reads_seen-args.reads_uploaded-args.reads_skipped,
+                        args.reads_uploaded,
+                        args.reads_skipped
+                    ))
+
+                    linecounter+=4
+
+                if not args.noMinKNOW:
+
+                    sys.stdout.write('MinKNOW Monitoring Status:\n')
+                    sys.stdout.write("Connected minIONs: {}\n".format(MinKNOWConnection.minIONnumber()))
+                    linecounter+=2
+
+
+                sys.stdout.flush()
 
                 time.sleep(1)
+                if not args.verbose: up(linecounter)
 
         except KeyboardInterrupt:
 
-            print(": Exiting")
+            log.info("Exiting - Will take a few seconds to clean up!")
 
             if not args.noMinKNOW:
-                #helper.mcrunning = False
-                #helper.hang_up()
-                pass
-            MinKNOWConnection.disconnect_nicely()
+                MinKNOWConnection.disconnect_nicely()
 
             if not args.noFastQ:
                 observer.stop()

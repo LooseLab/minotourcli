@@ -11,6 +11,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from urllib.parse import urlparse
+from threading import Thread
 
 
 log = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class Runcollection():
 
     def __init__(self, args, header):
 
-        log.info("Initialising Runcollection")
+        log.debug("Initialising Runcollection")
 
         self.base_url = args.full_host
 
@@ -51,13 +52,16 @@ class Runcollection():
         self.header = header
         self.readnames = list()
         self.readcount = 0
+        self.basecount = 0
         self.read_type_list = dict()
+        #self.batchsize = 2000
         self.batchsize = 2000
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
         self.read_list = []
-
+        self.filemonitor = dict()
+        self.fastqfileid = None
         self.minotourapi = MinotourAPI(self.args.full_host, self.header)
         self.get_readtype_list()
 
@@ -70,45 +74,49 @@ class Runcollection():
 
         for read_type in read_type_list:
 
-            read_type_dict[read_type["name"]] = read_type["url"]
+            read_type_dict[read_type["name"]] = read_type["id"]
 
         self.read_type_list = read_type_dict
 
 
-    def get_readnames_by_run(self):
+    def get_readnames_by_run(self,fastqfileid):
 
-        # TODO move this function to MinotourAPI class.
+        if fastqfileid != self.fastqfileid:
+            self.fastqfileid = fastqfileid
+            # TODO move this function to MinotourAPI class.
 
-        url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
+            #url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
+            url = "{}api/v1/runs/{}/readnames/".format(self.base_url, fastqfileid)
 
-        req = requests.get(
-            url,
-            headers=self.header
-        )
+            req = requests.get(
+                url,
+                headers=self.header
+            )
 
-        readname_list = json.loads(req.text)
+            readname_list = json.loads(req.text)
 
-        number_pages = readname_list['number_pages']
+            number_pages = readname_list['number_pages']
 
-        log.info("Fetching reads to check if we've uploaded these before.")
+            log.debug("Fetching reads to check if we've uploaded these before.")
+            log.debug("Wiping previous reads seen.")
+            self.readnames = list()
+            #for page in tqdm(range(number_pages)):
+            for page in range(number_pages):
 
-        #for page in tqdm(range(number_pages)):
-        for page in range(number_pages):
+                self.args.fastqmessage = "Fetching {} of {} pages.".format(page,number_pages)
 
-            self.args.fastqmessage = "Fetching {} of {} pages.".format(page,number_pages)
+                new_url = url + '?page={}'.format(page)
 
-            new_url = url + '?page={}'.format(page)
+                content = requests.get(new_url, headers=self.header)
 
-            content = requests.get(new_url, headers=self.header)
+                log.debug("Requesting {}".format(new_url))
 
-            log.info("Requesting {}".format(new_url))
+                # We have to recover the data component and loop through that to get the read names.
+                for read in json.loads(content.text)["data"]:
 
-            # We have to recover the data component and loop through that to get the read names.
-            for read in json.loads(content.text)["data"]:
+                    self.readnames.append(read)
 
-                self.readnames.append(read)
-
-        log.info("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
+            log.debug("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
 
     def add_run(self, descriptiondict):
 
@@ -125,11 +133,20 @@ class Runcollection():
             #
             # get or create a flowcell
             #
-            flowcell = self.minotourapi.get_flowcell_by_name(runname)
+
+            log.debug("Looking for flowcell {}".format(runname))
+
+            flowcell = self.minotourapi.get_flowcell_by_name(runname)['data']
+
+            log.debug("found {}".format(flowcell))
 
             if not flowcell:
 
+                log.debug("Trying to create flowcell {}".format(runname))
+
                 flowcell = self.minotourapi.create_flowcell(runname)
+
+                log.debug("Created flowcell {}".format(runname))
 
             #
             # create a run
@@ -154,26 +171,11 @@ class Runcollection():
 
             if not createrun:
 
-                print('There is a problem creating run')
+                log.critical('There is a problem creating run')
                 sys.exit()
 
-            #
-            # get or create a grouprun
-            #
-            if not self.grouprun:
-
-                grouprun = self.minotourapi.get_grouprun_by_name(runname)
-
-                if not grouprun:
-
-                    grouprun = self.minotourapi.create_grouprun(runname)
-
-                self.grouprun = grouprun
-
-                self.minotourapi.create_grouprun_membership(
-                    grouprun['id'],
-                    createrun['id']
-                )
+            else:
+                log.debug("run created")
 
             run = createrun
 
@@ -184,14 +186,16 @@ class Runcollection():
         for item in run['barcodes']:
 
             self.barcode_dict.update({
-                item['name']: item['url']
+                item['name']: item['id']
             })
 
-        self.get_readnames_by_run()
+        #self.get_readnames_by_run()
 
     def commit_reads(self):
 
+        #Thread(target=self.minotourapi.create_reads(self.read_list)).start()
         self.minotourapi.create_reads(self.read_list)
+        self.args.reads_uploaded += len(self.read_list)
 
         self.read_list = list()
 
@@ -210,7 +214,7 @@ class Runcollection():
         runid = fastq_read_payload['runid']
         read_id = fastq_read_payload['read_id']
 
-        fastq_read_payload['run'] = self.run['url']
+        fastq_read_payload['run'] = self.run['id']
 
         if barcode_name not in self.barcode_dict:
 
@@ -221,11 +225,11 @@ class Runcollection():
             if barcode:
 
                 self.barcode_dict.update({
-                    barcode['name']: barcode['url']
+                    barcode['name']: barcode['id']
                 })
 
             else:
-
+                log.critical("Problem finding barcodes.")
                 sys.exit()
 
         fastq_read_payload['barcode'] = self.barcode_dict[fastq_read_payload['barcode_name']]
@@ -251,16 +255,21 @@ class Runcollection():
 
             if self.args.GUI:
                 self.args.basecount += fastq_read_payload['sequence_length']
+            self.basecount += fastq_read_payload['sequence_length']
 
             if self.args.GUI:
                 self.args.qualitysum += fastq_read_payload['quality_average']
 
             self.read_list.append(fastq_read_payload)
 
-            log.info('Checking read_list size {} - {}'.format(len(self.read_list), self.batchsize))
+            log.debug('Checking read_list size {} - {}'.format(len(self.read_list), self.batchsize))
 
             if len(self.read_list) >= self.batchsize:
+                self.batchsize = int(5000000/(int(self.basecount)/self.readcount))
                 self.commit_reads()
 
             self.readcount += 1
 
+        else:
+            print ("Skipping read")
+            self.args.reads_skipped += 1

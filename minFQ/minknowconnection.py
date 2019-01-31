@@ -1,25 +1,18 @@
-import sys,os
-import curses
-import time
-import minFQ.rpc as rpc
-import configargparse
-import json
-import struct
-import threading
-import math
-import requests
-import pandas as pd
-import numpy as np
 import datetime
-import time
+import json
 import logging
+import sys
+import threading
+import time
 
-from ws4py.client.threadedclient import WebSocketClient
-from minFQ.minotourutils import determinetype, parse_ports
-
-from minFQ.minotourapi import MinotourAPI as MinotourAPINew
+import configargparse
+import pandas as pd
 from google.protobuf.json_format import MessageToJson
+from ws4py.client.threadedclient import WebSocketClient
 
+import minFQ.rpc as rpc
+from minFQ.minotourapi import MinotourAPI as MinotourAPINew
+from minFQ.minotourutils import determinetype, parse_ports
 
 log = logging.getLogger(__name__)
 
@@ -38,18 +31,28 @@ class DeviceConnect(WebSocketClient):
         #self.detailsdict=dict()
     #    self.daemon=True
     def __init__(self, connectip,args,rpcconnection,header,minIONid):
-        print ("Client established!")
+        self.args = args
+        if self.args.verbose:
+            log.info("Client established!")
         WebSocketClient.__init__(self, connectip)
         self.rpc_connection=rpcconnection
+
+        #Here we need to check if we are good to run against this version.
+        self.version = self.rpc_connection.instance.get_version_info().minknow.full
+        if str(self.version) != "3.1.13":
+            log.warning(self.version)
+            log.warning("This version of minFQ may not be compatible with the MinKNOW version you are running.")
+            log.warning("As a consequence, live monitoring MAY NOT WORK.")
+            log.warning("If you experience problems, let us know.")
+            #sys.exit()
         self.header=header
-        self.args = args
         self.channels = parsemessage(self.rpc_connection.device.get_flow_cell_info())['channel_count']
         self.channelstatesdesc = self.rpc_connection.analysis_configuration.get_channel_states_desc()
         self.channelstates = dict()
         for i in range(self.channels):
             self.channelstates[i+1]=None
         self.status = ""
-        self.interval = 10 #we will poll for updates every 10 seconds.
+        self.interval = 5 #we will poll for updates every 5 seconds.
         self.longinterval = 30 #we have a short loop and a long loop
         self.minIONid = minIONid
         self.computer_name = self.rpc_connection.instance.get_machine_id().machine_id
@@ -57,42 +60,65 @@ class DeviceConnect(WebSocketClient):
         self.minknow_status = self.rpc_connection.instance.get_version_info().protocols
         self.minotourapi = MinotourAPINew(self.args.full_host, self.header)
         self.minotourapi.test()
+        self.disk_space_info = json.loads(
+            MessageToJson(self.rpc_connection.instance.get_disk_space_info(), preserving_proto_field_name=True,
+                          including_default_value_fields=True))
+        self.flowcelldata = parsemessage(self.rpc_connection.device.get_flow_cell_info())
         minion = self.minotourapi.get_minion_by_name(self.minIONid)
         if not minion:
             minion = self.minotourapi.create_minion(self.minIONid)
         self.minion = minion
         self.minIONstatus = self.minotourapi.get_minion_status(self.minion)
         self.runidlink=""
+        try:
+            self.acquisition_data = parsemessage(self.rpc_connection.acquisition.get_acquisition_info())
+        except:
+            #if self.args.verbose:
+            log.debug("No active run")
+            self.acquisition_data = {}
+
         runmonitorthread = threading.Thread(target=self.runmonitor, args=())
         runmonitorthread.daemon = True                            # Daemonize thread
         runmonitorthread.start()
-        runinforthread = threading.Thread(target=self.runinfo, args=())
-        runinforthread.daemon = True  # Daemonize thread
-        runinforthread.start()
-        messagesmonitor = threading.Thread(target=self.getmessages, args=())
-        messagesmonitor.daemon = True  # Daemonize thread
-        messagesmonitor.start()
-        dutytimemonitorthread = threading.Thread(target=self.dutytimemonitor, args=())
-        dutytimemonitorthread.daemon = True
-        dutytimemonitorthread.start()
+
         flowcellmonitorthread = threading.Thread(target=self.flowcellmonitor, args=())
         flowcellmonitorthread.daemon = True
         flowcellmonitorthread.start()
+
+        runinforthread = threading.Thread(target=self.runinfo, args=())
+        runinforthread.daemon = True  # Daemonize thread
+        runinforthread.start()
+
+
+
+        messagesmonitor = threading.Thread(target=self.getmessages, args=())
+        messagesmonitor.daemon = True  # Daemonize thread
+        messagesmonitor.start()
+
+        #This is for future usage.
+        #dutytimemonitorthread = threading.Thread(target=self.dutytimemonitor, args=())
+        #dutytimemonitorthread.daemon = True
+        #dutytimemonitorthread.start()
+
         newchannelstatethread = threading.Thread(target=self.newchannelstatemonitor, args=())
         newchannelstatethread.daemon = True
         newchannelstatethread.start()
+
         jobsmonitorthread = threading.Thread(target=self.jobs_monitor,args=())
         jobsmonitorthread.daemon = True
         jobsmonitorthread.start()
-        if self.args.verbose:
-            print ("All is well with connection.")
+
+
+        log.debug("All is well with connection.")
         self.first_connect()
 
     def disconnect_nicely(self):
-        if self.args.verbose:
-            print ("Trying to disconnect nicely")
+        log.debug("Trying to disconnect nicely")
         self.minotourapi.update_minion_event(self.minion, self.computer_name, "unplugged")
-        self.minIONstatus["minKNOW_status"]="unplugged"
+        try:
+            self.minIONstatus["minKNOW_status"]="unplugged"
+        except:
+            log.debug("Couldn't unplug MinION from website.")
         self.minIONstatus = self.minotourapi.update_minion_status(self.minIONstatus, self.minion)
 
     def first_connect(self):
@@ -101,9 +127,8 @@ class DeviceConnect(WebSocketClient):
         It will provide the information to minotour necessary to remotely control the minION device.
         :return:
         """
-        if self.args.verbose:
-            print ("First connection observed")
-            print (self.minion)
+        log.debug("First connection observed")
+        log.debug("All is well with connection. {}".format(self.minion))
         self.minotourapi.update_minion_event(self.minion,self.computer_name,"active")
         self.minotourapi.fetch_minion_scripts(self.minion)
         for protocol in self.rpc_connection.protocol.list_protocols().ListFields()[0][1]:
@@ -111,8 +136,6 @@ class DeviceConnect(WebSocketClient):
             self.minotourapi.update_minion_script(self.minion,protocoldict)
         if str(self.status).startswith("status: PROCESSING"):
             self.run_start()
-
-        pass
 
     def parse_protocol(self,protocol):
         protocoldict=dict()
@@ -129,24 +152,31 @@ class DeviceConnect(WebSocketClient):
         :return:
         """
         self.minotourapi.update_minion_event(self.minion, self.computer_name, "sequencing")
-        if self.args.verbose:
-            print ("run start observed")
-            print("MINION:", self.minion)
+
+        log.debug("run start observed")
+        log.debug("MINION:", self.minion)
         #We wait for 10 seconds to allow the run to start
         time.sleep(self.interval)
-        self.runinformation = self.rpc_connection.acquisition.get_current_acquisition_run()
-        if self.args.verbose:
-            print(self.runinfo_api)
-            print(self.sampleid)
-            print(self.runinformation)
-            print("RUNID",self.runinformation.start_time)
-            print(self.channelstatesdesc)
-            print(self.channels)
-            print("FLOWCELL DATA", self.get_flowcell_id())
-        self.create_run(self.runinformation.run_id)
+        try:
+            self.runinformation = self.rpc_connection.acquisition.get_current_acquisition_run()
 
-        self.update_minion_run_info()
-        pass
+            log.debug(self.runinfo_api)
+            log.debug(self.sampleid)
+            log.debug(self.runinformation)
+            log.debug("RUNID", self.runinformation.start_time)
+            log.debug(self.channelstatesdesc)
+            log.debug(self.channels)
+            log.debug("FLOWCELL DATA", self.get_flowcell_id())
+            log.debug("trying to create run")
+            self.create_run(self.runinformation.run_id)
+            log.debug("run created!!!!!!!")
+            self.update_minion_run_info()
+            log.debug("update minion run info complete")
+
+        except Exception as err:
+            log.error("Problem:", err)
+
+
 
     def update_minion_run_info(self):
         payload = {
@@ -174,64 +204,54 @@ class DeviceConnect(WebSocketClient):
 
         ruinfo = parsemessage(self.rpc_connection.protocol.get_run_info())
 
-        payload['experiment_id']=ruinfo['user_info']['protocol_group_id']
+        try:
+            payload['experiment_id']=ruinfo['user_info']['protocol_group_id']
+        except:
+            payload['experiment_id']="Not Known"
 
-        if self.args.verbose:
-            print (">>>>>>>>", payload)
+        log.debug(">>>>>>>>", payload)
         updateruninfo = self.minotourapi.update_minion_run_info(payload,self.runid)
-        if self.args.verbose:
-            print (updateruninfo)
+        log.debug(updateruninfo)
 
     def create_run(self, runid):
-        if self.args.verbose:
+        log.debug(">>> inside create_run")
 
-            print(">>> inside create_run")
+        log.debug(self.minotourapi)
 
-            print(self.minotourapi)
-
-            print(">>> after self.minotourapi")
+        log.debug(">>> after self.minotourapi")
 
         self.minotourapi.test()
 
-        if self.args.verbose:
-
-            print(">>> after self.minotourapi.test()")
+        log.debug(">>> after self.minotourapi.test()")
 
         run = self.minotourapi.get_run_by_runid(runid)
 
-        if self.args.verbose:
-            print(run)
+        log.debug(run)
 
         if not run:
-            if self.args.verbose:
-                print(">>> no run {}".format(runid))
+            log.debug(">>> no run {}".format(runid))
             #
             # get or create a flowcell
             #
-            flowcell = self.minotourapi.get_flowcell_by_name(self.get_flowcell_id())
-            if self.args.verbose:
-                print(flowcell)
+            flowcell = self.minotourapi.get_flowcell_by_name(self.get_flowcell_id())['data']
+            log.debug(flowcell)
 
             if not flowcell:
-                if self.args.verbose:
-                    print(">>> no flowcell")
+                log.debug(">>> no flowcell")
                 flowcell = self.minotourapi.create_flowcell(self.get_flowcell_id())
 
             is_barcoded = False  # TODO do we known this info at this moment? This can be determined from run info.
 
             has_fastq = True  # TODO do we known this info at this moment? This can be determined from run info
-            if self.args.verbose:
-                print(">>> before self.minotourapi.create_run")
-                print ("self.sampleid.sample_id",self.sampleid.sample_id)
+            log.debug(">>> before self.minotourapi.create_run")
+            log.debug("self.sampleid.sample_id",self.sampleid.sample_id)
             createrun = self.minotourapi.create_run(self.sampleid.sample_id, runid, is_barcoded, has_fastq, flowcell, self.minion, self.runinformation.start_time.ToDatetime().strftime('%Y-%m-%d %H:%M:%S'))
-            if self.args.verbose:
-                print(">>> after self.minotourapi.create_run")
+            log.debug(">>> after self.minotourapi.create_run")
 
             # createrun = requests.post(self.args.full_host+'api/v1/runs/', headers=self.header, json={"run_name": self.status_summary['run_name'], "run_id": runid, "barcode": barcoded, "is_barcoded":is_barcoded, "minION":self.minion["url"]})
 
             if not createrun:
-                if self.args.verbose:
-                    print("Houston - we have a problem!")
+                log.error("Houston - we have a problem!")
 
             else:
 
@@ -246,8 +266,16 @@ class DeviceConnect(WebSocketClient):
 
             self.runidlink = run["url"]
             self.runid = run["id"]
-        #print (run)
-        #self.update_minion_run_stats()
+        log.debug("***** self.runid", self.runid)
+
+        try:
+            ### I don't know what is happening here!
+            #self.minotourapi.update_minion_run_stats()
+            #self.minotourapi.update_minion_run_info()
+            pass
+        except Exception as err:
+            log.debug("Problem minotourapi", err)
+        log.debug("**** run stats updated")
 
 
     def run_live(self):
@@ -263,9 +291,8 @@ class DeviceConnect(WebSocketClient):
         :return:
         """
         self.minotourapi.update_minion_event(self.minion, self.computer_name, "active")
-        if self.args.verbose:
-            print ("run stop observed")
-        pass
+        log.debug("run stop observed")
+
 
     def jobs_monitor(self):
         """
@@ -273,15 +300,11 @@ class DeviceConnect(WebSocketClient):
         :return:
         """
         while True:
-            if self.args.verbose:
-                print ("!!!!!!checking for jobs!!!!!!")
+            log.debug("!!!!!!checking for jobs!!!!!!")
             jobs = self.minotourapi.get_minion_jobs(self.minion)
-            if self.args.verbose:
-                print (jobs)
+            log.debug(jobs)
             time.sleep(self.interval)
             for job in jobs:
-                # print (job['job'])
-
                 if job["job"] == "testmessage":
                     self.sendmessage(1,"minoTour is checking communication status with " + str(self.minion['name']) + ".")
                     self.minotourapi.complete_minion_job(self.minion,job)
@@ -306,7 +329,6 @@ class DeviceConnect(WebSocketClient):
                     self.sendmessage(1,"MinoTour attempted to start a run on your device.")
                     self.minotourapi.complete_minion_job(self.minion, job)
 
-        pass
 
     def minknow_command(self):
         """
@@ -317,10 +339,10 @@ class DeviceConnect(WebSocketClient):
 
     def get_flowcell_id(self):
         if len(self.flowcelldata['user_specified_flow_cell_id']) > 0:
-            print ("We have a self named flowcell")
+            log.debug("We have a self named flowcell")
             return str(self.flowcelldata['user_specified_flow_cell_id'])
         else:
-            print ("the flowcell id is fixed")
+            log.debug("the flowcell id is fixed")
             return str(self.flowcelldata['flow_cell_id'])
 
 
@@ -328,9 +350,9 @@ class DeviceConnect(WebSocketClient):
         while True:
             flowcellinfo = self.rpc_connection.device.stream_flow_cell_info()
             for event in flowcellinfo:
-                print (event)
+                log.debug(event)
                 self.flowcelldata = parsemessage(event)
-                print (self.get_flowcell_id())
+                log.debug(self.get_flowcell_id())
                 self.update_minion_status()
 
     def newchannelstatemonitor(self):
@@ -340,8 +362,6 @@ class DeviceConnect(WebSocketClient):
             try:
                 for state in channel_states:
                     for channel in state.channel_states:#print (state)
-            # print (channel)
-            # print (channel.channel,channel.state_name)
                         self.channelstates[int(channel.channel)]=channel.state_name
                 if not str(self.status).startswith("status: PROCESSING"):
                     break
@@ -352,14 +372,14 @@ class DeviceConnect(WebSocketClient):
 
     def dutytimemonitor(self):
         while True:
-            print ("Duty Time Monitor Running", self.status)
-            print (str(self.status))
+            log.debug("Duty Time Monitor Running", self.status)
+            log.debug(str(self.status))
             while str(self.status).startswith("status: PROCESSING"):
-                print ("fetching duty time")
-                dutytime = self.rpc_connection.statistics.stream_duty_time(step=60)
-                for duty in dutytime:
-                    #print (duty)
-                    pass
+                log.debug("fetching duty time")
+                dutytime = self.rpc_connection.statistics.stream_duty_time(wait_for_processing=True,step=60)
+                if self.args.verbose:
+                    for duty in dutytime:
+                        log.debug(duty)
             time.sleep(1)
 
 
@@ -374,18 +394,30 @@ class DeviceConnect(WebSocketClient):
                         self.run_start()
                     if str(self.status).startswith("status: FINISHING"):
                         self.run_stop()
-                    print(status)
+                    log.debug(status)
 
     def update_minion_status(self):
         #### This block of code will update live information about a minION
+        ### We may not yet have a run to acquire - if so the acquisition_data will be empty.
 
-        acquisition_data = self.acquisition_data
+        acquisition_data=dict()
 
+        if len(self.acquisition_data)<1:
+            acquisition_data['state']="No Run"
+            currentscript = "Nothing Running"
+        else:
+            acquisition_data = self.acquisition_data
+            currentscript = str(self.rpc_connection.protocol.get_run_info().protocol_id)
 
+        if len(self.disk_space_info)<1:
+            self.disk_space_info = json.loads(
+                MessageToJson(self.rpc_connection.instance.get_disk_space_info(), preserving_proto_field_name=True,
+                              including_default_value_fields=True))
+            log.debug(self.disk_space_info)
 
         payload = {"minION": str(self.minion["url"]),
                    "minKNOW_status": acquisition_data['state'],
-                   "minKNOW_current_script": str(self.rpc_connection.protocol.get_run_info().protocol_id),
+                   "minKNOW_current_script": currentscript,
                    #"minKNOW_sample_name": None,
                    "minKNOW_exp_script_purpose": str(self.rpc_connection.protocol.get_protocol_purpose()),
                    "minKNOW_flow_cell_id": self.get_flowcell_id(),
@@ -437,9 +469,9 @@ class DeviceConnect(WebSocketClient):
         channeldict["pore"]=0
         try:
             channelpandastates = channelpanda.groupby([0,]).size()
-            print (channelpandastates)
+            log.debug(channelpandastates)
             for state, value in channelpandastates.iteritems():
-                print (state, value)
+                log.debug(state, value)
                 channeldict[state]=value
             instrand = 0 #channeldict["strand"]+channeldict["adapter"]
             openpore = 0 #channeldict["good_single"]+channeldict["pore"]
@@ -450,6 +482,8 @@ class DeviceConnect(WebSocketClient):
             openpore=0
             pass
 
+        # Capturing the histogram data from MinKNOW
+        histogram_data = self.rpc_connection.statistics.get_read_length_histogram(run_id=self.runinformation.run_id)
 
         payload = {"minION": str(self.minion["url"]),
                    "run_id": self.runidlink,
@@ -461,51 +495,58 @@ class DeviceConnect(WebSocketClient):
                    "mean_ratio": meanratio,
                    "open_pore": openpore,
                    "in_strand": instrand,
-                   "minKNOW_histogram_values": str(self.read_event_weighted_hist),
-                   "minKNOW_histogram_bin_width": self.read_hist_bin_width,
+                   "minKNOW_histogram_values": str(histogram_data.buckets),
+                   "minKNOW_histogram_bin_width": histogram_data.width,
                    "minKNOW_read_count": read_count
                    }
         for channel in channeldict:
             payload[str(channel)] = channeldict[channel]
 
-        self.minotourapi.create_minion_statistic(payload,self.runid)
+        log.debug("This our new payload",payload)
+
+        result = self.minotourapi.create_minion_statistic(payload,self.runid)
+
+        log.debug("This is our result.", result)
 
 
     def runinfo(self):
         while True:
-            print ("Checking run info")
-            self.acquisition_data = json.loads(MessageToJson(self.rpc_connection.acquisition.get_acquisition_info(), preserving_proto_field_name=True, including_default_value_fields=True))
+            log.debug("Checking run info")
+            try:
+                self.acquisition_data = parsemessage(self.rpc_connection.acquisition.get_acquisition_info())
+            except:
+                log.debug("No active run")
+                self.acquisition_data ={}
             self.temperaturedata = self.rpc_connection.device.get_temperature()
             self.disk_space_info = json.loads(MessageToJson(self.rpc_connection.instance.get_disk_space_info(), preserving_proto_field_name=True, including_default_value_fields=True))
             self.minion_settings = self.rpc_connection.minion_device.get_settings()
             self.bias_voltage = json.loads(MessageToJson(self.rpc_connection.device.get_bias_voltage(),preserving_proto_field_name=True,including_default_value_fields=True))['bias_voltage']
-            print ("line 449")
+
             try:
                 self.runinfo_api = self.rpc_connection.protocol.get_run_info()
             except:
-                print ("Run Info not yet known.")
+                log.debug("Run Info not yet known.")
             try:
                 self.sampleid = self.rpc_connection.protocol.get_sample_id()
             except:
-                print ("Sample ID not yet known.")
-            print("running update minion status")
+                log.debug("Sample ID not yet known.")
+            log.debug("running update minion status")
             self.update_minion_status()
             if str(self.status).startswith("status: PROCESSING"):
                 self.runinformation = self.rpc_connection.acquisition.get_current_acquisition_run()
-                print (self.runinformation)
+                log.debug(self.runinformation)
                 try:
-
-                    print ("running update minion stats")
-                    self.update_minion_stats()
+                    log.debug("running update minion stats")
+                    if hasattr(self, 'runid'):
+                        self.update_minion_stats()
                 except Exception as err:
-                    print ("Problem updating stats to device.", err)
-                    print ("ARGHHHHH MINION RUN STATS")
+                    log.error("Problem updating stats to device.", err)
                     pass
             try:
-                print (self.read_event_weighted_hist)
-                print (self.read_hist_bin_width)
+                log.debug(self.read_event_weighted_hist)
+                log.debug(self.read_hist_bin_width)
             except:
-                pass
+                log.debug("Couldn't log histogram data.")
             time.sleep(self.interval)
 
     def sendmessage(self,severitylevel,message):
@@ -515,7 +556,7 @@ class DeviceConnect(WebSocketClient):
         while True:
             messages = self.rpc_connection.log.get_user_messages(include_old_messages=True)
             for message in messages:
-                #print (type(message))
+
                 payload = {"minion": self.minion["url"],
                            "message": message.user_message,
                            "run": "",
@@ -528,26 +569,25 @@ class DeviceConnect(WebSocketClient):
                     payload["run"] = self.runidlink
 
                 messagein = self.minotourapi.create_message( payload, self.minion)
-                pass
-
-
 
 
     def opened(self):
-        print ("Connection Success!!!!!!!!!!!!")
+        log.debug("Connected to MinIONs")
         ##print "Trying \"engine_states\":\"1\",\"channel_states\":\"1\",\"multiplex_states\":\"1\""
         #self.send(json.dumps({'engine_states':'1','channel_states':'1','multiplex_states':'1','channel_info':'1'}))
         #self.send(json.dumps({'engine_states':'1','channel_states':'1','channel_info':'1'}))
         #self.send(json.dumps({'engine_states':'1','channel_states':'1'}))
-        self.send(json.dumps({'engine_states':'1'}))
+        #self.send(json.dumps({'engine_states':'1'}))
         #self.send(json.dumps({'channel_info':'1','channel_states':'1'}))
         #self.send(transport.getvalue(), binary=True)
 
     def closed(self, code, reason="client disconnected for some reason"):
-        print ("socket",self.sock.fileno())
-        print ("Closed down", code, reason)
+        log.info("socket",self.sock.fileno())
+        log.info("Closed down", code, reason)
 
     def received_message(self, m):
+        ## All we do here is grab the old read_hist_bin - we shouldn't need to do this anymore?
+        ## This code is now deprecated
         if not m.is_binary:
             #print ("****************** Non binary message")
             json_object = json.loads(str(m))
@@ -558,7 +598,7 @@ class DeviceConnect(WebSocketClient):
                     #if str(key) == "engine_states":
                     #    print (json_object[key])
                     if str(key) == "statistics":
-                        #print (json_object[key].keys())
+                        log.debug(json_object[key].keys())
                         if "read_event_count_weighted_hist_bin_width" in json_object[key]:
                             self.read_hist_bin_width = json_object[key]["read_event_count_weighted_hist_bin_width"]
                         else:
@@ -569,37 +609,41 @@ class DeviceConnect(WebSocketClient):
                             self.read_event_weighted_hist = ""
                 #print (json_object.keys())
             except:
-                print ("key error")
+                log.error("key error")
 
 class MinknowConnect(WebSocketClient):
     def __init__(self, minswip,args, header):
-        print ("initialising")
-        WebSocketClient.__init__(self, minswip)
         self.args = args
+        log.debug("initialising minknow connection")
+        WebSocketClient.__init__(self, minswip)
+
         self.header = header
         self.minIONdict=dict() #A dictionary to store minION connection data.
         #self.computer_name = ""
         #self.minknow_version = ""
         #self.minknow_status = ""
 
+    def minIONnumber(self):
+        return len(self.minIONdict)
 
     def reportinformation(self):
         for minION in self.minIONdict:
-            print (self.minIONdict[minION]["device_connection"].flowcelldata)
-            print (self.minIONdict[minION]["device_connection"].temperaturedata)
-            print (self.minIONdict[minION]["device_connection"].disk_space_info)
+            log.info(self.minIONdict[minION]["device_connection"].flowcelldata)
+            log.info(self.minIONdict[minION]["device_connection"].temperaturedata)
+            log.info(self.minIONdict[minION]["device_connection"].disk_space_info)
 
     def disconnect_nicely(self):
         for device in self.minIONdict:
-            print (device)
+            log.info("Disconnecting {} from the server.".format(device))
             self.minIONdict[device]["device_connection"].disconnect_nicely()
+        log.info("Stopped successfully.")
 
     def received_message(self, m):
         for thing in ''.join(map(chr, map(ord, (m.data).decode('latin-1')))).split('\n'):
             if len(thing) > 5 and "2L" not in thing and "2n" not in thing:
-                print (thing)
+                log.debug(thing)
                 devicetype, deviceid = determinetype(thing)
-                print (devicetype, deviceid)
+                log.debug(devicetype, deviceid)
                 if deviceid not in self.minIONdict:
                     self.minIONdict[deviceid] = dict()
                 minIONports = parse_ports(thing, deviceid)
@@ -615,46 +659,56 @@ class MinknowConnect(WebSocketClient):
                         "grpc_web_port": 8005,
                         "grpc_web_insecure_port": 8001
                         """
+
+                        """
+                        They've changed it again the buggers.
+                        "cereal_class_version": 0,
+                        "port": 8000,
+                        "ws_longpoll_port": 8002,
+                        "grpc_port": 8004,
+                        "grpc_web_port": 8005,
+                        "grpc_web_insecure_port": 8001
+                        """
                         port = minIONports[0]
                         ws_longpoll_port = minIONports[1]
                         #ws_event_sampler_port = minIONports[2]
-                        ws_raw_data_sampler_port = minIONports[2]
-                        grpc_port = minIONports[3]
-                        grpc_web_port = minIONports[4]
+                        #ws_raw_data_sampler_port = minIONports[2]
+                        grpc_port = minIONports[2]
+                        grpc_web_port = minIONports[3]
                     except:
                         minIONports = list(map(lambda x: x - 192 + 8000 + 128, filter(lambda x: x > 120, map(ord, thing))))
                         self.minIONdict[deviceid]["state"] = "active"
                         port = minIONports[0]
                         ws_longpoll_port = minIONports[1]
                         #ws_event_sampler_port = minIONports[2]
-                        ws_raw_data_sampler_port = minIONports[2]
-                        grpc_port = minIONports[3]
-                        grpc_web_port = minIONports[4]
+                        #ws_raw_data_sampler_port = minIONports[2]
+                        grpc_port = minIONports[2]
+                        grpc_web_port = minIONports[3]
                     self.minIONdict[deviceid]["port"] = port
                     self.minIONdict[deviceid]["ws_longpoll_port"] = ws_longpoll_port
                     #self.minIONdict[deviceid]["ws_event_sampler_port"] = ws_event_sampler_port
-                    self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ws_raw_data_sampler_port
+                    #self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ws_raw_data_sampler_port
                     self.minIONdict[deviceid]["grpc_port"] = grpc_port
                     self.minIONdict[deviceid]["grpc_web_port"] = grpc_web_port
                     # Create an rpc connection to look at minknow api
+                    log.debug(self.minIONdict[deviceid]["grpc_port"])
                     self.minIONdict[deviceid]["grpc_connection"] = rpc.Connection(port=self.minIONdict[deviceid]["grpc_port"])
                     connectip = "ws://" + self.args.ip + ":" + str(self.minIONdict[deviceid]["ws_longpoll_port"]) + "/"
-                    print ("setting up the goldmine")
+
                     self.minIONdict[deviceid]["device_connection"] = DeviceConnect(connectip,self.args,self.minIONdict[deviceid]["grpc_connection"],self.header,deviceid)
                     #self.minIONdict[deviceid]["legacydevicedata"] = DeviceConnectLegacy(connectip,self.args,self.minIONdict[deviceid]["grpc_connection"])
                     try:
-                        print ('trying to activate the connection')
                         self.minIONdict[deviceid]["device_connection"].connect()
 
                     except Exception as err:
-                        print ("Problem connecting to device.", err)
+                        log.error ("Problem connecting to device.", err)
 
                 else:
                     self.minIONdict[deviceid]["state"] = "inactive"
                     self.minIONdict[deviceid]["port"] = ""
                     self.minIONdict[deviceid]["ws_longpoll_port"] = ""
                     #self.minIONdict[deviceid]["ws_event_sampler_port"] = ""
-                    self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ""
+                    #self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ""
                     self.minIONdict[deviceid]["grpc_port"] = ""
                     self.minIONdict[deviceid]["grpc_web_port"] = ""
                     self.minIONdict[deviceid]["grpc_connection"] = ""
@@ -690,10 +744,10 @@ def main():
     try:
         Minknow.connect()
     except Exception as err:
-        if args.debug: print ("Error", err)
-        if args.debug: print (
+        log.error("Error", err)
+        log.error(
             "We guess you have not got minKNOW running on your computer at the ip address specified. Please try again.")
-        if args.debug: print ("bye bye")
+        log.error("bye bye")
         sys.exit()
 
     while True:
