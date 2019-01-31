@@ -1,25 +1,18 @@
-import sys,os
-import curses
-import time
-import minFQ.rpc as rpc
-import configargparse
-import json
-import struct
-import threading
-import math
-import requests
-import pandas as pd
-import numpy as np
 import datetime
-import time
+import json
 import logging
+import sys
+import threading
+import time
 
-from ws4py.client.threadedclient import WebSocketClient
-from minFQ.minotourutils import determinetype, parse_ports
-
-from minFQ.minotourapi import MinotourAPI as MinotourAPINew
+import configargparse
+import pandas as pd
 from google.protobuf.json_format import MessageToJson
+from ws4py.client.threadedclient import WebSocketClient
 
+import minFQ.rpc as rpc
+from minFQ.minotourapi import MinotourAPI as MinotourAPINew
+from minFQ.minotourutils import determinetype, parse_ports
 
 log = logging.getLogger(__name__)
 
