@@ -534,9 +534,9 @@ class MinotourAPI:
 
         if req.status_code != 201:
             #print (req.text)
-            log.error('runid {} could not be updated.'.format(runid))
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
+            log.debug('runid {} could not be updated.'.format(runid))
+            log.debug('Status-code {}'.format(req.status_code))
+            log.debug('Text {}'.format(req.text))
             return None
 
         else:
