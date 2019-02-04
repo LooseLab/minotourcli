@@ -39,6 +39,11 @@ class DeviceConnect(WebSocketClient):
 
         #Here we need to check if we are good to run against this version.
         self.version = self.rpc_connection.instance.get_version_info().minknow.full
+        self.device_type = self.rpc_connection.instance.get_host_type()
+        if str(self.device_type).startswith("PROMETHION"):
+            log.warning(self.device_type)
+            log.warning("This version of minFQ is not compatible with PromethION.")
+            sys.exit()
         if str(self.version) != "3.1.13":
             log.warning(self.version)
             log.warning("This version of minFQ may not be compatible with the MinKNOW version you are running.")
