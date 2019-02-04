@@ -124,7 +124,6 @@ def main():
     for sample_id in tqdm(flowcelldict):
         for flowcellid in flowcelldict[sample_id].keys():
             flowcell = minotourapi.get_flowcell_by_name(flowcellid)
-            print (flowcell)
             if len(flowcell["data"])==0:
                 flowcell = minotourapi.create_flowcell(flowcellid)
             for run_id in flowcelldict[sample_id][flowcellid]:
