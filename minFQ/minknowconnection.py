@@ -43,8 +43,8 @@ class DeviceConnect(WebSocketClient):
         log.error(self.device_type)
         if str(self.device_type).startswith("PROMETHION"):
             log.warning(self.device_type)
-            log.warning("This version of minFQ is not compatible with PromethION.")
-            sys.exit()
+            log.warning("This version of minFQ may not be compatible with PromethION.")
+            #sys.exit()
         if str(self.version) != "3.1.13":
             log.warning(self.version)
             log.warning("This version of minFQ may not be compatible with the MinKNOW version you are running.")
@@ -529,7 +529,10 @@ class DeviceConnect(WebSocketClient):
                 self.acquisition_data ={}
             self.temperaturedata = self.rpc_connection.device.get_temperature()
             self.disk_space_info = json.loads(MessageToJson(self.rpc_connection.instance.get_disk_space_info(), preserving_proto_field_name=True, including_default_value_fields=True))
-            self.minion_settings = self.rpc_connection.minion_device.get_settings()
+            if str(self.device_type).startswith("PROMETHION"):
+                self.minion_settings = self.rpc_connection.promethion_device.get_device_settings()
+            else:
+                self.minion_settings = self.rpc_connection.minion_device.get_settings()
             self.bias_voltage = json.loads(MessageToJson(self.rpc_connection.device.get_bias_voltage(),preserving_proto_field_name=True,including_default_value_fields=True))['bias_voltage']
 
             try:
