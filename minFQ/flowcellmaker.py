@@ -76,7 +76,7 @@ def main():
                         except:
                             mymultifile = multi_fast5.MultiFast5File(os.path.join(root,file))
                             myid = mymultifile.get_read_ids()[0]
-                            myfile = mymultifile.get_read(myid))
+                            myfile = mymultifile.get_read(myid)
                         minIONid = myfile.get_tracking_id()['device_id']
                         minION.add(minIONid)
                         flowcell = myfile.get_tracking_id()['flow_cell_id']
