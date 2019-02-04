@@ -2,6 +2,8 @@ import os
 import sys
 import datetime
 import configargparse
+import validators
+
 from ont_fast5_api import fast5_file, multi_fast5
 
 from minFQ.minotourapi import MinotourAPI
@@ -40,7 +42,7 @@ def main():
         '--port',
         type=int,
         # required=True,
-        default=8100,
+        default=80,
         help='The port number for the local server.',
         dest='port_number',
     )
@@ -57,9 +59,22 @@ def main():
 
     args = parser.parse_args()
 
+    if args.host_name.startswith("http://"):
+        args.full_host = "{}:{}/".format(args.host_name, str(args.port_number))
+    else:
+        args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+
+    if not validators.url(args.full_host):
+        print ("Please check your url.")
+        print ("You entered:")
+        print ("{}".format(args.host_name))
+        sys.exit()
+
     minION = set()
     flowcelldict = dict()
     rundict = dict()
+
+
 
     print('Searching for files in {}'.format(os.path.abspath(args.watchdir)))
     last_seen=""
@@ -95,12 +110,12 @@ def main():
                     except:
                         print ("Non fast5file seen.")
     print ("Adding new runs.")
-    full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+
     header = {
         'Authorization': 'Token {}'.format(args.api_key),
         'Content-Type': 'application/json'
     }
-    minotourapi = MinotourAPI(full_host, header)
+    minotourapi = MinotourAPI(args.full_host, header)
     for minIONs in minION:
         minion = minotourapi.get_minion_by_name(minIONs)
         if not minion:
@@ -109,6 +124,7 @@ def main():
     for sample_id in tqdm(flowcelldict):
         for flowcellid in flowcelldict[sample_id].keys():
             flowcell = minotourapi.get_flowcell_by_name(flowcellid)
+            print (flowcell)
             if len(flowcell["data"])==0:
                 flowcell = minotourapi.create_flowcell(flowcellid)
             for run_id in flowcelldict[sample_id][flowcellid]:
