@@ -156,7 +156,7 @@ def main():
         type=str,
         required=True,
         default=None,
-        help='The run name you wish to provide.',
+        help='This provides a backup name for a flowcell. MinoTour will use the run names and flowcell ids it finds in reads if available.',
         dest='run_name',
     )
 
@@ -166,6 +166,15 @@ def main():
         action='store_true',
         help='If you add this flag, all runs added here will be considered as a single flow cell with the name set by the name flag.',
         dest='is_flowcell',
+    )
+
+    parser.add(
+        '-e',
+        '--enable_remote_control',
+        action='store_true',
+        default=False,
+        help='This option allows your runs to be remotely started and stopped and for runs to be remotely renamed. As standard this is not enbabled.',
+        dest='enable_remote',
     )
 
     parser.add(

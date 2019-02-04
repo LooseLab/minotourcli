@@ -328,9 +328,9 @@ class MinotourAPI:
 
         if req.status_code != 200:
 
-            log.error('Did not find minion {}.'.format(name))
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
+            log.debug('Did not find minion {}.'.format(name))
+            log.debug('Status-code {}'.format(req.status_code))
+            log.debug('Text {}'.format(req.text))
             return None
 
         else:

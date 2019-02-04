@@ -453,9 +453,8 @@ class FastqHandler(FileSystemEventHandler):
             self.creates[event.src_path] = time.time()
 
     def on_modified(self, event):
-        log.info("Modified file {}".format(event.src_path))
         if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
-            #self.args.files_seen += 1
+            log.debug("Modified file {}".format(event.src_path))
             self.creates[event.src_path] = time.time()
 
         #self.process_fastqfile(event.src_path)

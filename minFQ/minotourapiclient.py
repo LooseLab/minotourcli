@@ -128,25 +128,28 @@ class Runcollection():
 
         if not run:
 
-            runname = self.args.run_name
+            if 'flow_cell_id' in descriptiondict:
+                flowcellname = descriptiondict['flow_cell_id']
+            else:
+                flowcellname = self.args.run_name
 
             #
             # get or create a flowcell
             #
 
-            log.debug("Looking for flowcell {}".format(runname))
+            log.debug("Looking for flowcell {}".format(flowcellname))
 
-            flowcell = self.minotourapi.get_flowcell_by_name(runname)['data']
+            flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)['data']
 
             log.debug("found {}".format(flowcell))
 
             if not flowcell:
 
-                log.debug("Trying to create flowcell {}".format(runname))
+                log.debug("Trying to create flowcell {}".format(flowcellname))
 
-                flowcell = self.minotourapi.create_flowcell(runname)
+                flowcell = self.minotourapi.create_flowcell(flowcellname)
 
-                log.debug("Created flowcell {}".format(runname))
+                log.debug("Created flowcell {}".format(flowcellname))
 
             #
             # create a run
@@ -166,6 +169,11 @@ class Runcollection():
             else:
 
                 has_fastq = True
+
+            if 'sample_id' in descriptiondict:
+                runname = descriptiondict['sample_id']
+            else:
+                runname = self.args.run_name
 
             createrun = self.minotourapi.create_run(runname, runid, is_barcoded, has_fastq, flowcell)
 
