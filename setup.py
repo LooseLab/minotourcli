@@ -26,7 +26,7 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     keywords='nanopore quality control analysis',
-    packages=find_packages(),
+    packages=find_packages("minFQ", exclude=["rpc"]),
     python_requires='>=3',
     setup_requires=['numpy'],
     install_requires=['tqdm',
