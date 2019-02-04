@@ -39,7 +39,7 @@ class DeviceConnect(WebSocketClient):
 
         #Here we need to check if we are good to run against this version.
         self.version = self.rpc_connection.instance.get_version_info().minknow.full
-        self.device_type = self.rpc_connection.instance.get_host_type()
+        self.device_type = parsemessage(self.rpc_connection.instance.get_host_type())['host_type']
         log.error(self.device_type)
         if str(self.device_type).startswith("PROMETHION"):
             log.warning(self.device_type)
