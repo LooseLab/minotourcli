@@ -108,7 +108,7 @@ def main():
         '-w',
         '--watch-dir',
         type=str,
-        required=True,
+        #required=True,
         default=None,
         help='The path to the folder containing the downloads directory with fast5 reads to analyse - e.g. C:\\data\\minion\\downloads (for windows).',
         dest='watchdir'
@@ -154,7 +154,7 @@ def main():
         '-n',
         '--name',
         type=str,
-        required=True,
+        #required=True,
         default=None,
         help='This provides a backup name for a flowcell. MinoTour will use the run names and flowcell ids it finds in reads if available.',
         dest='run_name',
@@ -250,6 +250,14 @@ def main():
 
     if not args.noMinKNOW and args.ip is None:
         parser.error("To monitor MinKNOW in real time you must specify the IP address of your local machine.\nUsually:\n-ip 127.0.0.1")
+
+    if not args.noFastQ:
+        if args.run_name is None:
+            parser.error("When monitoring read data MinoTour requires a default name to assign the data to if it cannot determine flowcell and sample name. Please set this using the -n option.")
+            os._exit(0)
+        if args.watchdir is None:
+            parser.error("When monitoring read data MinoTour needs to know where to look! Please specify a watch directory with the -w flag.")
+            os._exit(0)
 
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:
