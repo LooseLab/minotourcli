@@ -125,10 +125,12 @@ def main():
         for flowcellid in flowcelldict[sample_id].keys():
             flowcell = minotourapi.get_flowcell_by_name(flowcellid)
             if len(flowcell["data"])==0:
-                flowcell = minotourapi.create_flowcell(flowcellid)
+                create_flowcell = minotourapi.create_flowcell(flowcellid)
+                flowcell = minotourapi.get_flowcell_by_name(flowcellid)
             for run_id in flowcelldict[sample_id][flowcellid]:
                 run = minotourapi.get_run_by_runid(run_id)
                 if not run:
+                    '''print (flowcell)'''
                     is_barcoded = False  # TODO do we known this info at this moment? This can be determined from run info.
                     has_fastq = True  # TODO do we known this info at this moment? This can be determined from run info
                     run = minotourapi.create_run(sample_id, run_id, is_barcoded, has_fastq,
@@ -136,6 +138,11 @@ def main():
                                                             flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['exp_start_time'])
 
                 minion = minotourapi.get_minion_by_name(flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['device_id'])
+
+                try: 
+                    sample_rate =int(str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['sample_frequency']))
+                except:
+                    sample_rate = 0
 
                 payload = {
                     "minION": str(minion["url"]),
@@ -148,13 +155,19 @@ def main():
                     "minKNOW_version": str(flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['version']),
                     "minKNOW_hash_run_id": str(run_id),
                     "minKNOW_script_run_id": str(""),
-                    "minKNOW_real_sample_rate": int(str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['sample_frequency'])),
+                    "minKNOW_real_sample_rate": sample_rate,
                     "minKNOW_asic_id": flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['asic_id'],
                     "minKNOW_start_time": flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['exp_start_time'],
                     "minKNOW_computer": str(flowcelldict[sample_id][flowcellid][run_id]['tracking_id']['hostname']),
                 }
-                payload['flowcell_type']=str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['flowcell_type'])
-                payload['sequencing_kit']=str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['sequencing_kit'])
+                try:
+                    payload['flowcell_type']=str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['flowcell_type'])
+                except:
+                    payload['flowcell_type']="unknown"
+                try:
+                    payload['sequencing_kit']=str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['sequencing_kit'])
+                except:
+                    payload['sequencing_kit']="unknown"
 
                 updateruninfo = minotourapi.update_minion_run_info(payload, run['id'])
 
