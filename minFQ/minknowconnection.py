@@ -58,7 +58,7 @@ class DeviceConnect(WebSocketClient):
         for i in range(self.channels):
             self.channelstates[i+1]=None
         self.status = ""
-        self.interval = 5 #we will poll for updates every 5 seconds.
+        self.interval = 30 #we will poll for updates every 30 seconds.
         self.longinterval = 30 #we have a short loop and a long loop
         self.minIONid = minIONid
         self.computer_name = self.rpc_connection.instance.get_machine_id().machine_id
