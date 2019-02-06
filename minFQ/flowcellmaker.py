@@ -156,4 +156,6 @@ def main():
                 payload['flowcell_type']=str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['flowcell_type'])
                 payload['sequencing_kit']=str(flowcelldict[sample_id][flowcellid][run_id]['context_tags']['sequencing_kit'])
 
+                updateruninfo = minotourapi.update_minion_run_info(payload, run['id'])
+
     print ("Metadata Uploaded to MinoTour.")
