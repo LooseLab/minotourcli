@@ -361,7 +361,7 @@ class MinotourAPI:
             'job' : job
         }
 
-        if reference not None:
+        if reference is not None:
             payload['reference']=reference
 
     def get_minion_by_name(self, name):

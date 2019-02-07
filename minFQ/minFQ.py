@@ -354,9 +354,6 @@ def main():
                 log.info("Reference not found. Please recheck.")
                 os._exit(0)
 
-
-
-
     if not args.noMinKNOW and args.ip is None:
         parser.error("To monitor MinKNOW in real time you must specify the IP address of your local machine.\nUsually:\n-ip 127.0.0.1")
 
