@@ -218,12 +218,40 @@ def main():
     )
 
     parser.add(
+        '-j',
+        '--job',
+        type=str,
+        # required=True,
+        default=None,
+        help='An optional minotour job to run on your server.',
+        dest='job',
+    )
+
+    parser.add(
+        '-r',
+        '--reference',
+        type=str,
+        # required=True,
+        default=None,
+        help='An optional minotour reference to map against.',
+        dest='reference',
+    )
+
+    parser.add(
         '-s',
         '--skip_sequence',
         action='store_true',
         required=False,
         help='If selected only read metrics, not sequence, will be uploaded to the databse.',
         dest='skip_sequence'
+    )
+
+    parser.add(
+        '--list',
+        action='store_true',
+        required=False,
+        help='List available tasks and references at this server.',
+        dest='list'
     )
 
     parser.add(
@@ -248,6 +276,87 @@ def main():
 
     args = parser.parse_args()
 
+    logging.basicConfig(
+        format='%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s',
+        filename='minFQ.log',
+        # level=os.environ.get('LOGLEVEL', 'INFO')
+        level=args.loglevel
+    )
+
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    # set a format which is simpler for console use
+    # formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    formatter = logging.Formatter('%(levelname)-8s %(message)s')
+    # tell the handler to use this format
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logging.getLogger('').addHandler(console)
+
+    log = logging.getLogger(__name__)
+
+    log.info("Initialising minFQ.")
+
+    header = {
+        'Authorization': 'Token {}'.format(args.api_key),
+        'Content-Type': 'application/json'
+    }
+
+    if args.host_name.startswith("http://"):
+        args.full_host = "{}:{}/".format(args.host_name, str(args.port_number))
+    else:
+        args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+
+    if not validators.url(args.full_host):
+        print ("Please check your url.")
+        print ("You entered:")
+        print ("{}".format(args.host_name))
+        sys.exit()
+
+    if args.list:
+        log.info("Checking available jobs.")
+        minotourapi = MinotourAPI(args.full_host, header)
+        jobs = minotourapi.get_job_options()
+        references = minotourapi.get_references()
+        print("The following jobs are available on this minoTour installation:")
+        for job in jobs['data']:
+            if not job['name'].startswith("Delete"):
+                print("\t:{}".format(job['name']))
+
+        print("If you wish to run an alignment, the following references are available:")
+        for reference in references:
+            if not reference['private']:
+                print("\t:{}".format(reference['name']))
+        os._exit(0)
+
+
+    if args.job is not None:
+        minotourapi = MinotourAPI(args.full_host, header)
+        jobs = minotourapi.get_job_options()
+        args.job_id = -1
+        for job in jobs['data']:
+            if args.job == job['name']:
+                args.job_id = job['id']
+        if args.job_id == -1:
+            log.info("Job not found. Please recheck.")
+            os._exit(0)
+        if args.job == "Minimap2":
+            if args.reference == None:
+                log.info("You need to specify a reference for a Minimap2 task.")
+                os._exit(0)
+            references = minotourapi.get_references()
+            args.reference_id = -1
+            for reference in references:
+                if args.reference == reference['name']:
+                    args.reference_id = reference['id']
+            if args.reference_id == -1:
+                log.info("Reference not found. Please recheck.")
+                os._exit(0)
+
+
+
+
     if not args.noMinKNOW and args.ip is None:
         parser.error("To monitor MinKNOW in real time you must specify the IP address of your local machine.\nUsually:\n-ip 127.0.0.1")
 
@@ -265,45 +374,8 @@ def main():
         print("This program will now exit.")
         os._exit(0)
 
-    if args.host_name.startswith("http://"):
-        args.full_host = "{}:{}/".format(args.host_name, str(args.port_number))
-    else:
-        args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
-
-    if not validators.url(args.full_host):
-        print ("Please check your url.")
-        print ("You entered:")
-        print ("{}".format(args.host_name))
-        sys.exit()
-
-    logging.basicConfig(
-        format='%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s',
-        filename='minFQ.log',
-        #level=os.environ.get('LOGLEVEL', 'INFO')
-        level = args.loglevel
-    )
-
-    # define a Handler which writes INFO messages or higher to the sys.stderr
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    # set a format which is simpler for console use
-    #formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-    formatter = logging.Formatter('%(levelname)-8s %(message)s')
-    # tell the handler to use this format
-    console.setFormatter(formatter)
-    # add the handler to the root logger
-    logging.getLogger('').addHandler(console)
-
-    log = logging.getLogger(__name__)
-
-    log.info("Initialising minFQ.")
 
     args.read_count = 0
-
-    header = {
-        'Authorization': 'Token {}'.format(args.api_key),
-        'Content-Type': 'application/json'
-    }
 
     minotourapi = MinotourAPI(args.full_host, header)
 
@@ -329,6 +401,7 @@ def main():
         shall_exit = True
 
     if not shall_exit:
+
 
         rundict = dict()
 

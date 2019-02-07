@@ -77,6 +77,40 @@ class MinotourAPI:
 
         return requests.delete(url, headers=self.request_headers, json=json)
 
+
+    def get_job_options(self):
+
+        url = '/tasktypes/'
+
+        req = self.get(url)
+
+        if req.status_code != 200:
+            log.error("Couldn't find tasks to run.")
+            log.error("Status-code {}".format(req.status_code))
+            log.error("Text {}".format(req.text))
+            return None
+
+        else:
+
+            return jsonlibrary.loads(req.text)
+
+    def get_references(self):
+
+        url = '/reference/'
+
+        req = self.get(url)
+
+        if req.status_code != 200:
+            log.error("Couldn't find references.")
+            log.error("Status-code {}".format(req.status_code))
+            log.error("Text {}".format(req.text))
+            return None
+
+        else:
+
+            return jsonlibrary.loads(req.text)
+
+
     def get_file_info_by_runid(self, runid):
 
         url = '/runs/{}/files/'.format(runid)
@@ -319,6 +353,16 @@ class MinotourAPI:
         else:
 
             return jsonlibrary.loads(req.text)
+
+    def create_job(self,flowcell,job,reference=None):
+
+        payload = {
+            'flowcell' : flowcell,
+            'job' : job
+        }
+
+        if reference not None:
+            payload['reference']=reference
 
     def get_minion_by_name(self, name):
 
