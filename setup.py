@@ -51,7 +51,7 @@ setup(
         'console_scripts': [
             'minFQ=minFQ.minFQ:main',
             'minFlow=minFQ.flowcellmaker:main',
-            'minConnect=minFQ.minknowconnection:main'
+            'minConnect=minFQ.minknowconnection:main',
         ],
     },
 )

@@ -191,6 +191,7 @@ class MinotourAPI:
         
         payload = {
             "name": name,
+            "sample_name": name,
             "runid": runid,
             "is_barcoded": is_barcoded,
             "has_fastq": has_fastq,
