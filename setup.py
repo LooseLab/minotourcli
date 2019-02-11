@@ -3,9 +3,24 @@ from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
 from os import path
+import shutil
+
+
+# Custom Lines
+# To make sure we do not accidently distribute ONT rpc first delete the rpc.
+
+mydir = "minFQ/rpc"
+
+try:
+    shutil.rmtree(mydir)
+except OSError as e:
+    print ("Error: %s - %s." % (e.filename, e.strerror))
 
 here = path.abspath(path.dirname(__file__))
+
+
 exec(open('minFQ/version.py').read())
+
 
 setup(
     name='minFQ',
