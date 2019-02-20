@@ -118,7 +118,7 @@ class Runcollection():
 
             log.debug("{} reads already processed and included into readnames list for run {}".format(len(self.readnames), self.run['id']))
 
-    def add_run(self, descriptiondict):
+    def add_run(self, descriptiondict, args):
 
         self.args.fastqmessage = "Adding run."
 
@@ -147,7 +147,10 @@ class Runcollection():
 
                 log.debug("Trying to create flowcell {}".format(flowcellname))
 
-                flowcell = self.minotourapi.create_flowcell(flowcellname)
+                flowcell = self.minotourapi.\
+                    create_flowcell(flowcellname)
+
+                self.minotourapi.create_job(args.run_name, int(args.job_id), args.reference, args.targets)
 
                 log.debug("Created flowcell {}".format(flowcellname))
 

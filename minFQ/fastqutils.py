@@ -151,7 +151,7 @@ def parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fast
 
         rundict[fastq_read['runid']] = Runcollection(args, header)
 
-        rundict[fastq_read['runid']].add_run(description_dict)
+        rundict[fastq_read['runid']].add_run(description_dict, args)
 
     rundict[fastq_read['runid']].get_readnames_by_run(fastqfile['id'])
 

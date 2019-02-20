@@ -1,5 +1,4 @@
 import os
-import platform
 import sys
 import fnmatch, shutil, platform
 import fileinput
@@ -121,7 +120,7 @@ def main():
         dest='ip',
         required=False,
         default=None,
-        help='The IP address of the minKNOW machine.',
+        help='The IP address of the minKNOW machine - Typically 127.0.0.1.',
     )
 
     parser.add(
@@ -250,7 +249,7 @@ def main():
         '--list',
         action='store_true',
         required=False,
-        help='List available tasks and references at this server.',
+        help='List available tasks, target sets and references at this server.',
         dest='list'
     )
 
@@ -271,7 +270,16 @@ def main():
         default='INFO',
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
         help='Set the logging level',
-        dest = 'loglevel'
+        dest='loglevel'
+    )
+
+    parser.add(
+        '-ts',
+        '--targets',
+        type=str,
+        default=None,
+        help="Set the target set for the metagenomics",
+        dest="targets"
     )
 
     args = parser.parse_args()
@@ -309,16 +317,18 @@ def main():
         args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
 
     if not validators.url(args.full_host):
-        print ("Please check your url.")
-        print ("You entered:")
-        print ("{}".format(args.host_name))
+        print("Please check your url.")
+        print("You entered:")
+        print("{}".format(args.host_name))
         sys.exit()
 
     if args.list:
+
         log.info("Checking available jobs.")
         minotourapi = MinotourAPI(args.full_host, header)
         jobs = minotourapi.get_job_options()
         references = minotourapi.get_references()
+        targets = minotourapi.get_target_sets(args.api_key)
         print("The following jobs are available on this minoTour installation:")
         for job in jobs['data']:
             if not job['name'].startswith("Delete"):
@@ -328,8 +338,11 @@ def main():
         for reference in references:
             if not reference['private']:
                 print("\t:{}".format(reference['name']))
-        os._exit(0)
+        print("If you wish to add a target set to the metagenomics task, the following sets are available to you:")
+        for target in targets:
+            print("\t:{}".format(target))
 
+        os._exit(0)
 
     if args.job is not None:
         minotourapi = MinotourAPI(args.full_host, header)
@@ -353,6 +366,14 @@ def main():
             if args.reference_id == -1:
                 log.info("Reference not found. Please recheck.")
                 os._exit(0)
+
+        if args.job == "Metagenomics":
+            if args.targets:
+                targets = minotourapi.get_target_sets(args.api_key)
+                if args.targets not in targets:
+                    log.info("Target set not found. Please check spelling and try again.")
+                    os._exit(0)
+
 
     if not args.noMinKNOW and args.ip is None:
         parser.error("To monitor MinKNOW in real time you must specify the IP address of your local machine.\nUsually:\n-ip 127.0.0.1")

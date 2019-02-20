@@ -32,9 +32,9 @@ class MinotourAPI:
 
         else:
 
-            url = '{}api/v1{}?{}'.format(self.base_url, partial_url, parameters)
+            url = '{}api/v1{}'.format(self.base_url, partial_url)
 
-        return requests.get(url, headers=self.request_headers)
+        return requests.get(url, headers=self.request_headers, params=parameters)
 
     def post(self, partial_url, json, parameters=None):
 
@@ -77,12 +77,35 @@ class MinotourAPI:
 
         return requests.delete(url, headers=self.request_headers, json=json)
 
+    def get_target_sets(self, api_key=""):
+        """
+        Get a list of the target sets, to show during the listing
+        :return:
+        """
+        url = '/metagenomics/targetsets'
+        if api_key == "":
+            payload = {}
+        else:
+            payload = {"api_key": api_key, "cli": True}
+
+        req = self.get(url, parameters=payload)
+
+        if req.status_code != 200:
+            log.error("Couldn't find target sets to run.")
+            log.error("Status-code {}".format(req.status_code))
+            log.error("Text {}".format(req.text))
+            return None
+
+        else:
+            return jsonlibrary.loads(req.text)
 
     def get_job_options(self):
 
         url = '/tasktypes/'
 
-        req = self.get(url)
+        payload = {"cli": True}
+
+        req = self.get(url, parameters=payload)
 
         if req.status_code != 200:
             log.error("Couldn't find tasks to run.")
@@ -91,7 +114,6 @@ class MinotourAPI:
             return None
 
         else:
-
             return jsonlibrary.loads(req.text)
 
     def get_references(self):
@@ -355,15 +377,24 @@ class MinotourAPI:
 
             return jsonlibrary.loads(req.text)
 
-    def create_job(self,flowcell,job,reference=None):
+    def create_job(self, flowcell, job, reference=None, targets=None):
 
         payload = {
-            'flowcell' : flowcell,
-            'job' : job
+            'flowcell': flowcell,
+            'job_type': job
         }
 
         if reference is not None:
-            payload['reference']=reference
+            payload['reference'] = reference
+
+        if targets is not None:
+            payload["target_set"] = targets
+
+        req = self.post('/tasks/', json=payload)
+
+        if req.status_code != 200:
+            log.info(req.status_code)
+            log.info(req.text)
 
     def get_minion_by_name(self, name):
 
