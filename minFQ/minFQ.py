@@ -51,19 +51,28 @@ else:
         print ("Not configured for {} yet. Sorry.".format(OPER))
         sys.exit()
     sourceRPC = os.path.join(minknowbase,RPCPATH)
-    copyfiles(sourceRPC,dstRPC,'*.py')
-    print ('RPC Configured')
+
+    if os.path.exists(sourceRPC):
+
+        copyfiles(sourceRPC,dstRPC,'*.py')
+        RPC_SUPPORT=True
+        
+        from minFQ.minknowconnection import MinknowConnect
+        print ('RPC Configured')
+
+    else:
+
+        RPC_SUPPORT=False
+        print('Can not find MinKnow on this computer. You can use this client to process Fastq files, but not to monitor the sequencing process.')
 
 sys.path.insert(0,os.path.join(root_directory, 'rpc'))
 
 from minFQ.fastqutils import FastqHandler
 from minFQ.minknowcontrolutils import HelpTheMinion
-from minFQ.minknowconnection import MinknowConnect
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
 from minFQ.minotourapi import MinotourAPI
-from minFQ.minknowconnection import MinknowConnect
 
 CLIENT_VERSION = '1.0'
 
@@ -434,13 +443,20 @@ def main():
             log.info("FastQ Monitoring Running.")
 
         if not args.noMinKNOW:
-            # this block is going to handle the running of minControl.
-            log.info("Configuring MinKNOW Monitoring.")
-            minwsip = "ws://" + args.ip + ":9500/"
 
-            MinKNOWConnection = MinknowConnect(minwsip, args, header)
-            MinKNOWConnection.connect()
-            log.info("MinKNOW Monitoring Working.")
+            if RPC_SUPPORT:
+            
+                # this block is going to handle the running of minControl.
+                log.info("Configuring MinKNOW Monitoring.")
+                minwsip = "ws://" + args.ip + ":9500/"
+
+                MinKNOWConnection = MinknowConnect(minwsip, args, header)
+                MinKNOWConnection.connect()
+                log.info("MinKNOW Monitoring Working.")
+
+            else:
+
+                print('There is no support for MinKnow monitoring on this computer.')
 
         sys.stdout.write("To stop minFQ use CTRL-C.\n")
 
