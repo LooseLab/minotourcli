@@ -346,7 +346,7 @@ def main():
         print("If you wish to run an alignment, the following references are available:")
         for reference in references:
             if not reference['private']:
-                print("\t:{}".format(reference['name']))
+                print("\t{}:{}".format(reference['id'],reference['name']))
         print("If you wish to add a target set to the metagenomics task, the following sets are available to you:")
         for target in targets:
             print("\t:{}".format(target))
