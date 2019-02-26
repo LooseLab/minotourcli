@@ -150,7 +150,10 @@ class Runcollection():
                 flowcell = self.minotourapi.\
                     create_flowcell(flowcellname)
                 if args.job:
-                    self.minotourapi.create_job(flowcell['id'], int(args.job_id), args.reference_id, args.targets)
+                    if args.targets:
+                        self.minotourapi.create_job(flowcell['id'], int(args.job_id), None, args.targets)
+                    else:
+                        self.minotourapi.create_job(flowcell['id'], int(args.job_id), args.reference_id, None)
 
                 log.debug("Created flowcell {}".format(flowcellname))
 
