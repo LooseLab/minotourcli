@@ -296,74 +296,79 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
 def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
 
     file_list_dict = dict()
+
+    if not args.ignoreexisting:
     
-    counter = 0
+        counter = 0
     
-    if os.path.isdir(path):
-    
-        log.info("caching existing fastq files in: %s" % (path))
-    
-        args.fastqmessage = "caching existing fastq files in: %s" % (path)
+        if os.path.isdir(path):
 
-        novelrunset=set()
+            log.info("caching existing fastq files in: %s" % (path))
 
-        seenfiletracker = dict()
-    
-        for path, dirs, files in os.walk(path):
-            
-            for f in files:
-            
-                if f.endswith(".fastq") or f.endswith(".fastq.gz"):
-                    log.debug("Processing File {}\r".format(f))
-                    counter += 1
+            args.fastqmessage = "caching existing fastq files in: %s" % (path)
 
-                    args.files_seen += 1
-                    #### Here is where we want to check if the files have been created and what the checksums are
-                    #### If the file checksums do not match, we pass the file to the rest of the script.
-                    #### When we finish analysing a file, we will need to update this information n the server.
-                    #### Currently just using size.
-                    md5Check = md5Checksum(os.path.join(path, f))
+            novelrunset=set()
 
-                    runid = get_runid(os.path.join(path, f))
-                    if runid not in novelrunset and runid not in seenfiletracker.keys():
-                        result = (MinotourConnection.get_file_info_by_runid(runid))
-                        #### Here we want to parse through the results and store them in some kind of dictionary in order that we can check what is happening
-                        if result is not None:
-                            for entry in result:
-                                if entry["runid"] not in seenfiletracker.keys():
-                                    seenfiletracker[entry["runid"]]=dict()
-                                seenfiletracker[entry["runid"]][entry["name"]]=entry["md5"]
-                    else:
-                        result = None
+            seenfiletracker = dict()
 
-                    filepath = os.path.join(path, f)
-                    checkfilepath = check_fastq_path(filepath)
-                    if checkfilepath not in fastqdict.keys():
-                        fastqdict[checkfilepath]=dict()
+            for path, dirs, files in os.walk(path):
 
-                    fastqdict[checkfilepath]["runid"] = runid
-                    fastqdict[checkfilepath]["md5"] = md5Check
+                for f in files:
 
+                    if f.endswith(".fastq") or f.endswith(".fastq.gz"):
+                        log.debug("Processing File {}\r".format(f))
+                        counter += 1
 
-                    """Here we are going to check if the files match or not. """
-                    seenfile = False
-                    if runid in seenfiletracker.keys() and checkfilepath in seenfiletracker[runid].keys():
-                        seenfile = True
-                        if int(md5Check) == int(seenfiletracker[runid][checkfilepath]):
-                            args.files_skipped += 1
+                        args.files_seen += 1
+                        #### Here is where we want to check if the files have been created and what the checksums are
+                        #### If the file checksums do not match, we pass the file to the rest of the script.
+                        #### When we finish analysing a file, we will need to update this information n the server.
+                        #### Currently just using size.
+                        md5Check = md5Checksum(os.path.join(path, f))
+
+                        runid = get_runid(os.path.join(path, f))
+                        if runid not in novelrunset and runid not in seenfiletracker.keys():
+                            result = (MinotourConnection.get_file_info_by_runid(runid))
+                            #### Here we want to parse through the results and store them in some kind of dictionary in order that we can check what is happening
+                            if result is not None:
+                                for entry in result:
+                                    if entry["runid"] not in seenfiletracker.keys():
+                                        seenfiletracker[entry["runid"]]=dict()
+                                    seenfiletracker[entry["runid"]][entry["name"]]=entry["md5"]
                         else:
+                            result = None
+
+                        filepath = os.path.join(path, f)
+                        checkfilepath = check_fastq_path(filepath)
+                        if checkfilepath not in fastqdict.keys():
+                            fastqdict[checkfilepath]=dict()
+
+                        fastqdict[checkfilepath]["runid"] = runid
+                        fastqdict[checkfilepath]["md5"] = md5Check
+
+
+                        """Here we are going to check if the files match or not. """
+                        seenfile = False
+                        if runid in seenfiletracker.keys() and checkfilepath in seenfiletracker[runid].keys():
+                            seenfile = True
+                            if int(md5Check) == int(seenfiletracker[runid][checkfilepath]):
+                                args.files_skipped += 1
+                            else:
+                                file_list_dict[filepath] = os.stat(filepath).st_mtime
+                                novelrunset.add(runid)
+
+                        if not seenfile:
                             file_list_dict[filepath] = os.stat(filepath).st_mtime
                             novelrunset.add(runid)
 
-                    if not seenfile:
-                        file_list_dict[filepath] = os.stat(filepath).st_mtime
-                        novelrunset.add(runid)
+        log.info("processed %s files" % (counter))
 
-    log.info("processed %s files" % (counter))
-    
-    args.fastqmessage = "processed %s files" % (counter)
-    
-    log.info("found %d existing fastq files to process first." % (len(file_list_dict)))
+        args.fastqmessage = "processed %s files" % (counter)
+
+        log.info("found %d existing fastq files to process first." % (len(file_list_dict)))
+
+    else:
+        args.fastqmessage = "Ignoring existing fastq files in: %s" % (path)
     
     return file_list_dict
 
@@ -389,6 +394,7 @@ class FastqHandler(FileSystemEventHandler):
         self.MinotourConnection = MinotourAPI(self.args.full_host, self.header)
         self.rundict = rundict
         self.fastqdict= dict()
+        #if not self.args.ignoreexisting:
         self.creates = file_dict_of_folder_simple(self.args.watchdir, self.args, self.MinotourConnection,self.fastqdict)
         self.processing = dict()
         self.running = True
@@ -402,6 +408,14 @@ class FastqHandler(FileSystemEventHandler):
         except KeyboardInterrupt:
             self.t.stop()
             raise
+
+    def addrunmonitor(self,runpath):
+        """
+        Add a new folder for checking reads in.
+        :param runpath: the final part of the folder structure - effectively the sample name
+        :return:
+        """
+        pass
 
     def stopt(self):
         self.running=False

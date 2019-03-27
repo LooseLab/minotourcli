@@ -107,7 +107,7 @@ class Runcollection():
 
                 new_url = url + '?page={}'.format(page)
 
-                content = requests.get(new_url, headers=self.header)
+                content = requests.get(new_url,  headers=self.header)
 
                 log.debug("Requesting {}".format(new_url))
 
