@@ -38,6 +38,9 @@ RPCPATH = os.path.join('ont-python','lib','python2.7','site-packages','minknow',
 if not os.path.exists(os.path.join(root_directory, 'rpc')):
     os.makedirs(os.path.join(root_directory, 'rpc'))
 if os.path.isfile(os.path.join(root_directory, 'rpc', '__init__.py')):
+    RPC_SUPPORT = True
+    from minFQ.minknowconnection import MinknowConnect
+    print ('RPC Available')
     pass
 else:
     print ("No RPC")
@@ -273,6 +276,16 @@ def main():
     )
 
     parser.add(
+        '-i',
+        '--ignore_existing',
+        action='store_true',
+        required=False,
+        default=False,
+        help='The client will ignore previously existing fastq files and will only monitor newly created files..',
+        dest='ignoreexisting'
+    )
+
+    parser.add(
         '-ll',
         '--loglevel',
         type=str,
@@ -469,7 +482,6 @@ def main():
             while 1:
                 linecounter = 0
                 if not args.noFastQ:
-
                     sys.stdout.write('{}\n'.format(args.fastqmessage))
                     sys.stdout.write('FastQ Upload Status:\n')
                     sys.stdout.write('Files queued/processed/skipped:{}/{}/{}\n'.format(
