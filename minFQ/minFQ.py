@@ -8,6 +8,7 @@ import time
 import threading
 import validators
 
+
 """We are setting up the code to copy and import the rpc service from minKNOW and make
 it work on our own code. This prevents us from having to distribute ONT code ourselves."""
 
@@ -115,34 +116,67 @@ def main():
             description='minFQ: A program to analyse minION fastq files in real-time or post-run and monitor the activity of MinKNOW.' \
             , default_config_files=[config_file])
 
+
+
+    parser.add(
+        '-hn',
+        '--hostname',
+        type=str,
+        # required=True,
+        default='127.0.0.1',
+        help='The host name for the minoTour server.',
+        dest='host_name',
+    )
+
+    parser.add(
+        '-p',
+        '--port',
+        type=int,
+        # required=True,
+        default=80,
+        help='The port number for the minoTour server.',
+        dest='port_number',
+    )
+
+    parser.add(
+        '-k',
+        '--key',
+        type=str,
+        required=True,
+        default=None,
+        help='The api key for uploading data.',
+        dest='api_key',
+    )
+
     parser.add(
         '-w',
         '--watch-dir',
         type=str,
-        #required=True,
+        # required=True,
         default=None,
         help='The path to the folder containing the downloads directory with fast5 reads to analyse - e.g. C:\\data\\minion\\downloads (for windows).',
         dest='watchdir'
     )
 
     parser.add(
-        '-ip',
-        '--ip-address',
-        type=str,
-        dest='ip',
+        '-i',
+        '--ignore_existing',
+        action='store_true',
         required=False,
-        default=None,
-        help='The IP address of the minKNOW machine - Typically 127.0.0.1.',
+        default=False,
+        help='The client will ignore previously existing fastq files and will only monitor newly created files..',
+        dest='ignoreexisting'
     )
 
     parser.add(
-        '-v',
-        '--verbose',
+        '-s',
+        '--skip_sequence',
         action='store_true',
-        help='Display debugging information.',
-        default=False,
-        dest='verbose',
+        required=False,
+        help='If selected only read metrics, not sequence, will be uploaded to the databse.',
+        dest='skip_sequence'
     )
+
     parser.add(
         '-nf',
         '--no_fastq',
@@ -162,6 +196,25 @@ def main():
     )
 
     parser.add(
+        '-e',
+        '--enable_remote_control',
+        action='store_true',
+        default=False,
+        help='This option allows your runs to be remotely started and stopped and for runs to be remotely renamed. As standard this is not enbabled.',
+        dest='enable_remote',
+    )
+
+    parser.add(
+        '-ip',
+        '--ip-address',
+        type=str,
+        dest='ip',
+        required=False,
+        default=None,
+        help='The IP address of the minKNOW machine - Typically 127.0.0.1.',
+    )
+
+    parser.add(
         '-n',
         '--name',
         type=str,
@@ -177,45 +230,6 @@ def main():
         action='store_true',
         help='If you add this flag, all runs added here will be considered as a single flow cell with the name set by the name flag.',
         dest='is_flowcell',
-    )
-
-    parser.add(
-        '-e',
-        '--enable_remote_control',
-        action='store_true',
-        default=False,
-        help='This option allows your runs to be remotely started and stopped and for runs to be remotely renamed. As standard this is not enbabled.',
-        dest='enable_remote',
-    )
-
-    parser.add(
-        '-k',
-        '--key',
-        type=str,
-        required=True,
-        default=None,
-        help='The api key for uploading data.',
-        dest='api_key',
-    )
-
-    parser.add(
-        '-p',
-        '--port',
-        type=int,
-        # required=True,
-        default=80,
-        help='The port number for the minoTour server.',
-        dest='port_number',
-    )
-
-    parser.add(
-        '-hn',
-        '--hostname',
-        type=str,
-        # required=True,
-        default='127.0.0.1',
-        help='The host name for the minoTour server.',
-        dest='host_name',
     )
 
     parser.add(
@@ -249,15 +263,6 @@ def main():
     )
 
     parser.add(
-        '-s',
-        '--skip_sequence',
-        action='store_true',
-        required=False,
-        help='If selected only read metrics, not sequence, will be uploaded to the databse.',
-        dest='skip_sequence'
-    )
-
-    parser.add(
         '--list',
         action='store_true',
         required=False,
@@ -266,23 +271,21 @@ def main():
     )
 
     parser.add(
-        '-g',
-        '--gui',
-        action='store_true',
-        required=False,
-        default=False,
-        help='configure the code for GUI use.',
-        dest='GUI'
+        '-ts',
+        '--targets',
+        type=str,
+        default=None,
+        help="Set the target set for the metagenomics",
+        dest="targets"
     )
 
     parser.add(
-        '-i',
-        '--ignore_existing',
+        '-v',
+        '--verbose',
         action='store_true',
-        required=False,
+        help='Display debugging information.',
         default=False,
-        help='The client will ignore previously existing fastq files and will only monitor newly created files..',
-        dest='ignoreexisting'
+        dest='verbose',
     )
 
     parser.add(
@@ -296,12 +299,13 @@ def main():
     )
 
     parser.add(
-        '-ts',
-        '--targets',
-        type=str,
-        default=None,
-        help="Set the target set for the metagenomics",
-        dest="targets"
+        '-g',
+        '--gui',
+        action='store_true',
+        required=False,
+        default=False,
+        help='Configure the code for GUI use - not yet implemented.',
+        dest='GUI'
     )
 
     args = parser.parse_args()
@@ -333,21 +337,25 @@ def main():
         'Content-Type': 'application/json'
     }
 
-    if args.host_name.startswith("http://"):
-        args.full_host = "{}:{}/".format(args.host_name, str(args.port_number))
-    else:
-        args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
 
-    if not validators.url(args.full_host):
-        print("Please check your url.")
-        print("You entered:")
-        print("{}".format(args.host_name))
-        sys.exit()
+    ### Check if we are connecting to https or http
+
+    ## Moving this to the minotourapi class.
+    #if args.host_name.startswith("https://"):
+    #    args.full_host = "{}:{}/".format(args.host_name, str(args.port_number))
+    #else:
+    #    args.full_host = "https://{}:{}/".format(args.host_name, str(args.port_number))
+
+    #if not validators.url(args.full_host):
+    #    print("Please check your url.")
+    #    print("You entered:")
+    #    print("{}".format(args.host_name))
+    #    sys.exit()
 
     if args.list:
 
         log.info("Checking available jobs.")
-        minotourapi = MinotourAPI(args.full_host, header)
+        minotourapi = MinotourAPI(args.host_name,args.port_number, header)
         jobs = minotourapi.get_job_options()
         references = minotourapi.get_references()
         targets = minotourapi.get_target_sets(args.api_key)
@@ -367,7 +375,7 @@ def main():
         os._exit(0)
 
     if args.job is not None:
-        minotourapi = MinotourAPI(args.full_host, header)
+        minotourapi = MinotourAPI(args.host_name,args.port_number, header)
         jobs = minotourapi.get_job_options()
         args.job_id = -1
         for job in jobs['data']:
@@ -417,7 +425,7 @@ def main():
 
     args.read_count = 0
 
-    minotourapi = MinotourAPI(args.full_host, header)
+    minotourapi = MinotourAPI(args.host_name,args.port_number, header)
 
     version = minotourapi.get_server_version()
 
