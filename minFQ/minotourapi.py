@@ -11,13 +11,28 @@ from urllib.parse import urlparse
 log = logging.getLogger(__name__)
 
 
+
+
 class MinotourAPI:
 
-    def __init__(self, base_url, request_headers):
+    def __init__(self, base_url, port_number, request_headers):
 
         self.base_url = base_url
+        self.port_number = port_number
+        self.check_url()
         self.request_headers = request_headers
         self.minion_event_types = self.get_minion_event_types()
+
+    def check_url(self):
+        if int(self.port_number) != 80:
+            r = requests.get("http://{}:{}/".format(self.base_url, self.port_number))
+        else:
+            r = requests.get("http://{}/".format(self.base_url))
+        print (r.url)
+        if r.url.startswith("https"):
+            self.base_url="https://{}/".format(self.base_url)
+        else:
+            self.base_url="http://{}:{}/".format(self.base_url,self.port_number)
 
 
     def test(self):
@@ -45,11 +60,6 @@ class MinotourAPI:
         else:
 
             url = '{}api/v1{}?{}'.format(self.base_url, partial_url, parameters)
-
-        #test = jsonlibrary.dumps(json)
-
-        #self.request_headers["Content-Encoding"]="gzip"
-        #print (self.request_headers)
 
         return requests.post(url, headers=self.request_headers, json=json)
 

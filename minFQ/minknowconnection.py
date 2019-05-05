@@ -64,7 +64,7 @@ class DeviceConnect(WebSocketClient):
         self.computer_name = self.rpc_connection.instance.get_machine_id().machine_id
         self.minknow_version = self.rpc_connection.instance.get_version_info().minknow.full
         self.minknow_status = self.rpc_connection.instance.get_version_info().protocols
-        self.minotourapi = MinotourAPINew(self.args.full_host, self.header)
+        self.minotourapi = MinotourAPINew(self.args.host_name,self.args.port_number, self.header)
         self.minotourapi.test()
         self.disk_space_info = json.loads(
             MessageToJson(self.rpc_connection.instance.get_disk_space_info(), preserving_proto_field_name=True,
@@ -76,6 +76,7 @@ class DeviceConnect(WebSocketClient):
         self.minion = minion
         self.minIONstatus = self.minotourapi.get_minion_status(self.minion)
         self.runidlink=""
+
         try:
             self.acquisition_data = parsemessage(self.rpc_connection.acquisition.get_acquisition_info())
         except:
@@ -139,16 +140,19 @@ class DeviceConnect(WebSocketClient):
         self.minotourapi.fetch_minion_scripts(self.minion)
         for protocol in self.rpc_connection.protocol.list_protocols().ListFields()[0][1]:
             protocoldict = self.parse_protocol(protocol)
+            print (self.minion,protocoldict)
             self.minotourapi.update_minion_script(self.minion,protocoldict)
         if str(self.status).startswith("status: PROCESSING"):
             self.run_start()
 
     def parse_protocol(self,protocol):
         protocoldict=dict()
+        #print (protocol.name, protocol.identifier)
         protocoldict["identifier"]=protocol.identifier
         protocoldict["name"]=protocol.name
         for tag in protocol.tags:
             protocoldict[tag]=protocol.tags[tag].ListFields()[0][1]
+        #    print (tag,protocol.tags[tag].ListFields()[0][1])
         return protocoldict
 
     def run_start(self):
