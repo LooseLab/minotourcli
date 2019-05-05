@@ -24,6 +24,10 @@ class MinotourAPI:
         self.minion_event_types = self.get_minion_event_types()
 
     def check_url(self):
+        if self.base_url.startswith("http://"):
+            self.base_url = self.base_url[7:]
+        if self.base_url.startswith(("https://")):
+            self.base_url = self.base_url[8:]
         if int(self.port_number) != 80:
             r = requests.get("http://{}:{}/".format(self.base_url, self.port_number))
         else:

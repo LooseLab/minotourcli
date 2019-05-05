@@ -140,19 +140,30 @@ class DeviceConnect(WebSocketClient):
         self.minotourapi.fetch_minion_scripts(self.minion)
         for protocol in self.rpc_connection.protocol.list_protocols().ListFields()[0][1]:
             protocoldict = self.parse_protocol(protocol)
-            print (self.minion,protocoldict)
+            #print (self.minion,protocoldict)
             self.minotourapi.update_minion_script(self.minion,protocoldict)
         if str(self.status).startswith("status: PROCESSING"):
             self.run_start()
 
     def parse_protocol(self,protocol):
         protocoldict=dict()
+        flowcell = "N/A"
+        kit = "N/A"
+        try:
+            kit = protocol.tags["kit"].ListFields()[0][1]
+            flowcell = protocol.tags["flow cell"].ListFields()[0][1]
+        except:
+            pass
         #print (protocol.name, protocol.identifier)
         protocoldict["identifier"]=protocol.identifier
-        protocoldict["name"]=protocol.name
+        #protocoldict["name"]=protocol.name
+        #print (protocol.name)
+        protocoldict["name"]="{}/{}_{}".format(protocol.name,flowcell,kit)
         for tag in protocol.tags:
-            protocoldict[tag]=protocol.tags[tag].ListFields()[0][1]
-        #    print (tag,protocol.tags[tag].ListFields()[0][1])
+            try:
+                protocoldict[tag]=protocol.tags[tag].ListFields()[0][1]
+            except:
+                pass
         return protocoldict
 
     def run_start(self):
