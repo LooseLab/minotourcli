@@ -508,8 +508,12 @@ class DeviceConnect(WebSocketClient):
             pass
 
         # Capturing the histogram data from MinKNOW
-        histogram_data = self.rpc_connection.statistics.get_read_length_histogram(run_id=self.runinformation.run_id)
+        #print (self.runinformation)
 
+        #histogram_data = self.rpc_connection.statistics.get_read_length_histogram(run_id=self.runinformation.run_id)
+        histogram_data = self.rpc_connection.statistics.get_read_length_histogram(run_id=str(self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0])).histogram_data
+        #print (histogram_data)
+        #print (histogram_data['buckets'])
         payload = {"minION": str(self.minion["url"]),
                    "run_id": self.runidlink,
                    "sample_time": str(datetime.datetime.now()),
@@ -532,6 +536,7 @@ class DeviceConnect(WebSocketClient):
         result = self.minotourapi.create_minion_statistic(payload,self.runid)
 
         log.debug("This is our result.", result)
+
 
 
     def runinfo(self):
