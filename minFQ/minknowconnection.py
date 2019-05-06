@@ -512,6 +512,8 @@ class DeviceConnect(WebSocketClient):
 
         #histogram_data = self.rpc_connection.statistics.get_read_length_histogram(run_id=self.runinformation.run_id)
         histogram_data = self.rpc_connection.statistics.get_read_length_histogram(run_id=str(self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0])).histogram_data
+        print (self.rpc_connection.statistics.get_pore_speed_in_bases_boxplots(run_id=str(self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0])))
+        print (self.rpc_connection.statistics.get_qscore_boxplots(run_id=str(self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0])))
         #print (histogram_data)
         #print (histogram_data['buckets'])
         payload = {"minION": str(self.minion["url"]),
