@@ -111,6 +111,10 @@ class DeviceConnect(WebSocketClient):
         newchannelstatethread.daemon = True
         newchannelstatethread.start()
 
+        newhistogrammonitorthread = threading.Thread(target=self.newhistogrammonitor, args=())
+        newhistogrammonitorthread.daemon = True
+        newhistogrammonitorthread.start()
+
         jobsmonitorthread = threading.Thread(target=self.jobs_monitor,args=())
         jobsmonitorthread.daemon = True
         jobsmonitorthread.start()
@@ -380,6 +384,24 @@ class DeviceConnect(WebSocketClient):
                 log.debug(self.get_flowcell_id())
                 self.update_minion_status()
 
+
+    def newhistogrammonitor(self):
+        while True:
+            histogram_stream = self.rpc_connection.statistics.stream_read_length_histogram(poll_time=60,wait_for_processing=True,read_length_type=0,bucket_value_type=1)
+
+            try:
+                for histogram_event in histogram_stream:
+                    #print (parsemessage(histogram_event))
+                    self.histogramdata = parsemessage(histogram_event)
+                if not str(self.status).startswith("status: PROCESSING"):
+                    break
+            except:
+                print ("Histogram Problem")
+                pass
+            time.sleep(self.interval)
+            pass
+
+
     def newchannelstatemonitor(self):
         while True:
             channel_states = self.rpc_connection.data.get_channel_states(wait_for_processing=True, first_channel=1,
@@ -494,10 +516,13 @@ class DeviceConnect(WebSocketClient):
         channeldict["pore"]=0
         try:
             channelpandastates = channelpanda.groupby([0,]).size()
+            #print (channelpandastates)
             log.debug(channelpandastates)
             for state, value in channelpandastates.iteritems():
                 log.debug(state, value)
+            #    print (state,value)
                 channeldict[state]=value
+            #print ("\n\n\n\n\n\n")
             instrand = 0 #channeldict["strand"]+channeldict["adapter"]
             openpore = 0 #channeldict["good_single"]+channeldict["pore"]
             meanratio = 0 #todo work out if we can still do this
@@ -510,12 +535,7 @@ class DeviceConnect(WebSocketClient):
         # Capturing the histogram data from MinKNOW
         #print (self.runinformation)
 
-        #histogram_data = self.rpc_connection.statistics.get_read_length_histogram(run_id=self.runinformation.run_id)
-        histogram_data = self.rpc_connection.statistics.get_read_length_histogram(run_id=str(self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0])).histogram_data
-        print (self.rpc_connection.statistics.get_pore_speed_in_bases_boxplots(run_id=str(self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0])))
-        print (self.rpc_connection.statistics.get_qscore_boxplots(run_id=str(self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0])))
-        #print (histogram_data)
-        #print (histogram_data['buckets'])
+
         payload = {"minION": str(self.minion["url"]),
                    "run_id": self.runidlink,
                    "sample_time": str(datetime.datetime.now()),
@@ -526,8 +546,8 @@ class DeviceConnect(WebSocketClient):
                    "mean_ratio": meanratio,
                    "open_pore": openpore,
                    "in_strand": instrand,
-                   "minKNOW_histogram_values": str(histogram_data.buckets),
-                   "minKNOW_histogram_bin_width": histogram_data.width,
+                   "minKNOW_histogram_values": str(self.histogramdata["histogram_data"]["buckets"]),
+                   "minKNOW_histogram_bin_width": self.histogramdata["histogram_data"]["width"],
                    "minKNOW_read_count": read_count
                    }
         for channel in channeldict:
@@ -678,7 +698,9 @@ class MinknowConnect(WebSocketClient):
             if len(thing) > 5 and "2L" not in thing and "2n" not in thing:
                 log.debug(thing)
                 devicetype, deviceid = determinetype(thing)
-                log.debug(devicetype, deviceid)
+                print ("DeviceType:",devicetype)
+                print ("DeviceID:",deviceid)
+                #log.debug(str(devicetype), str(deviceid))
                 if deviceid not in self.minIONdict:
                     self.minIONdict[deviceid] = dict()
                 minIONports = parse_ports(thing, deviceid)
