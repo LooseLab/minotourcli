@@ -46,8 +46,9 @@ class Runcollection():
 
         log.debug("Initialising Runcollection")
 
-        self.base_url = args.full_host
-
+        self.base_url = args.host_name
+        self.port_number = args.port_number
+        self.check_url()
         self.args = args
         self.header = header
         self.readnames = list()
@@ -55,16 +56,31 @@ class Runcollection():
         self.basecount = 0
         self.read_type_list = dict()
         #self.batchsize = 2000
-        self.batchsize = 2000
+        self.batchsize = 20
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
         self.read_list = []
         self.filemonitor = dict()
         self.fastqfileid = None
-        self.minotourapi = MinotourAPI(self.args.full_host, self.header)
+        self.minotourapi = MinotourAPI(self.args.host_name, self.args.port_number, self.header)
         self.get_readtype_list()
 
+
+    def check_url(self):
+        if self.base_url.startswith("http://"):
+            self.base_url = self.base_url[7:]
+        if self.base_url.startswith(("https://")):
+            self.base_url = self.base_url[8:]
+        if int(self.port_number) != 80:
+            r = requests.get("http://{}:{}/".format(self.base_url, self.port_number))
+        else:
+            r = requests.get("http://{}/".format(self.base_url))
+        print (r.url)
+        if r.url.startswith("https"):
+            self.base_url="https://{}/".format(self.base_url)
+        else:
+            self.base_url="http://{}:{}/".format(self.base_url,self.port_number)
 
     def get_readtype_list(self):
 

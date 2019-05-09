@@ -65,6 +65,8 @@ class MinotourAPI:
 
             url = '{}api/v1{}?{}'.format(self.base_url, partial_url, parameters)
 
+        print (url)
+
         return requests.post(url, headers=self.request_headers, json=json)
 
     def put(self, partial_url, json, parameters=None):
