@@ -391,7 +391,7 @@ class FastqHandler(FileSystemEventHandler):
         self.args.reads_skipped = 0
         self.args.reads_uploaded = 0
         # adding files to the file_descriptor is really slow - therefore lets skip that and only update the files when we want to basecall thread_number
-        self.MinotourConnection = MinotourAPI(self.args.full_host, self.header)
+        self.MinotourConnection = MinotourAPI(self.args.host_name, self.args.port_number, self.header)
         self.rundict = rundict
         self.fastqdict= dict()
         #if not self.args.ignoreexisting:
