@@ -56,7 +56,7 @@ class Runcollection():
         self.basecount = 0
         self.read_type_list = dict()
         #self.batchsize = 2000
-        self.batchsize = 20
+        self.batchsize = 100
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
@@ -144,10 +144,15 @@ class Runcollection():
 
         if not run:
 
+            print (descriptiondict)
+
             if 'flow_cell_id' in descriptiondict:
                 flowcellname = descriptiondict['flow_cell_id']
+            elif 'sampleid' in descriptiondict:
+                flowcellname = descriptiondict['sampleid']
             else:
                 flowcellname = self.args.run_name
+
 
             #
             # get or create a flowcell
