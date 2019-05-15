@@ -60,15 +60,19 @@ def main():
     args = parser.parse_args()
 
     if args.host_name.startswith("http://"):
-        args.full_host = "{}:{}/".format(args.host_name, str(args.port_number))
+        args.host_name = args.host_name[7:]
+    if args.host_name.startswith(("https://")):
+        args.host_name = args.host_name[8:]
+    if int(args.port_number) != 80:
+        r = requests.get("http://{}:{}/".format(args.host_name, args.port_number))
     else:
-        args.full_host = "http://{}:{}/".format(args.host_name, str(args.port_number))
+        r = requests.get("http://{}/".format(args.host_name))
+    # print (r.url)
+    if r.url.startswith("https"):
+        args.full_host = "https://{}/".format(args.host_name)
+    else:
+        args.full_host = "http://{}:{}/".format(args.host_name, args.port_number)
 
-    if not validators.url(args.full_host):
-        print ("Please check your url.")
-        print ("You entered:")
-        print ("{}".format(args.host_name))
-        sys.exit()
 
     minION = set()
     flowcelldict = dict()
