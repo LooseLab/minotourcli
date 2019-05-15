@@ -59,19 +59,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.host_name.startswith("http://"):
-        args.host_name = args.host_name[7:]
-    if args.host_name.startswith(("https://")):
-        args.host_name = args.host_name[8:]
-    if int(args.port_number) != 80:
-        r = requests.get("http://{}:{}/".format(args.host_name, args.port_number))
-    else:
-        r = requests.get("http://{}/".format(args.host_name))
-    # print (r.url)
-    if r.url.startswith("https"):
-        args.full_host = "https://{}/".format(args.host_name)
-    else:
-        args.full_host = "http://{}:{}/".format(args.host_name, args.port_number)
+
 
 
     minION = set()
@@ -119,7 +107,7 @@ def main():
         'Authorization': 'Token {}'.format(args.api_key),
         'Content-Type': 'application/json'
     }
-    minotourapi = MinotourAPI(args.full_host, header)
+    minotourapi = MinotourAPI(args.host_name,args.port_number, header)
     for minIONs in minION:
         minion = minotourapi.get_minion_by_name(minIONs)
         if not minion:
