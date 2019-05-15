@@ -202,8 +202,8 @@ def main():
     )
 
     parser.add(
-        '-e',
-        '--enable_remote_control',
+        '-rc',
+        '--remote_control',
         action='store_true',
         default=False,
         help='This option allows your runs to be remotely started and stopped and for runs to be remotely renamed. As standard this is not enbabled.',

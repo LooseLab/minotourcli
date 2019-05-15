@@ -154,16 +154,22 @@ class DeviceConnect(WebSocketClient):
         protocoldict=dict()
         flowcell = "N/A"
         kit = "N/A"
+        basecalling = "N/A"
         try:
             kit = protocol.tags["kit"].ListFields()[0][1]
             flowcell = protocol.tags["flow cell"].ListFields()[0][1]
+            basecalling = protocol.tags["base calling"].ListFields()[0][1]
         except:
             pass
         #print (protocol.name, protocol.identifier)
         protocoldict["identifier"]=protocol.identifier
         #protocoldict["name"]=protocol.name
         #print (protocol.name)
-        protocoldict["name"]="{}/{}_{}".format(protocol.name,flowcell,kit)
+        if basecalling:
+            basecalling="BaseCalling"
+        else:
+            basecalling="NoBaseCalling"
+        protocoldict["name"]="{}/{}_{}_{}".format(protocol.name,flowcell,kit,basecalling)
         for tag in protocol.tags:
             try:
                 protocoldict[tag]=protocol.tags[tag].ListFields()[0][1]
@@ -355,6 +361,7 @@ class DeviceConnect(WebSocketClient):
                     self.minotourapi.complete_minion_job(self.minion, job)
                 if job["job"] == "startminion":
                     if self.args.enable_remote:
+                        print(job["custom"],"\n\n\n\n\n")
                         self.rpc_connection.protocol.start_protocol(identifier=job["custom"])
                         self.sendmessage(1,"MinoTour attempted to start a run on your device.")
                     self.minotourapi.complete_minion_job(self.minion, job)
