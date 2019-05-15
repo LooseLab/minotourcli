@@ -7,6 +7,7 @@ import logging.handlers
 import time
 import threading
 import validators
+from .version import __version__
 
 
 """We are setting up the code to copy and import the rpc service from minKNOW and make
@@ -313,7 +314,7 @@ def main():
         help='Configure the code for GUI use - not yet implemented.',
         dest='GUI'
     )
-
+    parser.add_argument('-V', '--version', action='version', version="%(prog)s (" + __version__ + ")")
     args = parser.parse_args()
 
     logging.basicConfig(
