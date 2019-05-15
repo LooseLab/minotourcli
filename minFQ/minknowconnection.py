@@ -40,12 +40,13 @@ class DeviceConnect(WebSocketClient):
         #Here we need to check if we are good to run against this version.
         self.version = self.rpc_connection.instance.get_version_info().minknow.full
         self.device_type = parsemessage(self.rpc_connection.instance.get_host_type())['host_type']
-        log.error(self.device_type)
+        #log.error(self.device_type)
         if str(self.device_type).startswith("PROMETHION"):
             log.warning(self.device_type)
             log.warning("This version of minFQ may not be compatible with PromethION.")
             #sys.exit()
-        if str(self.version) != "3.1.13":
+        #if str(self.version) != "3.3.13":
+        if not str(self.version).startswith("3.3"):
             log.warning(self.version)
             log.warning("This version of minFQ may not be compatible with the MinKNOW version you are running.")
             log.warning("As a consequence, live monitoring MAY NOT WORK.")
@@ -698,8 +699,8 @@ class MinknowConnect(WebSocketClient):
             if len(thing) > 5 and "2L" not in thing and "2n" not in thing:
                 log.debug(thing)
                 devicetype, deviceid = determinetype(thing)
-                print ("DeviceType:",devicetype)
-                print ("DeviceID:",deviceid)
+                #print ("DeviceType:",devicetype)
+                #print ("DeviceID:",deviceid)
                 #log.debug(str(devicetype), str(deviceid))
                 if deviceid not in self.minIONdict:
                     self.minIONdict[deviceid] = dict()

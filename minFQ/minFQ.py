@@ -33,6 +33,12 @@ dstRPC = "rpc"
 
 OPER = platform.system()
 
+### We're going to force the replacement of the RPC each time minFQ is running.
+
+if os.path.exists(os.path.join(root_directory, 'rpc')):
+    print ("Removing previous RPC.")
+    shutil.rmtree(os.path.join(root_directory, 'rpc'))
+
 RPCPATH = os.path.join('ont-python','lib','python2.7','site-packages','minknow','rpc')
 
 

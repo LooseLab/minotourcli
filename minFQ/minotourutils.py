@@ -53,7 +53,7 @@ def determinetype(minION):
     :param minION:
     :return: devicetype,deviceid,portstring
     """
-    print (minION)
+    #print (minION)
     devicetype = "unknown"
     deviceid = "unknown"
     if minION[1] == "M":

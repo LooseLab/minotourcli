@@ -76,7 +76,7 @@ class Runcollection():
             r = requests.get("http://{}:{}/".format(self.base_url, self.port_number))
         else:
             r = requests.get("http://{}/".format(self.base_url))
-        print (r.url)
+        #print (r.url)
         if r.url.startswith("https"):
             self.base_url="https://{}/".format(self.base_url)
         else:
@@ -144,7 +144,7 @@ class Runcollection():
 
         if not run:
 
-            print (descriptiondict)
+            #print (descriptiondict)
 
             if 'flow_cell_id' in descriptiondict:
                 flowcellname = descriptiondict['flow_cell_id']

@@ -32,7 +32,7 @@ class MinotourAPI:
             r = requests.get("http://{}:{}/".format(self.base_url, self.port_number))
         else:
             r = requests.get("http://{}/".format(self.base_url))
-        print (r.url)
+        #print (r.url)
         if r.url.startswith("https"):
             self.base_url="https://{}/".format(self.base_url)
         else:
@@ -65,7 +65,7 @@ class MinotourAPI:
 
             url = '{}api/v1{}?{}'.format(self.base_url, partial_url, parameters)
 
-        print (url)
+        #print (url)
 
         return requests.post(url, headers=self.request_headers, json=json)
 
