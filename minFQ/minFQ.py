@@ -40,7 +40,12 @@ if os.path.exists(os.path.join(root_directory, 'rpc')):
     print ("Removing previous RPC.")
     shutil.rmtree(os.path.join(root_directory, 'rpc'))
 
-RPCPATH = os.path.join('ont-python','lib','python2.7','site-packages','minknow','rpc')
+
+if OPER == "Windows":
+    RPCPATH = os.path.join('ont-python','Lib','site-packages','minknow','rpc')
+else:
+    RPCPATH = os.path.join('ont-python','lib','python2.7','site-packages','minknow','rpc')
+
 
 
 if not os.path.exists(os.path.join(root_directory, 'rpc')):
