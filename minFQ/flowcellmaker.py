@@ -51,7 +51,7 @@ def main():
         '-hn',
         '--hostname',
         type=str,
-        # required=True,
+        required=True,
         default='127.0.0.1',
         help='The host name you are loading data too.',
         dest='host_name',
