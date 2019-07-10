@@ -539,6 +539,7 @@ class MinotourAPI:
             for script in minIONscripts:
                 scriptidlist.append(script["identifier"])
             self.minIONscripts = scriptidlist  # TODO we should move this code to minknowconnection
+            #print (self.minIONscripts)
             return jsonlibrary.loads(req.text)
 
 
@@ -553,7 +554,7 @@ class MinotourAPI:
         url = '/minions/{}/scripts/'.format(minion['id'])
 
         if scriptdictionary["identifier"] not in self.minIONscripts:  # TODO we should move this logic to minknowconnection
-
+            #print ("!!!!!Updating Scripts!!!!!")
             payload = dict()
 
             for item in scriptdictionary:
@@ -575,6 +576,10 @@ class MinotourAPI:
                 return jsonlibrary.loads(req.text)
 
             pass
+
+        #else:
+            #print ("not updating")
+            #print (scriptdictionary)
 
 
     def update_minion_event(self,minion,computer,status):

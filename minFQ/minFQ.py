@@ -52,7 +52,7 @@ if not os.path.exists(os.path.join(root_directory, 'rpc')):
     os.makedirs(os.path.join(root_directory, 'rpc'))
 if os.path.isfile(os.path.join(root_directory, 'rpc', '__init__.py')):
     RPC_SUPPORT = True
-    from minFQ.minknowconnection import MinknowConnect
+    from minFQ.minknowconnection import MinknowConnectRPC
     print ('RPC Available')
     pass
 else:
@@ -72,8 +72,7 @@ else:
 
         copyfiles(sourceRPC,dstRPC,'*.py')
         RPC_SUPPORT=True
-        
-        from minFQ.minknowconnection import MinknowConnect
+        from minFQ.minknowconnection import MinknowConnectRPC
         print ('RPC Configured')
 
     else:
@@ -480,12 +479,11 @@ def main():
             if RPC_SUPPORT:
             
                 # this block is going to handle the running of minControl.
-                log.info("Configuring MinKNOW Monitoring.")
+                #log.info("Configuring MinKNOW Monitoring.")
                 minwsip = "ws://" + args.ip + ":9500/"
 
-                MinKNOWConnection = MinknowConnect(minwsip, args, header)
-                MinKNOWConnection.connect()
-                log.info("MinKNOW Monitoring Working.")
+                MinKNOWConnectionRPC = MinknowConnectRPC(minwsip,args,header)
+                log.info("MinKNOW RPC Monitoring Wokring.")
 
             else:
 
@@ -520,7 +518,8 @@ def main():
                 if not args.noMinKNOW:
 
                     sys.stdout.write('MinKNOW Monitoring Status:\n')
-                    sys.stdout.write("Connected minIONs: {}\n".format(MinKNOWConnection.minIONnumber()))
+                    sys.stdout.write("Connected minIONs: {}\n".format(MinKNOWConnectionRPC.minIONnumber()))
+
                     linecounter+=2
 
 
@@ -534,7 +533,7 @@ def main():
             log.info("Exiting - Will take a few seconds to clean up!")
 
             if not args.noMinKNOW:
-                MinKNOWConnection.disconnect_nicely()
+                MinKNOWConnectionRPC.disconnect_nicely()
 
             if not args.noFastQ:
                 observer.stop()

@@ -19,9 +19,13 @@ log = logging.getLogger(__name__)
 def parsemessage(message):
     return json.loads(MessageToJson(message, preserving_proto_field_name=True, including_default_value_fields=True))
 
-
+import grpc
 
 rpc._load()
+import minFQ.rpc.protocol_pb2 as protocol
+import minFQ.rpc.protocol_pb2_grpc as protocol_grpc
+import minFQ.rpc.manager_pb2 as manager
+import minFQ.rpc.manager_pb2_grpc as manager_grpc
 
 #from minotourAPI import
 
@@ -674,110 +678,62 @@ class DeviceConnect(WebSocketClient):
             except:
                 log.error("key error")
 
-class MinknowConnect(WebSocketClient):
-    def __init__(self, minswip,args, header):
+class MinknowConnectRPC():
+    def __init__(self,minswip,args,header):
         self.args = args
-        log.debug("initialising minknow connection")
-        WebSocketClient.__init__(self, minswip)
-
+        log.debug("initialising minknow connection via rpc")
         self.header = header
         self.minIONdict=dict() #A dictionary to store minION connection data.
-        #self.computer_name = ""
-        #self.minknow_version = ""
-        #self.minknow_status = ""
+        devicemonitorthread = threading.Thread(target=self.devicemonitor, args=())
+        devicemonitorthread.daemon = True  # Daemonize thread
+        devicemonitorthread.start()
+
+    def devicemonitor(self):
+        # -------------------------------------------------------------------------------
+        # Connect to the running Manager instance:
+        #
+        # We can connect to minknow manager on port 9501.
+        #
+        channel = grpc.insecure_channel('localhost:9501')
+        stub = manager_grpc.ManagerServiceStub(channel)
+        while True:
+            # Send the list request
+            list_request = manager.ListDevicesRequest()
+            response = stub.list_devices(list_request)
+            for device in response.active:
+                log.debug(device.name)
+                deviceid = device.name
+                if deviceid not in self.minIONdict:
+                    self.minIONdict[deviceid] = dict()
+                    self.minIONdict[deviceid]["state"] = "pending"
+                if self.minIONdict[deviceid]["state"]!= "active":
+                    self.minIONdict[deviceid]["grpc_port"] = device.ports.insecure_grpc
+                    self.minIONdict[deviceid]["ws_longpoll_port"] = device.ports.json_websocket
+                    log.debug(self.minIONdict[deviceid]["grpc_port"])
+                    self.minIONdict[deviceid]["grpc_connection"] = rpc.Connection(
+                        port=self.minIONdict[deviceid]["grpc_port"])
+                    connectip = "ws://" + self.args.ip + ":" + str(self.minIONdict[deviceid]["ws_longpoll_port"]) + "/"
+
+                    self.minIONdict[deviceid]["device_connection"] = DeviceConnect(connectip, self.args,
+                                                                                   self.minIONdict[deviceid][
+                                                                                       "grpc_connection"], self.header,
+                                                                                   deviceid)
+                    # self.minIONdict[deviceid]["legacydevicedata"] = DeviceConnectLegacy(connectip,self.args,self.minIONdict[deviceid]["grpc_connection"])
+                    try:
+                        self.minIONdict[deviceid]["device_connection"].connect()
+                    except Exception as err:
+                        log.error("Problem connecting to device.", err)
+                    self.minIONdict[deviceid]["state"]="active"
+            time.sleep(5)
 
     def minIONnumber(self):
         return len(self.minIONdict)
-
-    def reportinformation(self):
-        for minION in self.minIONdict:
-            log.info(self.minIONdict[minION]["device_connection"].flowcelldata)
-            log.info(self.minIONdict[minION]["device_connection"].temperaturedata)
-            log.info(self.minIONdict[minION]["device_connection"].disk_space_info)
 
     def disconnect_nicely(self):
         for device in self.minIONdict:
             log.info("Disconnecting {} from the server.".format(device))
             self.minIONdict[device]["device_connection"].disconnect_nicely()
         log.info("Stopped successfully.")
-
-    def received_message(self, m):
-        for thing in ''.join(map(chr, map(ord, (m.data).decode('latin-1')))).split('\n'):
-            if len(thing) > 5 and "2L" not in thing and "2n" not in thing:
-                log.debug(thing)
-                devicetype, deviceid = determinetype(thing)
-                #print ("DeviceType:",devicetype)
-                #print ("DeviceID:",deviceid)
-                #log.debug(str(devicetype), str(deviceid))
-                if deviceid not in self.minIONdict:
-                    self.minIONdict[deviceid] = dict()
-                minIONports = parse_ports(thing, deviceid)
-
-                if len(minIONports) > 3:
-                    try:
-                        self.minIONdict[deviceid]["state"] = "active"
-                        """
-                        "port": 8000,
-                        "ws_longpoll_port": 8002,
-                        "ws_raw_data_sampler_port": 8003,
-                        "grpc_port": 8004,
-                        "grpc_web_port": 8005,
-                        "grpc_web_insecure_port": 8001
-                        """
-
-                        """
-                        They've changed it again the buggers.
-                        "cereal_class_version": 0,
-                        "port": 8000,
-                        "ws_longpoll_port": 8002,
-                        "grpc_port": 8004,
-                        "grpc_web_port": 8005,
-                        "grpc_web_insecure_port": 8001
-                        """
-                        port = minIONports[0]
-                        ws_longpoll_port = minIONports[1]
-                        #ws_event_sampler_port = minIONports[2]
-                        #ws_raw_data_sampler_port = minIONports[2]
-                        grpc_port = minIONports[2]
-                        grpc_web_port = minIONports[3]
-                    except:
-                        minIONports = list(map(lambda x: x - 192 + 8000 + 128, filter(lambda x: x > 120, map(ord, thing))))
-                        self.minIONdict[deviceid]["state"] = "active"
-                        port = minIONports[0]
-                        ws_longpoll_port = minIONports[1]
-                        #ws_event_sampler_port = minIONports[2]
-                        #ws_raw_data_sampler_port = minIONports[2]
-                        grpc_port = minIONports[2]
-                        grpc_web_port = minIONports[3]
-                    self.minIONdict[deviceid]["port"] = port
-                    self.minIONdict[deviceid]["ws_longpoll_port"] = ws_longpoll_port
-                    #self.minIONdict[deviceid]["ws_event_sampler_port"] = ws_event_sampler_port
-                    #self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ws_raw_data_sampler_port
-                    self.minIONdict[deviceid]["grpc_port"] = grpc_port
-                    self.minIONdict[deviceid]["grpc_web_port"] = grpc_web_port
-                    # Create an rpc connection to look at minknow api
-                    log.debug(self.minIONdict[deviceid]["grpc_port"])
-                    self.minIONdict[deviceid]["grpc_connection"] = rpc.Connection(port=self.minIONdict[deviceid]["grpc_port"])
-                    connectip = "ws://" + self.args.ip + ":" + str(self.minIONdict[deviceid]["ws_longpoll_port"]) + "/"
-
-                    self.minIONdict[deviceid]["device_connection"] = DeviceConnect(connectip,self.args,self.minIONdict[deviceid]["grpc_connection"],self.header,deviceid)
-                    #self.minIONdict[deviceid]["legacydevicedata"] = DeviceConnectLegacy(connectip,self.args,self.minIONdict[deviceid]["grpc_connection"])
-                    try:
-                        self.minIONdict[deviceid]["device_connection"].connect()
-
-                    except Exception as err:
-                        log.error ("Problem connecting to device.", err)
-
-                else:
-                    self.minIONdict[deviceid]["state"] = "inactive"
-                    self.minIONdict[deviceid]["port"] = ""
-                    self.minIONdict[deviceid]["ws_longpoll_port"] = ""
-                    #self.minIONdict[deviceid]["ws_event_sampler_port"] = ""
-                    #self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ""
-                    self.minIONdict[deviceid]["grpc_port"] = ""
-                    self.minIONdict[deviceid]["grpc_web_port"] = ""
-                    self.minIONdict[deviceid]["grpc_connection"] = ""
-                    #self.minIONdict[deviceid]["APIHelp"].update_minion_event(deviceid, 'UNKNOWN', 'inactive')
 
 
 def parsearguments():
