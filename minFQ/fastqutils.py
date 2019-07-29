@@ -113,33 +113,45 @@ def check_is_pass(path, avg_quality):
 
 
 def parse_fastq_description(description):
+    """
 
+    :param description:
+    :return:
+    """
     descriptiondict = dict()
+
     descriptors = description.split(" ")
+
     del descriptors[0]
+
     for item in descriptors:
         bits = item.split("=")
         descriptiondict[bits[0]] = bits[1]
+
     return descriptiondict
 
 
 def parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fastqfile):
 
-    log.debug("Parsing reads from file {}".format(fastq))
-
-
+    log.info("Parsing reads from file {}".format(fastq))
 
     fastq_read = {}
 
     description_dict = parse_fastq_description(desc)
 
     fastq_read['read'] = description_dict.get('read', None)
+
     fastq_read['runid'] = description_dict.get('runid', None)
+
     fastq_read['channel'] = description_dict.get('ch', None)
+
     fastq_read['start_time'] = description_dict.get('start_time', None)
+
     #fastq_read['is_pass'] = check_is_pass(fastq)
     fastq_read['read_id'] = name
+
     fastq_read['sequence_length'] = len(str(seq))
+
     fastq_read['fastqfile'] = fastqfile["id"]
 
 
@@ -165,13 +177,14 @@ def parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fast
         #fastq_read['quality_average'] = quality_average = np.around([np.mean(np.array(list((ord(val) - 33) for val in quality)))], decimals=2)[0]
 
         if quality != None:
-            fastq_read['quality_average'] = quality_average = round(-10 * np.log10(np.mean(np.array(list( (10**(-(ord(val)-33)/10)) for val in quality )))),2)
+            fastq_read['quality_average'] = round(-10 * np.log10(np.mean(np.array(list( (10**(-(ord(val)-33)/10)) for val in quality )))),2)
 
         fastq_read['is_pass'] = check_is_pass(fastq,fastq_read['quality_average'])
         #print (quality_average)
 
         # use 'No barcode' for non-barcoded reads
         barcode_name = description_dict.get('barcode', None)
+
         if barcode_name:
 
             fastq_read['barcode_name'] = barcode_name
@@ -257,29 +270,25 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
 
     else:
 
-        try:
+        #for record in SeqIO.parse(fastq, "fastq"):
+        with open(fastq, "r") as fp:
 
-            #for record in SeqIO.parse(fastq, "fastq"):
-            with open(fastq, "r") as fp:
+            for desc, name, seq, qual in readfq(fp):
+
+                counter += 1
                 
-                for desc, name, seq, qual in readfq(fp):
+                args.reads_seen += 1
 
-                    counter += 1
+                args.fastqmessage = "processing read {}".format(counter)
 
-                    args.reads_seen += 1
+                parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fastqfile)
 
-                    args.fastqmessage = "processing read {}".format(counter)
 
-                    parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header,fastqfile)
+        args.reads_corrupt += 1
 
-        except Exception as e:
+        log.error("Corrupt file observed in {}.".format(fastq))
 
-            args.reads_corrupt += 1
-
-            log.error("Corrupt file observed in {}.".format(fastq))
-            log.error(e)
-
-            #continue
+        #continue
 
     for runs in rundict:
 
