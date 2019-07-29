@@ -276,7 +276,7 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
             for desc, name, seq, qual in readfq(fp):
 
                 counter += 1
-                
+
                 args.reads_seen += 1
 
                 args.fastqmessage = "processing read {}".format(counter)
