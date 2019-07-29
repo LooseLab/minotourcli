@@ -115,8 +115,12 @@ class MinotourAPI:
         else:
             return jsonlibrary.loads(req.text)
 
-    def get_job_options(self):
 
+    def get_job_options(self):
+        """
+        Get a list of the jobs available to be started from the client
+        :return:
+        """
         url = '/tasktypes/'
 
         payload = {"cli": True}
@@ -362,16 +366,22 @@ class MinotourAPI:
 
         req = self.get(url, 'search_criteria=name')
 
-        if req.status_code != 200:
+        if req.status_code == 200:
 
-            log.error('Did not find flowcell {}.'.format(name))
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
+            return jsonlibrary.loads(req.text)
+
+        elif req.status_code == 404:
+
             return None
 
         else:
 
-            return jsonlibrary.loads(req.text)
+            log.error('Did not find flowcell {}.'.format(name))
+            log.error('Status-code {}'.format(req.status_code))
+            log.error('Unrecognised response fetching Flowcell from minoTour')
+            log.error('Text {}'.format(req.text))
+            return None
+
 
     def create_flowcell(self, name):
 
@@ -394,7 +404,14 @@ class MinotourAPI:
             return jsonlibrary.loads(req.text)
 
     def create_job(self, flowcell, job, reference=None, targets=None):
+        """
 
+        :param flowcell:
+        :param job:
+        :param reference:
+        :param targets:
+        :return:
+        """
         payload = {
             'flowcell': flowcell,
             'job_type': job
