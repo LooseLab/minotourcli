@@ -133,7 +133,7 @@ def parse_fastq_description(description):
 
 def parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fastqfile):
 
-    log.info("Parsing reads from file {}".format(fastq))
+    log.debug("Parsing reads from file {}".format(fastq))
 
     fastq_read = {}
 
