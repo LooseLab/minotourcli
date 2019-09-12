@@ -9,6 +9,7 @@ import threading
 import validators
 from .version import __version__
 
+print ("Hello")
 
 """We are setting up the code to copy and import the rpc service from minKNOW and make
 it work on our own code. This prevents us from having to distribute ONT code ourselves."""

@@ -372,7 +372,7 @@ class MinotourAPI:
 
         elif req.status_code == 404:
 
-            return None
+            return {'data':{}}
 
         else:
 
