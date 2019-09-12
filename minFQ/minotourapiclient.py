@@ -162,11 +162,15 @@ class Runcollection():
 
             log.debug("Looking for flowcell {}".format(flowcellname))
 
-            flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)['data']
+            flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)
+            log.info("FLOWCELL IS")
+            log.info(flowcell)
+            if flowcell is not None:
+                flowcell = flowcell["data"]
 
             log.debug("found {}".format(flowcell))
 
-            if not flowcell:
+            if flowcell is None:
 
                 log.debug("Trying to create flowcell {}".format(flowcellname))
 
@@ -283,13 +287,13 @@ class Runcollection():
 
                 firstread, secondread = read_id[:len(read_id) // 2], read_id[len(read_id) // 2:]
 
-                self.update_read_type(secondread, self.read_type_list["Complement"])
+                self.update_read_type(secondread, self.read_type_list["C"])
 
                 fastq_read_payload['type'] = self.read_type_list["1D^2"]
 
             else:
 
-                fastq_read_payload['type'] = self.read_type_list["Template"]
+                fastq_read_payload['type'] = self.read_type_list["T"]
 
             self.readnames.append(read_id)
 
