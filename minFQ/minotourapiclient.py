@@ -56,7 +56,7 @@ class Runcollection():
         self.basecount = 0
         self.read_type_list = dict()
         if self.args.skip_sequence:
-            self.batchsize = 5000
+            self.batchsize = 500
         else:
             self.batchsize = 100
         self.run = None
@@ -162,15 +162,12 @@ class Runcollection():
 
             log.debug("Looking for flowcell {}".format(flowcellname))
 
-            flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)
-            log.info("FLOWCELL IS")
-            log.info(flowcell)
-            if flowcell is not None:
-                flowcell = flowcell["data"]
+            #flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)
+            flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)['data']
+            log.debug(flowcell)
 
-            log.debug("found {}".format(flowcell))
 
-            if flowcell is None:
+            if not flowcell:
 
                 log.debug("Trying to create flowcell {}".format(flowcellname))
 

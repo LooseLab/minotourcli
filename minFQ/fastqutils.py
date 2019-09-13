@@ -165,7 +165,7 @@ def parse_fastq_record(desc, name, seq, qual, fastq, rundict, args, header, fast
 
         rundict[fastq_read['runid']].add_run(description_dict, args)
 
-    rundict[fastq_read['runid']].get_readnames_by_run(fastqfile['id'])
+        rundict[fastq_read['runid']].get_readnames_by_run(fastqfile['id'])
 
     if fastq_read['read_id'] not in rundict[fastq_read['runid']].readnames:
 
