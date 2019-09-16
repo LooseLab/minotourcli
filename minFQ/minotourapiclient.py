@@ -236,9 +236,9 @@ class Runcollection():
         #self.get_readnames_by_run()
 
     def commit_reads(self):
-
+        #print (self.args.skip_sequence)
         #Thread(target=self.minotourapi.create_reads(self.read_list)).start()
-        self.minotourapi.create_reads(self.read_list)
+        self.minotourapi.create_reads(self.read_list, self.args.skip_sequence)
         self.args.reads_uploaded += len(self.read_list)
 
         self.read_list = list()

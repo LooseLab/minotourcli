@@ -2,6 +2,8 @@ import datetime
 import json as jsonlibrary
 import logging
 import requests
+import pandas as pd
+import numpy as np
 import gzip
 import time
 
@@ -9,8 +11,6 @@ from urllib.parse import urlparse
 
 
 log = logging.getLogger(__name__)
-
-
 
 
 class MinotourAPI:
@@ -301,25 +301,105 @@ class MinotourAPI:
             grouprun = jsonlibrary.loads(req.text)
             return grouprun
 
-    def create_reads(self, reads):
+    def create_reads(self, reads, skip):
+        if skip:
+            testpd = pd.DataFrame.from_dict(reads)
+            print (list(testpd))
+            testpd["status"] = np.where(
+                testpd["is_pass"] == False, "Fail", "Pass"
+            )
+            testpd["start_time_truncate"] = np.array(
+                testpd["start_time"], dtype="datetime64[m]"
+            )
+            testpd_allreads = testpd.copy()
+            testpd_allreads["barcode_name"] = "All reads"
+            testpd = testpd.append(testpd_allreads)
+            #
+            # Calculates statistics for flowcellSummaryBarcode
+            #
 
-        #log.debug('Creating reads')
-        #time.sleep(1)
-        payload = reads
+            testpd_result = testpd.groupby(
+                [
+                    "barcode_name",
+                    # "rejected_barcode__name",
+                    "type",
+                    "is_pass",
+                ]
+            ).agg(
+                {
+                    "sequence_length": ["min", "max", "sum", "count"],
+                    "quality_average": ["sum"],
+                    "channel": ["unique"],
+                }
+            )
 
-        req = self.post('/read/', json=payload)
+            print (testpd_result)
 
-        if req.status_code != 201:
+            #
+            # Calculates statistics for FlowcellStatisticsBarcode
+            #
+            testpd_result2 = testpd.groupby(
+                [
+                    "start_time_truncate",
+                    "barcode_name",
+                    "type",
+                    "is_pass",
+                    # "rejected_barcode__name",
+                ]
+            ).agg(
+                {
+                    "sequence_length": ["min", "max", "sum", "count"],
+                    "quality_average": ["sum"],
+                    "channel": ["unique"],
+                }
+            )
+            print (testpd_result2)
 
-            log.error('Reads batch {} could not be created.')
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
-            return None
+            #
+            # Calculates statistics for HistogramSummary
+            #
 
+            BIN_WIDTH = 1000
+            testpd["bin_index"] = (
+                                          testpd["sequence_length"]
+                                          - testpd["sequence_length"] % BIN_WIDTH
+                                  ) / BIN_WIDTH
+
+            testpd_result3 = testpd.groupby(
+                [
+                    "barcode_name",
+                    "type",
+                    "is_pass",
+                    "bin_index",
+                    # "rejected_barcode__name",
+                ]
+            ).agg({"sequence_length": ["sum", "count"]})
+
+            print (testpd_result3)
+
+            #
+            # Calculates statistics for ChannelSummary
+            #
+            testpd_result4 = testpd.groupby(["channel"]).agg(
+                {"sequence_length": ["sum", "count"]}
+            )
+            print (testpd_result4)
         else:
+            payload = reads
 
-            grouprun = jsonlibrary.loads(req.text)
-            return grouprun
+            req = self.post('/read/', json=payload)
+
+            if req.status_code != 201:
+
+                log.error('Reads batch {} could not be created.')
+                log.error('Status-code {}'.format(req.status_code))
+                log.error('Text {}'.format(req.text))
+                return None
+
+            else:
+
+                grouprun = jsonlibrary.loads(req.text)
+                return grouprun
 
     def get_read_type_list(self):
 
