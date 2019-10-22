@@ -9,14 +9,24 @@ import threading
 import validators
 from .version import __version__
 
-#print ("Hello")
+
+PATCH_INIT="""
+
+import platform
+def _minknow_path(operating_system=platform.system()):
+    return {
+        "Darwin": os.path.join(os.sep, "Applications", "MinKNOW.app", "Contents", "Resources"),
+        "Linux": os.path.join(os.sep, "opt", "ONT", "MinKNOW"),
+        "Windows": os.path.join(os.sep, "C:\\\Program Files", "OxfordNanopore", "MinKNOW"),
+    }.get(operating_system, None)
+"""
 
 """We are setting up the code to copy and import the rpc service from minKNOW and make
 it work on our own code. This prevents us from having to distribute ONT code ourselves."""
 
 root_directory = os.path.dirname(os.path.realpath(__file__))
 
-def copyfiles(srcdir, dstdir, filepattern):
+"""def copyfiles(srcdir, dstdir, filepattern):
     def failed(exc):
         raise exc
     dstdir = os.path.join(root_directory,dstdir)
@@ -25,6 +35,22 @@ def copyfiles(srcdir, dstdir, filepattern):
             shutil.copy2(os.path.join(dirpath, file), dstdir)
             editfile(os.path.join(dstdir,file),'minknow.rpc','minFQ.rpc')
         break # no recursion
+        """
+
+def copyfiles(srcdir, dstdir, filepattern, module):
+    def failed(exc):
+        raise exc
+    dstdir = os.path.join(root_directory, dstdir)
+    for dirpath, dirs, files in os.walk(srcdir, topdown=True, onerror=failed):
+        for file in fnmatch.filter(files, filepattern):
+            shutil.copy2(os.path.join(dirpath, file), dstdir)
+            editfile(os.path.join(dstdir, file), "minknow.{}".format(module), "minFQ.{}".format(module))
+            editfile(os.path.join(dstdir, file), "minknow.paths.minknow_base_dir()", "_minknow_path()")
+            editfile(os.path.join(dstdir, file), "import minknow.paths", "")
+            if file == "__init__.py":
+                with open(os.path.join(dstdir, file), "a") as out:
+                    out.write(PATCH_INIT)
+        break  # no recursion
 
 def editfile(filename,text_to_search,replacement_text):
     with fileinput.FileInput(filename, inplace=True) as file:
@@ -71,7 +97,7 @@ else:
 
     if os.path.exists(sourceRPC):
 
-        copyfiles(sourceRPC,dstRPC,'*.py')
+        copyfiles(sourceRPC,dstRPC,'*.py','rpc')
         RPC_SUPPORT=True
         from minFQ.minknowconnection import MinknowConnectRPC
         print ('RPC Configured')
