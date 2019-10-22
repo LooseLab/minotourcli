@@ -719,10 +719,13 @@ class MinknowConnectRPC():
                                                                                        "grpc_connection"], self.header,
                                                                                    deviceid)
                     # self.minIONdict[deviceid]["legacydevicedata"] = DeviceConnectLegacy(connectip,self.args,self.minIONdict[deviceid]["grpc_connection"])
+                    """
                     try:
                         self.minIONdict[deviceid]["device_connection"].connect()
                     except Exception as err:
+                        print ("Problem connecting to device.", err)
                         log.error("Problem connecting to device.", err)
+                    """
                     self.minIONdict[deviceid]["state"]="active"
             time.sleep(5)
 
