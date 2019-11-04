@@ -405,10 +405,10 @@ class DeviceConnect(WebSocketClient):
                 for histogram_event in histogram_stream:
                     #print (parsemessage(histogram_event))
                     self.histogramdata = parsemessage(histogram_event)
-                if not str(self.status).startswith("status: PROCESSING"):
-                    break
-            except:
-                print ("Histogram Problem")
+                    if not str(self.status).startswith("status: PROCESSING"):
+                        break
+            except Exception as e:
+                print ("Histogram Problem: {}".format(e))
                 pass
             time.sleep(self.interval)
             pass
