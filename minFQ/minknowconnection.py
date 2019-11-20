@@ -12,7 +12,6 @@ from ws4py.client.threadedclient import WebSocketClient
 
 import minFQ.rpc as rpc
 from minFQ.minotourapi import MinotourAPI as MinotourAPINew
-from minFQ.minotourutils import determinetype, parse_ports
 
 log = logging.getLogger(__name__)
 
