@@ -170,7 +170,14 @@ class MinotourAPI:
             return jsonlibrary.loads(req.text)
 
     def create_file_info(self, filename, runid, md5check, run):
-
+        """
+        Create file info in the database in minoTour
+        :param filename: fastq filename
+        :param runid: the run id of this run
+        :param md5check: an MD5 checksum
+        :param run: The run
+        :return:
+        """
         payload = {
             'name': filename,
             'runid': runid,
@@ -302,9 +309,18 @@ class MinotourAPI:
             return grouprun
 
     def create_reads(self, reads):
+        """
+        Post reads to the minoTour api and have them stored in the database.
+        Parameters
+        ----------
+        reads: list
+            A list of read objects in dictionary form.
 
-        #log.debug('Creating reads')
-        #time.sleep(1)
+        Returns
+        -------
+        None
+        """
+
         payload = reads
 
         req = self.post('/read/', json=payload)
