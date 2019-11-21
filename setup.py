@@ -39,6 +39,7 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ],
     keywords='nanopore quality control analysis',
     #packages=find_packages("minFQ"),
@@ -61,6 +62,7 @@ setup(
                       'ont-fast5-api',
                       'validators',
                       'grpcio-tools',
+                      'toml'
                      ],
     package_data={'minFQ': []},
     package_dir={'minFQ': 'minFQ'},

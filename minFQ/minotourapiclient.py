@@ -236,11 +236,16 @@ class Runcollection():
         #self.get_readnames_by_run()
 
     def commit_reads(self):
+        """
+        Call create reads - which posts a batch of reads to the server.
+        Returns
+        -------
+        None
+        """
 
-        #Thread(target=self.minotourapi.create_reads(self.read_list)).start()
         self.minotourapi.create_reads(self.read_list)
         self.args.reads_uploaded += len(self.read_list)
-
+        # Refresh the read list
         self.read_list = list()
 
     def update_read_type(self, read_id, type):
@@ -253,31 +258,45 @@ class Runcollection():
             return True
 
     def add_read(self, fastq_read_payload):
+        """
+        Add a read to to the readnames list that we will commit to the minoTour server
+        Create any non present barcodes on the minoTour server
+        Parameters
+        ----------
+        fastq_read_payload: dict
+            The fastq read dictionary that will be added to the upload list
+
+        Returns
+        -------
+        None
+        """
 
         barcode_name = fastq_read_payload['barcode_name']
+        rejected_barcode_name = fastq_read_payload["rejected_barcode_name"]
         runid = fastq_read_payload['runid']
         read_id = fastq_read_payload['read_id']
-
         fastq_read_payload['run'] = self.run['id']
 
-        if barcode_name not in self.barcode_dict:
+        # Here we are going to create the sequenced/unblocked barcodes and read barcode
+        for barcode_name in [barcode_name, rejected_barcode_name]:
+            if barcode_name not in self.barcode_dict:
 
-            # print(">>> Found new barcode {} for run {}.".format(barcode_name, runid))
+                # print(">>> Found new barcode {} for run {}.".format(barcode_name, runid))
 
-            barcode = self.minotourapi.create_barcode(barcode_name, self.run['url'])
+                barcode = self.minotourapi.create_barcode(barcode_name, self.run['url'])
 
-            if barcode:
+                if barcode:
 
-                self.barcode_dict.update({
-                    barcode['name']: barcode['id']
-                })
+                    self.barcode_dict.update({
+                        barcode['name']: barcode['id']
+                    })
 
-            else:
-                log.critical("Problem finding barcodes.")
-                sys.exit()
+                else:
+                    log.critical("Problem finding barcodes.")
+                    sys.exit()
 
         fastq_read_payload['barcode'] = self.barcode_dict[fastq_read_payload['barcode_name']]
-
+        fastq_read_payload["rejected_barcode"] = self.barcode_dict[fastq_read_payload['rejected_barcode_name']]
         if read_id not in self.readnames:
 
             if self.check_1d2(read_id):
@@ -296,9 +315,8 @@ class Runcollection():
 
             if self.args.GUI:
                 self.args.readcount += 1
-
-            if self.args.GUI:
                 self.args.basecount += fastq_read_payload['sequence_length']
+
             self.basecount += fastq_read_payload['sequence_length']
 
             if self.args.GUI:
@@ -316,5 +334,5 @@ class Runcollection():
             self.readcount += 1
 
         else:
-            print ("Skipping read")
+            print("Skipping read")
             self.args.reads_skipped += 1
