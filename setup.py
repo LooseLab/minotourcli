@@ -50,7 +50,7 @@ setup(
                       'python-dateutil',
                       'requests',
                       'BioPython',
-                      'numpy',
+                      'numpy==1.17',
                       'watchdog',
                       'ws4py',
                       'configargparse',
