@@ -289,7 +289,8 @@ class DeviceConnect(WebSocketClient):
                 log.error("Houston - we have a problem!")
 
             else:
-
+                log.info("????")
+                log.info(createrun)
                 self.runidlink = createrun["url"]
                 self.runid = createrun["id"]  # TODO is it id or runid?
                 # self.runidlink = json.loads(createrun.text)["url"]
@@ -298,9 +299,10 @@ class DeviceConnect(WebSocketClient):
                 # self.create_flowcell_run()
 
         else:
-
+            log.info("????")
+            log.info(run)
             self.runidlink = run["url"]
-            self.runid = run["id"]
+            self.runid = run["runid"]
         log.debug("***** self.runid", self.runid)
 
         try:
@@ -620,9 +622,16 @@ class DeviceConnect(WebSocketClient):
 
     def getmessages(self):
         while True:
+            if not self.runidlink:
+                time.sleep(1)
+                continue
             messages = self.rpc_connection.log.get_user_messages(include_old_messages=True)
             for message in messages:
 
+                log.info("!!!!")
+                log.info(self.runidlink)
+                log.info("!!!!")
+                # log.info(self.runid)
                 payload = {"minion": self.minion["url"],
                            "message": message.user_message,
                            "run": "",
@@ -632,6 +641,7 @@ class DeviceConnect(WebSocketClient):
                            }
 
                 if self.runidlink:
+                    print(self.runidlink)
                     payload["run"] = self.runidlink
 
                 messagein = self.minotourapi.create_message( payload, self.minion)
