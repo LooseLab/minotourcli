@@ -47,7 +47,7 @@ def startstop(command,minION):
 
 def send_message_port(message,ipadd,port):
     message_to_send = \
-        '{"id":"1", "method":"user_message","params":{"content":"%s"}}' \
+        '{"id":"1", "method":"user_message","params":{"content":"minoTour: %s"}}' \
         % message
     results=""
     try:
@@ -84,6 +84,7 @@ def stoprun_message(port,ipadd,message):
 def send_custom_message(port,message):
     try:
         custommessage = "minoTour: %s" % (message)
+        #print (custommessage, "\n\n\n\n\n\n\n")
         custommessageresult=send_message_port(custommessage,port)
     except Exception as err:
         print >> sys.stderr, err

@@ -345,28 +345,28 @@ class DeviceConnect(WebSocketClient):
                     self.minotourapi.complete_minion_job(self.minion,job)
                 if job["job"] == "custommessage":
                     self.sendmessage(1,
-                                     str(job["custom"]))
+                                     "minoTour: {}".format(job["custom"]))
                     self.minotourapi.complete_minion_job(self.minion, job)
                 if job["job"] == "stopminion":
                     if self.args.enable_remote:
                         self.rpc_connection.protocol.stop_protocol()
-                        self.sendmessage(3,"MinoTour was used to remotely stop your run.")
+                        self.sendmessage(3,"minoTour was used to remotely stop your run.")
                     self.minotourapi.complete_minion_job(self.minion, job)
                 if job["job"] == "rename":
                     if self.args.enable_remote:
                         self.rpc_connection.protocol.set_sample_id(sample_id=job["custom"])
-                        self.sendmessage(1,"MinoTour renamed your run to {}".format(job["custom"]))
+                        self.sendmessage(1,"minoTour renamed your run to {}".format(job["custom"]))
                     self.minotourapi.complete_minion_job(self.minion, job)
                 if job["job"] == "nameflowcell":
                     if self.args.enable_remote:
                         self.rpc_connection.device.set_user_specified_flow_cell_id(id=job["custom"])
-                        self.sendmessage(1, "MinoTour renamed your flowcell to {}".format(job["custom"]))
+                        self.sendmessage(1, "minoTour renamed your flowcell to {}".format(job["custom"]))
                     self.minotourapi.complete_minion_job(self.minion, job)
                 if job["job"] == "startminion":
                     if self.args.enable_remote:
                         print(job["custom"],"\n\n\n\n\n")
                         self.rpc_connection.protocol.start_protocol(identifier=job["custom"])
-                        self.sendmessage(1,"MinoTour attempted to start a run on your device.")
+                        self.sendmessage(2,"minoTour attempted to start a run on your device.")
                     self.minotourapi.complete_minion_job(self.minion, job)
 
 

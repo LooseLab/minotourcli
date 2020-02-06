@@ -4,6 +4,7 @@ import logging
 import requests
 import gzip
 import time
+#import threading
 
 from urllib.parse import urlparse
 
@@ -22,6 +23,9 @@ class MinotourAPI:
         self.check_url()
         self.request_headers = request_headers
         self.minion_event_types = self.get_minion_event_types()
+
+
+
 
     def check_url(self):
         if self.base_url.startswith("http://"):
@@ -307,6 +311,8 @@ class MinotourAPI:
 
             grouprun = jsonlibrary.loads(req.text)
             return grouprun
+
+
 
     def create_reads(self, reads):
         """

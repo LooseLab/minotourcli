@@ -278,22 +278,9 @@ def parse_fastq_record(
         quality = qual
 
         # Turns out this is not the way to calculate quality...
-
+        # This is slow.
         if quality is not None:
-            fastq_read["quality_average"] = round(
-                -10
-                * np.log10(
-                    np.mean(
-                        np.array(
-                            list(
-                                (10 ** (-(ord(val) - 33) / 10))
-                                for val in quality
-                            )
-                        )
-                    )
-                ),
-                2,
-            )
+            fastq_read["quality_average"] = round(average_quality(quality), 2,)
 
         fastq_read["is_pass"] = check_is_pass(
             fastq, fastq_read["quality_average"]
@@ -345,13 +332,17 @@ def parse_fastq_record(
         else:
 
             fastq_read["sequence"] = str(seq)
-            fastq_read["quality"] = qual
+            #fastq_read["quality"] = qual
+            #For speed lets throw away the quality
+            fastq_read["quality"] = ""
         # Add the read to the class dictionary to be uploaded, pretty important
         rundict[fastq_read["runid"]].add_read(fastq_read)
 
     else:
         args.reads_skipped += 1
 
+def average_quality(quality):
+    return  -10 * np.log10(np.mean(10 ** (np.array((-(np.array(list(quality.encode('utf8'))) - 33)) / 10, dtype=float))))
 
 def get_runid(fastq):
     """
@@ -413,18 +404,20 @@ def parse_fastq_file(
     )
 
     counter = 0
-    # If we have toml, we're doing experiments
-    if args.toml is not None:
-        # if we don't have a unblocked ids file, we can still give the condition
-        if args.unblocks is not None:
-            with OpenLine(args.unblocks, unblocked_line_start) as fh:
-                _d = {line: 1 for line in fh}
 
-                lines_returned = len(_d)
+    # if we don't have a unblocked ids file, we can still give the condition
+    if args.unblocks is not None:
+        print ("reading in the unblocks")
+        with OpenLine(args.unblocks, unblocked_line_start) as fh:
+            _d = {line: 1 for line in fh}
 
-                unblocked_dict.update(_d)
+            lines_returned = len(_d)
 
-            unblocked_line_start += lines_returned
+            unblocked_dict.update(_d)
+
+        unblocked_line_start += lines_returned
+
+        print (len(unblocked_dict))
 
     if fastq.endswith(".gz"):
 
@@ -454,7 +447,7 @@ def parse_fastq_file(
             except Exception as e:
 
                 args.reads_corrupt += 1
-
+                log.error(e)
                 log.error("Corrupt file observed in {}.".format(fastq))
                 log.error(e)
                 # continue
@@ -462,32 +455,39 @@ def parse_fastq_file(
     else:
 
         with open(fastq, "r") as fp:
+            try:
+                now = time.time()
+                for desc, name, seq, qual in readfq(fp):
 
-            for desc, name, seq, qual in readfq(fp):
+                    counter += 1
 
-                counter += 1
+                    args.reads_seen += 1
 
-                args.reads_seen += 1
+                    args.fastqmessage = "processing read {}".format(counter)
 
-                args.fastqmessage = "processing read {}".format(counter)
+                    parse_fastq_record(
+                        desc,
+                        name,
+                        seq,
+                        qual,
+                        fastq,
+                        rundict,
+                        args,
+                        header,
+                        fastqfile,
+                        unblocked_dict,
+                        toml_dict
+                    )
+                print ("Taken {} to process one file.\n\n\n\n\n\n\n".format((time.time()-now)))
 
-                parse_fastq_record(
-                    desc,
-                    name,
-                    seq,
-                    qual,
-                    fastq,
-                    rundict,
-                    args,
-                    header,
-                    fastqfile,
-                    unblocked_dict,
-                    toml_dict
-                )
+            except Exception as e:
 
-        args.reads_corrupt += 1
+                args.reads_corrupt += 1
+                log.error(e)
+                log.error("Corrupt file observed in {}.".format(fastq))
+                log.error(e)
+                # continue
 
-        log.error("Corrupt file observed in {}.".format(fastq))
 
         # continue
 

@@ -657,7 +657,7 @@ def main():
 
                 sys.stdout.flush()
 
-                time.sleep(1)
+                time.sleep(5)
                 if not args.verbose:
                     up(linecounter)
 

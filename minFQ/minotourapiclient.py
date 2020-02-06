@@ -56,7 +56,7 @@ class Runcollection():
         self.basecount = 0
         self.read_type_list = dict()
         if self.args.skip_sequence:
-            self.batchsize = 500
+            self.batchsize = 100
         else:
             self.batchsize = 100
         self.run = None
