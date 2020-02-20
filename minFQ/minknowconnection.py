@@ -134,7 +134,7 @@ class DeviceConnect(WebSocketClient):
             self.minIONstatus["minKNOW_status"]="unplugged"
         except:
             log.debug("Couldn't unplug MinION from website.")
-        self.minIONstatus = self.minotourapi.update_minion_status(self.minIONstatus, self.minion)
+        self.minIONstatus = self.minotourapi.update_minion_info_mt(self.minIONstatus, self.minion)
 
     def first_connect(self):
         """
@@ -210,8 +210,6 @@ class DeviceConnect(WebSocketClient):
 
         except Exception as err:
             log.error("Problem:", err)
-
-
 
     def update_minion_run_info(self):
         payload = {
@@ -299,8 +297,6 @@ class DeviceConnect(WebSocketClient):
                 # self.create_flowcell_run()
 
         else:
-            log.info("????")
-            log.info(run)
             self.runidlink = run["url"]
             self.runid = run["runid"]
         log.debug("***** self.runid", self.runid)
@@ -395,25 +391,42 @@ class DeviceConnect(WebSocketClient):
                 log.debug(event)
                 self.flowcelldata = parsemessage(event)
                 log.debug(self.get_flowcell_id())
-                self.update_minion_status()
-
+                self.update_minion_info()
 
     def newhistogrammonitor(self):
+        """
+        Monitor the histogram output from minKnow. It is the best.
+        Returns
+        -------
+        None
+
+        """
         while True:
-            histogram_stream = self.rpc_connection.statistics.stream_read_length_histogram(poll_time=60,wait_for_processing=True,read_length_type=0,bucket_value_type=1)
+            if str(self.status).startswith("status: PROCESSING"):
+                ###We need to test if we are doing basecalling or not.
+                self.runinformation = parsemessage(self.rpc_connection.acquisition.get_current_acquisition_run())
+                if self.runinformation['config_summary']['basecalling_enabled']:
+                    self.basecalling = True
+                else:
+                    self.basecalling = False
+                if self.basecalling:
+                    rltype=2
+                else:
+                    rltype=1
+                histogram_stream = self.rpc_connection.statistics.stream_read_length_histogram(poll_time=60,wait_for_processing=True,read_length_type=rltype,bucket_value_type=1)
 
-            try:
-                for histogram_event in histogram_stream:
-                    #print (parsemessage(histogram_event))
-                    self.histogramdata = parsemessage(histogram_event)
-                    if not str(self.status).startswith("status: PROCESSING"):
-                        break
-            except Exception as e:
-                print ("Histogram Problem: {}".format(e))
+                try:
+                    for histogram_event in histogram_stream:
+                        #print (parsemessage(histogram_event))
+                        self.histogramdata = parsemessage(histogram_event)
+                        if not str(self.status).startswith("status: PROCESSING"):
+                            break
+                except Exception as e:
+                    #print ("Histogram Problem: {}".format(e))
+                    log.error(f"histogram problem: {e}")
+                    break
+                time.sleep(self.interval)
                 pass
-            time.sleep(self.interval)
-            pass
-
 
     def newchannelstatemonitor(self):
         while True:
@@ -456,11 +469,17 @@ class DeviceConnect(WebSocketClient):
                         self.run_stop()
                     log.debug(status)
 
-    def update_minion_status(self):
-        #### This block of code will update live information about a minION
-        ### We may not yet have a run to acquire - if so the acquisition_data will be empty.
+    def update_minion_info(self):
+        """
+        Update the minion status information. Send it to minotour.
+        Data may be None, if it is not present in the MinKnow status.
+        Logic is supposed to be just information about MinKNOW/the minION device.
+        Returns
+        -------
+        None
 
-        acquisition_data=dict()
+        """
+        acquisition_data = dict()
 
         if len(self.acquisition_data)<1:
             acquisition_data['state']="No Run"
@@ -478,13 +497,8 @@ class DeviceConnect(WebSocketClient):
         payload = {"minION": str(self.minion["url"]),
                    "minKNOW_status": acquisition_data['state'],
                    "minKNOW_current_script": currentscript,
-                   #"minKNOW_sample_name": None,
                    "minKNOW_exp_script_purpose": str(self.rpc_connection.protocol.get_protocol_purpose()),
                    "minKNOW_flow_cell_id": self.get_flowcell_id(),
-                   #"minKNOW_run_name": str(self.sampleid.sample_id),
-                   #"minKNOW_hash_run_id": str(self.runinformation.run_id),
-                   #"minKNOW_script_run_id": str(
-                   #    self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0]),
                    "minKNOW_real_sample_rate": int(
                        str(self.rpc_connection.device.get_sample_rate().sample_rate)),
                    "minKNOW_asic_id": self.flowcelldata['asic_id'],  # self.status_summary['asic_id'],
@@ -499,21 +513,33 @@ class DeviceConnect(WebSocketClient):
         except:
             pass
         if hasattr(self, 'sampleid'):
-            payload["minKNOW_sample_name"]=str(self.sampleid.sample_id)
-            payload["minKNOW_run_name"]=str(self.sampleid.sample_id)
+            payload["minKNOW_sample_name"] = str(self.sampleid.sample_id)
+            payload["minKNOW_run_name"] = str(self.sampleid.sample_id)
 
         if hasattr(self, 'runinformation'):
-            payload["minKNOW_hash_run_id"]=str(self.runinformation.run_id)
+            if hasattr(self.runinformation, "run_id"):
+                payload["minKNOW_hash_run_id"] = str(self.runinformation.run_id)
+
+        if hasattr(self, "runinfo_api"):
+            payload["wells_per_channel"] = parsemessage(self.runinfo_api)["flow_cell"].get("wells_per_channel", -1)
 
         if self.minIONstatus:  # i.e the minION status already exists
 
-            self.minIONstatus = self.minotourapi.update_minion_status(payload, self.minion)
+            self.minIONstatus = self.minotourapi.update_minion_info_mt(payload, self.minion)
 
         else:
 
-            self.minIONstatus = self.minotourapi.create_minion_status(payload, self.minion)
+            self.minIONstatus = self.minotourapi.create_minion_info_mt(payload, self.minion)
 
-    def update_minion_stats (self):
+    def update_minion_stats(self):
+        """
+        Update the minion stats that we have recorded from minKnow.
+        Sent to Minotour and stored in minIon run stats table.
+        Logic, contains information about the run, not just minKNOW/minION.
+        Returns
+        -------
+        None
+        """
         asictemp = self.temperaturedata.minion.asic_temperature.value
         heatsinktemp = self.temperaturedata.minion.heatsink_temperature.value
         biasvoltage = int(self.bias_voltage)
@@ -561,20 +587,27 @@ class DeviceConnect(WebSocketClient):
                    "in_strand": instrand,
                    "minKNOW_histogram_values": str(self.histogramdata["histogram_data"]["buckets"]),
                    "minKNOW_histogram_bin_width": self.histogramdata["histogram_data"]["width"],
+                   "actual_max_val": self.histogramdata["histogram_data"]["actual_max_val"],
+                   "read_length_type": self.histogramdata["histogram_data"]["read_length_type"],
                    "minKNOW_read_count": read_count
                    }
         for channel in channeldict:
             payload[str(channel)] = channeldict[channel]
 
-        log.debug("This our new payload",payload)
+        log.debug("This our new payload", payload)
 
-        result = self.minotourapi.create_minion_statistic(payload,self.runid)
+        result = self.minotourapi.create_minion_statistic(payload, self.runid)
 
         log.debug("This is our result.", result)
 
-
-
     def runinfo(self):
+        """
+        Get information on the run via the minKnow RPC. Basically just sets class values for any data we can get.
+        Returns
+        -------
+        None
+
+        """
         while True:
             log.debug("Checking run info")
             try:
@@ -599,10 +632,9 @@ class DeviceConnect(WebSocketClient):
             except:
                 log.debug("Sample ID not yet known.")
             log.debug("running update minion status")
-            self.update_minion_status()
+            self.update_minion_info()
             if str(self.status).startswith("status: PROCESSING"):
                 self.runinformation = self.rpc_connection.acquisition.get_current_acquisition_run()
-                log.debug(self.runinformation)
                 try:
                     log.debug("running update minion stats")
                     if hasattr(self, 'runid'):
@@ -628,10 +660,6 @@ class DeviceConnect(WebSocketClient):
             messages = self.rpc_connection.log.get_user_messages(include_old_messages=True)
             for message in messages:
 
-                log.info("!!!!")
-                log.info(self.runidlink)
-                log.info("!!!!")
-                # log.info(self.runid)
                 payload = {"minion": self.minion["url"],
                            "message": message.user_message,
                            "run": "",
@@ -641,10 +669,9 @@ class DeviceConnect(WebSocketClient):
                            }
 
                 if self.runidlink:
-                    print(self.runidlink)
                     payload["run"] = self.runidlink
 
-                messagein = self.minotourapi.create_message( payload, self.minion)
+                messagein = self.minotourapi.create_message(payload, self.minion)
 
 
     def opened(self):
