@@ -452,6 +452,20 @@ class MinotourAPI:
             log.info(req.text)
 
     def get_minion_by_name(self, name):
+        """
+        Get the hyper linked minion object we have created in minoTour, so we can edit it, and use
+         it to post information to minoTour, so it can be stored  under the correct minIon.
+        Parameters
+        ----------
+        name: str
+            The name of the minIon.
+
+        Returns
+        -------
+        req.text: dict
+            The response of the GET request. IS parsed from JSON into a dict.
+
+        """
 
         url = '/minions/{}/'.format(name)
 
@@ -700,9 +714,20 @@ class MinotourAPI:
 
         pass
 
+    def create_minion_info_mt(self, payload, minion):
+        """
+        Create a minion info entry in MinoTour.
+        Parameters
+        ----------
+        payload: dict
+            payload of information
+        minion: dict
+            Minion information dictionary.
 
-    def create_minion_status(self, payload, minion):
+        Returns
+        -------
 
+        """
         payload = payload
 
         url = '/minions/{}/status/'.format(minion['id'])
@@ -722,7 +747,22 @@ class MinotourAPI:
 
         pass
 
-    def update_minion_status(self,payload,minion):
+    def update_minion_info_mt(self, payload, minion):
+        """
+        Post minion status information to MinoTour.
+        Parameters
+        ----------
+        payload: dict
+            The information that we have received from minKNOW.
+        minion: dict
+            Information about the miinION that we have stored in MinoTour.
+
+        Returns
+        -------
+        req.text: dict
+            Response of the post request.
+
+        """
 
         payload = payload
 
@@ -741,10 +781,22 @@ class MinotourAPI:
 
             return jsonlibrary.loads(req.text)
 
-        pass
+    def create_minion_statistic(self, payload, runid):
+        """
+        Post data to the minoTour end point that we receive minion_statistics too.
+        Parameters
+        ----------
+        payload: dict
+            A dictionary of values of minion statistics to be sent.
+        runid: int
+            Primary key of the run as stored in MinoTour.
 
-    def create_minion_statistic(self,payload,runid):
+        Returns
+        -------
+        req.text
+            The resulting text of the post request, if successful.
 
+        """
         url = '/runs/{}/runstats/'.format(runid)
 
         req = self.post(url, json=payload)
