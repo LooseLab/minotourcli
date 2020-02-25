@@ -302,7 +302,7 @@ class DeviceConnect(WebSocketClient):
             log.info("????")
             log.info(run)
             self.runidlink = run["url"]
-            self.runid = run["runid"]
+            self.runid = run["id"]
         log.debug("***** self.runid", self.runid)
 
         try:
