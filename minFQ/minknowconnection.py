@@ -213,7 +213,7 @@ class DeviceConnect(WebSocketClient):
 
     def update_minion_run_info(self):
         payload = {
-            "minION": str(self.minion["url"]),
+            "minion": str(self.minion["url"]),
             "minKNOW_current_script": str(self.rpc_connection.protocol.get_run_info().protocol_id),
             "minKNOW_sample_name": str(self.sampleid.sample_id),
             "minKNOW_exp_script_purpose": str(self.rpc_connection.protocol.get_protocol_purpose()),
@@ -229,6 +229,8 @@ class DeviceConnect(WebSocketClient):
             #"minKNOW_colours_string": str(self.rpc_connection.analysis_configuration.get_channel_states_desc()),
             "minKNOW_colours_string": str(MessageToJson(self.rpc_connection.analysis_configuration.get_channel_states_desc(), preserving_proto_field_name=True, including_default_value_fields=True)),
             "minKNOW_computer": str(self.computer_name),
+            # "read_length_type": self.histogramdata["histogram_data"]["read_length_type"],
+
         }
 
         contextinfo = parsemessage(self.rpc_connection.protocol.get_context_info())['context_info']
@@ -298,16 +300,9 @@ class DeviceConnect(WebSocketClient):
 
         else:
             self.runidlink = run["url"]
-            self.runid = run["runid"]
+            self.runid = run["id"]
         log.debug("***** self.runid", self.runid)
 
-        try:
-            ### I don't know what is happening here!
-            #self.minotourapi.update_minion_run_stats()
-            #self.minotourapi.update_minion_run_info()
-            pass
-        except Exception as err:
-            log.debug("Problem minotourapi", err)
         log.debug("**** run stats updated")
 
 
@@ -455,7 +450,6 @@ class DeviceConnect(WebSocketClient):
                         log.debug(duty)
             time.sleep(1)
 
-
     def runmonitor(self):
         while True:
             status_watcher = rpc.wrappers.StatusWatcher(self.rpc_connection)
@@ -494,7 +488,7 @@ class DeviceConnect(WebSocketClient):
                               including_default_value_fields=True))
             log.debug(self.disk_space_info)
 
-        payload = {"minION": str(self.minion["url"]),
+        payload = {"minion": str(self.minion["url"]),
                    "minKNOW_status": acquisition_data['state'],
                    "minKNOW_current_script": currentscript,
                    "minKNOW_exp_script_purpose": str(self.rpc_connection.protocol.get_protocol_purpose()),
@@ -506,7 +500,6 @@ class DeviceConnect(WebSocketClient):
                    "minKNOW_disk_space_till_shutdown": self.disk_space_info["filesystem_disk_space_info"][0]["bytes_when_alert_issued"],
                    "minKNOW_disk_available": self.disk_space_info["filesystem_disk_space_info"][0]["bytes_available"],
                    "minKNOW_warnings": self.disk_space_info["filesystem_disk_space_info"][0]["recommend_stop"],
-                   # TODO work out what this should be! self.status_summary['recommend_alert'],
                    }
         try:
             payload["minKNOW_script_run_id"] = self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0]
@@ -575,8 +568,8 @@ class DeviceConnect(WebSocketClient):
         #print (self.runinformation)
 
 
-        payload = {"minION": str(self.minion["url"]),
-                   "run_id": self.runidlink,
+        payload = {"minion": str(self.minion["url"]),
+                   "run": self.runidlink,
                    "sample_time": str(datetime.datetime.now()),
                    "event_yield": yield_val,
                    "asic_temp": asictemp,
@@ -588,7 +581,6 @@ class DeviceConnect(WebSocketClient):
                    "minKNOW_histogram_values": str(self.histogramdata["histogram_data"]["buckets"]),
                    "minKNOW_histogram_bin_width": self.histogramdata["histogram_data"]["width"],
                    "actual_max_val": self.histogramdata["histogram_data"]["actual_max_val"],
-                   "read_length_type": self.histogramdata["histogram_data"]["read_length_type"],
                    "minKNOW_read_count": read_count
                    }
         for channel in channeldict:

@@ -520,41 +520,6 @@ class MinotourAPI:
 
             return jsonlibrary.loads(req.text)
 
-    ### New functions being added for minknowconnection use.
-    def identify_minion(self,minION):
-        #print ("args full host {}".format(self.args.full_host))
-        r = requests.get(self.args.full_host + 'api/v1/minions', headers=self.header)
-        minionidlink = ""
-        for minion in jsonlibrary.loads(r.text):
-            if minion["minION_name"] == minION:
-                minionidlink = minion["url"]
-        return(minionidlink)
-
-    def update_minion(self,minION):
-        """
-        Receives a MinION object from minknowconnection and passes it to the api to
-        update any values within it.
-        :param minION:
-        :return:
-        """
-
-        url = '/minions/{}/'.format(minion.id)
-
-        req = self.post(url, json=minion)
-
-        if req.status_code != 201:
-
-            log.debug('Minion {} could not be updated.'.format(name))
-            log.debug('Status-code {}'.format(req.status_code))
-            log.debug('Text {}'.format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-        pass
-
     def get_minion_event_types(self):
 
         url = '/minioneventtypes/'
