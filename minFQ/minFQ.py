@@ -5,8 +5,7 @@ import fileinput
 import logging
 import logging.handlers
 import time
-import threading
-import validators
+from pathlib import Path
 from .version import __version__
 
 
@@ -105,7 +104,10 @@ else:
             os.sep, "Applications", "MinKNOW.app", "Contents", "Resources"
         )
     elif OPER == "Linux":
-        minknowbase = os.path.join(os.sep, "opt", "ONT", "MinKNOW")
+        if Path("/opt/ont/minknow").exists():
+            minknowbase = os.path.join(os.sep, "opt", "ont", "minknow")
+        else:
+            minknowbase = os.path.join(os.sep, "opt", "ONT", "MinKNOW")
     elif OPER == "Windows":
         minknowbase = os.path.join(
             os.sep, "Program Files", "OxfordNanopore", "MinKNOW"
