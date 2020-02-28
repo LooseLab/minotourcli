@@ -35,6 +35,8 @@ class DeviceConnect(WebSocketClient):
     #    self.daemon=True
     def __init__(self, connectip,args,rpcconnection,header,minIONid):
         self.args = args
+        ## Set a status to hold what we are currently doing.
+        self.deviceactive = False
         if self.args.verbose:
             log.info("Client established!")
         WebSocketClient.__init__(self, connectip)
@@ -151,6 +153,7 @@ class DeviceConnect(WebSocketClient):
             #print (self.minion,protocoldict)
             self.minotourapi.update_minion_script(self.minion,protocoldict)
         if str(self.status).startswith("status: PROCESSING"):
+            self.deviceactive=True
             self.run_start()
 
     def parse_protocol(self,protocol):
@@ -468,7 +471,9 @@ class DeviceConnect(WebSocketClient):
                     self.status = status
                     if str(self.status).startswith("status: STARTING"):
                         self.run_start()
-                    if str(self.status).startswith("status: FINISHING"):
+                    ###So - a run which is still basecalling will report as finishing - so we may need to spot this...
+                    if self.deviceactive and str(self.status).startswith("status: READY"):
+                        self.deviceactive = False
                         self.run_stop()
                     log.debug(status)
 
