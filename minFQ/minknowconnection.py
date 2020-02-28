@@ -1,7 +1,7 @@
 import datetime
 import json
 import logging
-import sys
+import sys,os
 import threading
 import time
 
@@ -205,6 +205,15 @@ class DeviceConnect(WebSocketClient):
             log.debug("trying to create run")
             self.create_run(self.runinformation.run_id)
             log.debug("run created!!!!!!!")
+            #### Grab the folder and if we are allowed, add it to the watchlist?
+            FolderPath = parsemessage(self.rpc_connection.protocol.get_current_protocol_run())["output_path"]
+            print ("New Run Seen {}".format(FolderPath))
+            if not self.args.noFastQ:
+                if FolderPath not in self.args.WATCHLIST:
+                    print (FolderPath)
+                    self.args.WATCHLIST.append(str(os.path.normpath(FolderPath)))
+                    #self.args.WATCHLIST.append(str(os.path.normpath("/Library/MinKNOW/data/./TestingRunDetection/Testing/20200227_1334_MS00000_FAG12345_73228e51")))
+
             self.update_minion_run_info()
             log.debug("update minion run info complete")
 

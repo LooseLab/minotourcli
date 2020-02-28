@@ -634,6 +634,7 @@ class FastqHandler(FileSystemEventHandler):
         self.file_descriptor = dict()
         self.args = args
         self.header = header
+        '''
         self.args.files_seen = 0
         self.args.files_processed = 0
         self.args.files_skipped = 0
@@ -641,6 +642,7 @@ class FastqHandler(FileSystemEventHandler):
         self.args.reads_corrupt = 0
         self.args.reads_skipped = 0
         self.args.reads_uploaded = 0
+        '''
         # adding files to the file_descriptor is really slow - therefore lets skip that and only update the files when we want to basecall thread_number
         self.MinotourConnection = MinotourAPI(
             self.args.host_name, self.args.port_number, self.header
@@ -651,12 +653,7 @@ class FastqHandler(FileSystemEventHandler):
         self.unblocked_line_start = 1
         self.toml_dict = {}
 
-        self.creates = file_dict_of_folder_simple(
-            self.args.watchdir,
-            self.args,
-            self.MinotourConnection,
-            self.fastqdict,
-        )
+        self.creates=dict()
         self.processing = dict()
         self.running = True
 
@@ -668,6 +665,14 @@ class FastqHandler(FileSystemEventHandler):
         except KeyboardInterrupt:
             self.t.stop()
             raise
+
+    def addfolder(self,folder):
+        self.creates.update(file_dict_of_folder_simple(
+            folder,
+            self.args,
+            self.MinotourConnection,
+            self.fastqdict,
+        ))
 
     def addrunmonitor(self, runpath):
         """
@@ -708,6 +713,8 @@ class FastqHandler(FileSystemEventHandler):
         """
 
         # Read in the toml file#
+
+        ## This is going to need refactoring...
         if self.args.toml is not None:
 
             try:

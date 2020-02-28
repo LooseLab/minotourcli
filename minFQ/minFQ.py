@@ -425,6 +425,21 @@ def main():
         "Content-Type": "application/json",
     }
 
+    ### List to hold folders we want to watch
+
+    args.WATCHLIST=[]
+    WATCHDICT = dict()
+
+    ### Horrible tracking of run stats.
+    args.files_seen = 0
+    args.files_processed = 0
+    args.files_skipped = 0
+    args.reads_seen = 0
+    args.reads_corrupt = 0
+    args.reads_skipped = 0
+    args.reads_uploaded = 0
+    args.fastqmessage = "No Fastq Seen"
+
     ### Check if we are connecting to https or http
 
     ## Moving this to the minotourapi class.
@@ -540,11 +555,11 @@ def main():
                 "When monitoring read data MinoTour requires a default name to assign the data to if it cannot determine flowcell and sample name. Please set this using the -n option."
             )
             os._exit(0)
-        if args.watchdir is None:
-            parser.error(
-                "When monitoring read data MinoTour needs to know where to look! Please specify a watch directory with the -w flag."
-            )
-            os._exit(0)
+        #if args.watchdir is None:
+        #    parser.error(
+        #        "When monitoring read data MinoTour needs to know where to look! Please specify a watch directory with the -w flag."
+        #    )
+        #    os._exit(0)
 
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:
@@ -586,14 +601,12 @@ def main():
 
         if not args.noFastQ:
             log.info("Setting up FastQ monitoring.")
-            event_handler = FastqHandler(args, header, rundict)
+
             # This block handles the fastq
-            observer = Observer()
-            observer.schedule(
-                event_handler, path=args.watchdir, recursive=True
-            )
-            observer.daemon = True
-            log.info("FastQ Monitoring Running.")
+            # Add our watchdir to our WATCHLIST
+            args.WATCHLIST.append(args.watchdir)
+
+
 
         if not args.noMinKNOW:
 
@@ -614,15 +627,59 @@ def main():
 
         sys.stdout.write("To stop minFQ use CTRL-C.\n")
 
+        event_handler = FastqHandler(args, header, rundict)
+
+        observer = Observer()
+
         try:
 
-            if not args.noFastQ:
 
-                observer.start()
+                #observer.start()
 
             while 1:
+                #### This code is constantly running - so this might be where we can change the minFQ watchfolders?
                 linecounter = 0
                 if not args.noFastQ:
+                    update = False
+                    if len(args.WATCHLIST) > 0:
+                        for folder in args.WATCHLIST:
+                            if folder:
+                                if folder not in WATCHDICT.keys():
+                                    # We have a new folder that hasn't been added.
+                                    # We need to add this to our list to schedule and catalogue the files.
+                                    update = True
+                                    WATCHDICT[folder] = dict()
+                                    #WATCHDICT[folder]['observer'] = Observer()
+                                    # observer = Observer()
+                                    event_handler.addfolder(folder)
+
+                                    #WATCHDICT[folder]['observer'].daemon = True
+                                    WATCHDICT[folder]['running'] = False
+                                    log.info("FastQ Monitoring added for {}".format(folder))
+
+                        if update:
+                            for folder in args.WATCHLIST:
+                                if folder:
+                                    print (folder)
+                                    print (WATCHDICT[folder]['running'])
+                                    if WATCHDICT[folder]['running']:
+                                        WATCHDICT[folder]['observer'].unschedule_all()
+                                        WATCHDICT[folder]['running'] = False
+                            for folder in args.WATCHLIST:
+                                if folder:
+                                    if not WATCHDICT[folder]['running']:
+                                        observer.schedule(
+                                            event_handler, path=folder, recursive=True
+                                        )
+                                        observer.daemon = True
+                                        #WATCHDICT[folder]['observer']=observer
+                                        WATCHDICT[folder]['running'] = True
+
+                            observer.start()
+                            update=False
+
+
+
                     sys.stdout.write("{}\n".format(args.fastqmessage))
                     sys.stdout.write("FastQ Upload Status:\n")
                     sys.stdout.write(
@@ -658,6 +715,7 @@ def main():
                     linecounter += 2
 
                 sys.stdout.flush()
+                print (args.WATCHLIST)
 
                 time.sleep(5)
                 if not args.verbose:
@@ -671,8 +729,11 @@ def main():
                 MinKNOWConnectionRPC.disconnect_nicely()
 
             if not args.noFastQ:
-                observer.stop()
-                observer.join()
+                for folder in WATCHDICT:
+                    WATCHDICT[folder]['observer'].stop()
+                    WATCHDICT[folder]['observer'].join()
+
+
 
             os._exit(0)
 
