@@ -67,7 +67,9 @@ class Runcollection():
         self.fastqfileid = None
         self.minotourapi = MinotourAPI(self.args.host_name, self.args.port_number, self.header)
         self.get_readtype_list()
-        self.unblocked_reads=""
+        self.unblocked_dict=dict()
+        self.unblocked_file = None
+        self.unblocked_line_start = 0
         self.runfolder = None
         self.toml = None
 

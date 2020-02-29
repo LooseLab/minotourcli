@@ -231,7 +231,7 @@ def _prepare_toml(toml_dict):
 
 
 def parse_fastq_record(
-    desc, name, seq, qual, fastq, rundict, args, header, fastqfile, unblocked_dict
+    desc, name, seq, qual, fastq, rundict, args, header, fastqfile, counter
 ):
     """
     Parse a single fastq entry for a read
@@ -251,8 +251,8 @@ def parse_fastq_record(
     :param header: The security header for minoTour
     :type header: dict
     :param fastqfile: The information on the fastq file that we have placed into minoTour
-    :param unblocked_dict: The dictionary containing the read_ids of the unblocked reads
-    :type unblocked_dict: dict
+    :param counter: Tells us which read in the file this is
+    :type counter: int
     :return:
     """
     log.debug("Parsing reads from file {}".format(fastq))
@@ -314,6 +314,15 @@ def parse_fastq_record(
                 ## We have found the folder that this fastq file comes from.
                 rundict[fastq_read["runid"]].add_run_folder(folder)
 
+        ### Check for unblocked read files
+
+        if args.unblocks is not None:
+            rundict[fastq_read["runid"]].unblocked_file = args.unblocks
+
+    if rundict[fastq_read["runid"]].unblocked_file is None:
+        if os.path.exists(os.path.join(rundict[fastq_read["runid"]].runfolder,"unblocked_read_ids.txt")):
+            rundict[fastq_read["runid"]].unblocked_file = os.path.join(rundict[fastq_read["runid"]].runfolder,"unblocked_read_ids.txt")
+
     if rundict[fastq_read["runid"]].toml is None:
         ## Look and see if a toml file exists in the run folder.
         if os.path.exists(os.path.join(rundict[fastq_read["runid"]].runfolder,"channels.toml")):
@@ -327,6 +336,22 @@ def parse_fastq_record(
 
             rundict[fastq_read["runid"]].add_toml_file(toml_dict)
 
+
+
+    if counter <=1:
+        ## This is the first read we have seen from this file - so we are going to check for updates in the unblocked read file.
+        if rundict[fastq_read["runid"]].unblocked_file is not None:
+            print ("reading in the unblocks")
+            with OpenLine(rundict[fastq_read["runid"]].unblocked_file, rundict[fastq_read["runid"]].unblocked_line_start) as fh:
+                _d = {line: 1 for line in fh}
+
+                lines_returned = len(_d)
+
+                rundict[fastq_read["runid"]].unblocked_dict.update(_d)
+
+            rundict[fastq_read["runid"]].unblocked_line_start += lines_returned
+
+            print (len(rundict[fastq_read["runid"]].unblocked_dict))
 
 
     if fastq_read["read_id"] not in rundict[fastq_read["runid"]].readnames:
@@ -359,7 +384,7 @@ def parse_fastq_record(
         if rundict[fastq_read["runid"]].toml is not None:
             fastq_read["barcode_name"] = rundict[fastq_read["runid"]].toml[int(fastq_read["channel"])]
 
-        if unblocked_dict and fastq_read["read_id"] in unblocked_dict:
+        if rundict[fastq_read["runid"]].unblocked_dict and fastq_read["read_id"] in rundict[fastq_read["runid"]].unblocked_dict:
             fastq_read["rejected_barcode_name"] = "Unblocked"
         else:
             fastq_read["rejected_barcode_name"] = "Sequenced"
@@ -427,7 +452,7 @@ def get_runid(fastq):
 
 
 def parse_fastq_file(
-    fastq, rundict, fastqdict, args, header, MinotourConnection, unblocked_dict, unblocked_line_start
+    fastq, rundict, fastqdict, args, header, MinotourConnection
 ):
     """
     Parse a fastq file
@@ -462,6 +487,7 @@ def parse_fastq_file(
     #### We want to look see if we have a toml on the disk or in the args. If it is in the arguments it wil be applied to any file that doesn't have a toml associated with it.
 
     # if we don't have a unblocked ids file, we can still give the condition
+    """
     if args.unblocks is not None:
         print ("reading in the unblocks")
         with OpenLine(args.unblocks, unblocked_line_start) as fh:
@@ -474,7 +500,7 @@ def parse_fastq_file(
         unblocked_line_start += lines_returned
 
         print (len(unblocked_dict))
-
+    """
     if fastq.endswith(".gz"):
 
         with gzip.open(fastq, "rt") as fp:
@@ -496,7 +522,7 @@ def parse_fastq_file(
                         args,
                         header,
                         fastqfile,
-                        unblocked_dict
+                        counter
                     )
 
             except Exception as e:
@@ -530,7 +556,7 @@ def parse_fastq_file(
                         args,
                         header,
                         fastqfile,
-                        unblocked_dict
+                        counter
                     )
                 print ("Taken {} to process one file.\n\n\n\n\n\n\n".format((time.time()-now)))
 
@@ -559,7 +585,7 @@ def parse_fastq_file(
     except Exception as err:
         log.error("Problem with uploading file {}".format(err))
 
-    return counter, unblocked_line_start
+    return counter
 
 
 def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
@@ -703,8 +729,8 @@ class FastqHandler(FileSystemEventHandler):
         )
         self.rundict = rundict
         self.fastqdict = dict()
-        self.unblocked_read_ids_dict = {}
-        self.unblocked_line_start = 1
+        #self.unblocked_read_ids_dict = {}
+        #self.unblocked_line_start = 1
         self.toml_dict = {}
 
         self.creates=dict()
@@ -770,18 +796,18 @@ class FastqHandler(FileSystemEventHandler):
 
                     del self.creates[fastqfile]
 
-                    c, new_unblocked_line_start = parse_fastq_file(
+                    c = parse_fastq_file(
                         fastqfile,
                         self.rundict,
                         self.fastqdict,
                         self.args,
                         self.header,
                         self.MinotourConnection,
-                        self.unblocked_read_ids_dict,
-                        self.unblocked_line_start
+                        #self.unblocked_read_ids_dict,
+                        #self.unblocked_line_start
                     )
 
-                    self.unblocked_line_start += new_unblocked_line_start
+                    #self.unblocked_line_start += new_unblocked_line_start
 
                     self.args.files_processed += 1
 
