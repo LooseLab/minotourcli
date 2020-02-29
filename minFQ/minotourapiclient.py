@@ -67,7 +67,18 @@ class Runcollection():
         self.fastqfileid = None
         self.minotourapi = MinotourAPI(self.args.host_name, self.args.port_number, self.header)
         self.get_readtype_list()
+        self.unblocked_reads=""
+        self.runfolder = None
+        self.toml = None
 
+    def add_toml_file(self,toml_file):
+        self.toml = toml_file
+
+    def add_run_folder(self,folder):
+        self.runfolder = folder
+
+    def add_unblocked_reads_file(self):
+        pass
 
     def check_url(self):
         if self.base_url.startswith("http://"):
