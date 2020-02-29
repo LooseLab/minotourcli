@@ -439,6 +439,7 @@ def main():
     args.reads_skipped = 0
     args.reads_uploaded = 0
     args.fastqmessage = "No Fastq Seen"
+    args.update = False
 
     ### Check if we are connecting to https or http
 
@@ -630,6 +631,7 @@ def main():
         event_handler = FastqHandler(args, header, rundict)
 
         observer = Observer()
+        observer.start()
 
         try:
 
@@ -640,43 +642,25 @@ def main():
                 #### This code is constantly running - so this might be where we can change the minFQ watchfolders?
                 linecounter = 0
                 if not args.noFastQ:
-                    update = False
+
                     if len(args.WATCHLIST) > 0:
                         for folder in args.WATCHLIST:
                             if folder:
                                 if folder not in WATCHDICT.keys():
                                     # We have a new folder that hasn't been added.
                                     # We need to add this to our list to schedule and catalogue the files.
-                                    update = True
+                                    args.update = True
                                     WATCHDICT[folder] = dict()
-                                    #WATCHDICT[folder]['observer'] = Observer()
-                                    # observer = Observer()
                                     event_handler.addfolder(folder)
-
-                                    #WATCHDICT[folder]['observer'].daemon = True
-                                    WATCHDICT[folder]['running'] = False
                                     log.info("FastQ Monitoring added for {}".format(folder))
-
-                        if update:
+                        if args.update:
+                            observer.unschedule_all()
                             for folder in args.WATCHLIST:
                                 if folder:
-                                    print (folder)
-                                    print (WATCHDICT[folder]['running'])
-                                    if WATCHDICT[folder]['running']:
-                                        WATCHDICT[folder]['observer'].unschedule_all()
-                                        WATCHDICT[folder]['running'] = False
-                            for folder in args.WATCHLIST:
-                                if folder:
-                                    if not WATCHDICT[folder]['running']:
-                                        observer.schedule(
-                                            event_handler, path=folder, recursive=True
-                                        )
-                                        observer.daemon = True
-                                        #WATCHDICT[folder]['observer']=observer
-                                        WATCHDICT[folder]['running'] = True
-
-                            observer.start()
-                            update=False
+                                    observer.schedule(
+                                        event_handler, path=folder, recursive=True
+                                    )
+                            args.update=False
 
 
 
@@ -729,9 +713,8 @@ def main():
                 MinKNOWConnectionRPC.disconnect_nicely()
 
             if not args.noFastQ:
-                for folder in WATCHDICT:
-                    WATCHDICT[folder]['observer'].stop()
-                    WATCHDICT[folder]['observer'].join()
+                observer.stop()
+                observer.join()
 
 
 

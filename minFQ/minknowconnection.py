@@ -331,6 +331,12 @@ class DeviceConnect(WebSocketClient):
         :return:
         """
         self.minotourapi.update_minion_event(self.minion, self.computer_name, "active")
+        FolderPath = str(os.path.normpath(parsemessage(self.rpc_connection.protocol.get_current_protocol_run())["output_path"]))
+        if not self.args.noFastQ:
+            if FolderPath in self.args.WATCHLIST:
+                self.args.WATCHLIST.remove(FolderPath)
+                time.sleep(self.longinterval)
+                self.args.update=True
         log.debug("run stop observed")
 
 
@@ -432,8 +438,8 @@ class DeviceConnect(WebSocketClient):
                     #print ("Histogram Problem: {}".format(e))
                     log.error(f"histogram problem: {e}")
                     break
-                time.sleep(self.interval)
-                pass
+            time.sleep(self.interval)
+            pass
 
     def newchannelstatemonitor(self):
         while True:
@@ -470,6 +476,11 @@ class DeviceConnect(WebSocketClient):
                 for status in status_watcher.wait():
                     self.status = status
                     if str(self.status).startswith("status: STARTING"):
+                        self.deviceactive = True
+                        self.run_start()
+
+                    if not self.deviceactive and str(self.status).startswith("status: FINISHING"):
+                        self.deviceactive = True
                         self.run_start()
                     ###So - a run which is still basecalling will report as finishing - so we may need to spot this...
                     if self.deviceactive and str(self.status).startswith("status: READY"):
