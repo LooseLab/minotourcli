@@ -685,7 +685,7 @@ def main():
                         )
                     )
 
-                    linecounter += 4
+                    linecounter += 5
 
                 if not args.noMinKNOW:
 

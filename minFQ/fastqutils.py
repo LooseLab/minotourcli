@@ -310,9 +310,10 @@ def parse_fastq_record(
         ### Check the overlap between the current file path and the folders being watched:
 
         for folder in args.WATCHLIST:
-            if fastq.startswith(folder):
-                ## We have found the folder that this fastq file comes from.
-                rundict[fastq_read["runid"]].add_run_folder(folder)
+            if folder is not None:
+                if fastq.startswith(folder):
+                    ## We have found the folder that this fastq file comes from.
+                    rundict[fastq_read["runid"]].add_run_folder(folder)
 
         ### Check for unblocked read files
 
@@ -526,7 +527,6 @@ def parse_fastq_file(
                     )
 
             except Exception as e:
-
                 args.reads_corrupt += 1
                 log.error(e)
                 log.error("Corrupt file observed in {}.".format(fastq))
