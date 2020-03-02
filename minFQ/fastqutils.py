@@ -610,6 +610,7 @@ def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
 
             args.fastqmessage = "caching existing fastq files in: %s" % (path)
 
+            ## ToDo Consider moving these to top level
             novelrunset = set()
 
             seenfiletracker = dict()
@@ -714,15 +715,6 @@ class FastqHandler(FileSystemEventHandler):
         self.file_descriptor = dict()
         self.args = args
         self.header = header
-        '''
-        self.args.files_seen = 0
-        self.args.files_processed = 0
-        self.args.files_skipped = 0
-        self.args.reads_seen = 0
-        self.args.reads_corrupt = 0
-        self.args.reads_skipped = 0
-        self.args.reads_uploaded = 0
-        '''
         # adding files to the file_descriptor is really slow - therefore lets skip that and only update the files when we want to basecall thread_number
         self.MinotourConnection = MinotourAPI(
             self.args.host_name, self.args.port_number, self.header
