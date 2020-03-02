@@ -437,7 +437,7 @@ class DeviceConnect(WebSocketClient):
                             break
                 except Exception as e:
                     #print ("Histogram Problem: {}".format(e))
-                    log.error(f"histogram problem: {e}")
+                    log.error("histogram problem: {}".format(e))
                     break
             time.sleep(self.interval)
             pass
