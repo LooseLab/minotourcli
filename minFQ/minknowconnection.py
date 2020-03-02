@@ -440,7 +440,6 @@ class DeviceConnect(WebSocketClient):
                 else:
                     rltype=1
                 histogram_stream = self.rpc_connection.statistics.stream_read_length_histogram(poll_time=60,wait_for_processing=True,read_length_type=rltype,bucket_value_type=1)
-
                 try:
                     for histogram_event in histogram_stream:
                         #print (parsemessage(histogram_event))
@@ -451,8 +450,8 @@ class DeviceConnect(WebSocketClient):
                     #print ("Histogram Problem: {}".format(e))
                     log.error(f"histogram problem: {e}")
                     break
-                time.sleep(self.interval)
-                pass
+            time.sleep(self.interval)
+            pass
 
     def newchannelstatemonitor(self):
         while True:
