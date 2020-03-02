@@ -685,7 +685,7 @@ class MinotourAPI:
                 log.error('Status-code {}'.format(req.status_code))
                 log.error('Text {}'.format(req.text))
 
-            log.error(f'minion ID {minion["id"]} status could not be checked in Minotour. {extra_msg}')
+            log.error('minion ID {} status could not be checked in Minotour. {}'.format(minion["id"],extra_msg))
             return None
 
         else:
