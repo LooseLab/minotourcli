@@ -210,10 +210,10 @@ class DeviceConnect(WebSocketClient):
             log.debug("run created!!!!!!!")
             #### Grab the folder and if we are allowed, add it to the watchlist?
             FolderPath = parsemessage(self.rpc_connection.protocol.get_current_protocol_run())["output_path"]
-            print ("New Run Seen {}".format(FolderPath))
+            #print ("New Run Seen {}".format(FolderPath))
             if not self.args.noFastQ:
                 if FolderPath not in self.args.WATCHLIST:
-                    print (FolderPath)
+                    #print (FolderPath)
                     self.args.WATCHLIST.append(str(os.path.normpath(FolderPath)))
                     #self.args.WATCHLIST.append(str(os.path.normpath("/Library/MinKNOW/data/./TestingRunDetection/Testing/20200227_1334_MS00000_FAG12345_73228e51")))
 
@@ -330,12 +330,13 @@ class DeviceConnect(WebSocketClient):
         This function will clean up when a run finishes.
         :return:
         """
+        ## ToDo We need to remove the run from the rundict when we stop a run to prevent massive memory problems.
         self.minotourapi.update_minion_event(self.minion, self.computer_name, "active")
         FolderPath = str(os.path.normpath(parsemessage(self.rpc_connection.protocol.get_current_protocol_run())["output_path"]))
         if not self.args.noFastQ:
             if FolderPath in self.args.WATCHLIST:
-                self.args.WATCHLIST.remove(FolderPath)
                 time.sleep(self.longinterval)
+                self.args.WATCHLIST.remove(FolderPath)
                 self.args.update=True
         log.debug("run stop observed")
 
