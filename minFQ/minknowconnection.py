@@ -1,7 +1,7 @@
 import datetime
 import json
 import logging
-import sys
+import sys,os
 import threading
 import time
 
@@ -35,6 +35,8 @@ class DeviceConnect(WebSocketClient):
     #    self.daemon=True
     def __init__(self, connectip,args,rpcconnection,header,minIONid):
         self.args = args
+        ## Set a status to hold what we are currently doing.
+        self.deviceactive = False
         if self.args.verbose:
             log.info("Client established!")
         WebSocketClient.__init__(self, connectip)
@@ -156,6 +158,7 @@ class DeviceConnect(WebSocketClient):
         #     #print (self.minion,protocoldict)
         #     self.minotourapi.update_minion_script(self.minion,protocoldict)
         if str(self.status).startswith("status: PROCESSING"):
+            self.deviceactive=True
             self.run_start()
 
     def parse_protocol(self,protocol):
@@ -210,6 +213,15 @@ class DeviceConnect(WebSocketClient):
             log.debug("trying to create run")
             self.create_run(self.runinformation.run_id)
             log.debug("run created!!!!!!!")
+            #### Grab the folder and if we are allowed, add it to the watchlist?
+            FolderPath = parsemessage(self.rpc_connection.protocol.get_current_protocol_run())["output_path"]
+            #print ("New Run Seen {}".format(FolderPath))
+            if not self.args.noFastQ:
+                if FolderPath not in self.args.WATCHLIST:
+                    #print (FolderPath)
+                    self.args.WATCHLIST.append(str(os.path.normpath(FolderPath)))
+                    #self.args.WATCHLIST.append(str(os.path.normpath("/Library/MinKNOW/data/./TestingRunDetection/Testing/20200227_1334_MS00000_FAG12345_73228e51")))
+
             self.update_minion_run_info()
             log.debug("update minion run info complete")
 
@@ -344,7 +356,14 @@ class DeviceConnect(WebSocketClient):
         This function will clean up when a run finishes.
         :return:
         """
+        ## ToDo We need to remove the run from the rundict when we stop a run to prevent massive memory problems.
         self.minotourapi.update_minion_event(self.minion, self.computer_name, "active")
+        FolderPath = str(os.path.normpath(parsemessage(self.rpc_connection.protocol.get_current_protocol_run())["output_path"]))
+        if not self.args.noFastQ:
+            if FolderPath in self.args.WATCHLIST:
+                time.sleep(self.longinterval)
+                self.args.WATCHLIST.remove(FolderPath)
+                self.args.update=True
         log.debug("run stop observed")
 
 
@@ -494,8 +513,15 @@ class DeviceConnect(WebSocketClient):
                 for status in status_watcher.wait():
                     self.status = status
                     if str(self.status).startswith("status: STARTING"):
+                        self.deviceactive = True
                         self.run_start()
-                    if str(self.status).startswith("status: FINISHING"):
+
+                    if not self.deviceactive and str(self.status).startswith("status: FINISHING"):
+                        self.deviceactive = True
+                        self.run_start()
+                    ###So - a run which is still basecalling will report as finishing - so we may need to spot this...
+                    if self.deviceactive and str(self.status).startswith("status: READY"):
+                        self.deviceactive = False
                         self.run_stop()
                     log.debug(status)
 
