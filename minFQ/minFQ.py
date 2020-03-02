@@ -15,7 +15,7 @@ import platform
 def _minknow_path(operating_system=platform.system()):
     return {
         "Darwin": os.path.join(os.sep, "Applications", "MinKNOW.app", "Contents", "Resources"),
-        "Linux": os.path.join(os.sep, "opt", "ONT", "MinKNOW"),
+        "Linux": os.path.join(os.sep, "opt", "ont", "MinKNOW"),
         "Windows": os.path.join(os.sep, "C:\\\Program Files", "OxfordNanopore", "MinKNOW"),
     }.get(operating_system, None)
 """
@@ -107,7 +107,7 @@ else:
         if Path("/opt/ont/minknow").exists():
             minknowbase = os.path.join(os.sep, "opt", "ont", "minknow")
         else:
-            minknowbase = os.path.join(os.sep, "opt", "ONT", "MinKNOW")
+            minknowbase = os.path.join(os.sep, "opt", "ont", "MinKNOW")
     elif OPER == "Windows":
         minknowbase = os.path.join(
             os.sep, "Program Files", "OxfordNanopore", "MinKNOW"
