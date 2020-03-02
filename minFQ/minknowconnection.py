@@ -100,8 +100,6 @@ class DeviceConnect(WebSocketClient):
         runinforthread.daemon = True  # Daemonize thread
         runinforthread.start()
 
-
-
         messagesmonitor = threading.Thread(target=self.getmessages, args=())
         messagesmonitor.daemon = True  # Daemonize thread
         messagesmonitor.start()
@@ -123,11 +121,16 @@ class DeviceConnect(WebSocketClient):
         jobsmonitorthread.daemon = True
         jobsmonitorthread.start()
 
-
         log.debug("All is well with connection.")
         self.first_connect()
 
     def disconnect_nicely(self):
+        """
+        User has ^C to quit minFQ. This function fires to let minoTour know.
+        Returns
+        -------
+
+        """
         log.debug("Trying to disconnect nicely")
         self.minotourapi.update_minion_event(self.minion, self.computer_name, "unplugged")
         try:
@@ -144,12 +147,14 @@ class DeviceConnect(WebSocketClient):
         """
         log.debug("First connection observed")
         log.debug("All is well with connection. {}".format(self.minion))
+
         self.minotourapi.update_minion_event(self.minion,self.computer_name,"active")
-        self.minotourapi.fetch_minion_scripts(self.minion)
-        for protocol in self.rpc_connection.protocol.list_protocols().ListFields()[0][1]:
-            protocoldict = self.parse_protocol(protocol)
-            #print (self.minion,protocoldict)
-            self.minotourapi.update_minion_script(self.minion,protocoldict)
+        # TODO removed for now as we are not allowing user to start runs. May be added back in later.
+        # self.minotourapi.fetch_minion_scripts(self.minion)
+        # for protocol in self.rpc_connection.protocol.list_protocols().ListFields()[0][1]:
+        #     protocoldict = self.parse_protocol(protocol)
+        #     #print (self.minion,protocoldict)
+        #     self.minotourapi.update_minion_script(self.minion,protocoldict)
         if str(self.status).startswith("status: PROCESSING"):
             self.run_start()
 
@@ -212,6 +217,12 @@ class DeviceConnect(WebSocketClient):
             log.error("Problem:", err)
 
     def update_minion_run_info(self):
+        """
+        Update the minion_run_info table in Minotour, sent once at the start of the run.
+        Returns
+        -------
+
+        """
         payload = {
             "minion": str(self.minion["url"]),
             "minKNOW_current_script": str(self.rpc_connection.protocol.get_run_info().protocol_id),
@@ -229,6 +240,9 @@ class DeviceConnect(WebSocketClient):
             #"minKNOW_colours_string": str(self.rpc_connection.analysis_configuration.get_channel_states_desc()),
             "minKNOW_colours_string": str(MessageToJson(self.rpc_connection.analysis_configuration.get_channel_states_desc(), preserving_proto_field_name=True, including_default_value_fields=True)),
             "minKNOW_computer": str(self.computer_name),
+            "target_temp": self.temperaturedata.target_temperature,
+            "flowcell_type": self.flowcelldata["user_specified_product_code"]
+
             # "read_length_type": self.histogramdata["histogram_data"]["read_length_type"],
 
         }
@@ -249,6 +263,18 @@ class DeviceConnect(WebSocketClient):
         log.debug(updateruninfo)
 
     def create_run(self, runid):
+        """
+        Fired to create a run in Minotour, and return a hyperlinked URL to the database entry, and the run primary key.
+        Parameters
+        ----------
+        runid: str
+            The string of the run ID hash as provided by minknow
+
+        Returns
+        -------
+        None
+
+        """
         log.debug(">>> inside create_run")
 
         log.debug(self.minotourapi)
@@ -378,8 +404,13 @@ class DeviceConnect(WebSocketClient):
             log.debug("the flowcell id is fixed")
             return str(self.flowcelldata['flow_cell_id'])
 
-
     def flowcellmonitor(self):
+        """
+
+        Returns
+        -------
+
+        """
         while True:
             flowcellinfo = self.rpc_connection.device.stream_flow_cell_info()
             for event in flowcellinfo:
@@ -451,6 +482,12 @@ class DeviceConnect(WebSocketClient):
             time.sleep(1)
 
     def runmonitor(self):
+        """
+        Monitor whether or not a run has just started or stopped. Alerts Minotour in the event of run start/stop.
+        Returns
+        -------
+        None
+        """
         while True:
             status_watcher = rpc.wrappers.StatusWatcher(self.rpc_connection)
             msgs = rpc.acquisition_service
@@ -475,14 +512,14 @@ class DeviceConnect(WebSocketClient):
         """
         acquisition_data = dict()
 
-        if len(self.acquisition_data)<1:
-            acquisition_data['state']="No Run"
+        if len(self.acquisition_data) < 1:
+            acquisition_data['state'] = "No Run"
             currentscript = "Nothing Running"
         else:
             acquisition_data = self.acquisition_data
             currentscript = str(self.rpc_connection.protocol.get_run_info().protocol_id)
 
-        if len(self.disk_space_info)<1:
+        if len(self.disk_space_info) < 1:
             self.disk_space_info = json.loads(
                 MessageToJson(self.rpc_connection.instance.get_disk_space_info(), preserving_proto_field_name=True,
                               including_default_value_fields=True))
@@ -500,6 +537,7 @@ class DeviceConnect(WebSocketClient):
                    "minKNOW_disk_space_till_shutdown": self.disk_space_info["filesystem_disk_space_info"][0]["bytes_when_alert_issued"],
                    "minKNOW_disk_available": self.disk_space_info["filesystem_disk_space_info"][0]["bytes_available"],
                    "minKNOW_warnings": self.disk_space_info["filesystem_disk_space_info"][0]["recommend_stop"],
+                   "minknow_version": self.minknow_version
                    }
         try:
             payload["minKNOW_script_run_id"] = self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0]
@@ -526,9 +564,9 @@ class DeviceConnect(WebSocketClient):
 
     def update_minion_stats(self):
         """
-        Update the minion stats that we have recorded from minKnow.
+        Update the statistics about a run that we have recorded from minKnow.
         Sent to Minotour and stored in minIon run stats table.
-        Logic, contains information about the run, not just minKNOW/minION.
+        Contains information about the run, not just minKNOW/minION.
         Returns
         -------
         None
@@ -581,7 +619,12 @@ class DeviceConnect(WebSocketClient):
                    "minKNOW_histogram_values": str(self.histogramdata["histogram_data"]["buckets"]),
                    "minKNOW_histogram_bin_width": self.histogramdata["histogram_data"]["width"],
                    "actual_max_val": self.histogramdata["histogram_data"]["actual_max_val"],
-                   "minKNOW_read_count": read_count
+                   "minKNOW_read_count": read_count,
+                   "n50_data": self.histogramdata["n50_data"]["value"],
+                   "estimated_selected_bases": self.acquisition_data["yield_summary"]["estimated_selected_bases"],
+                   "basecalled_bases": self.acquisition_data["yield_summary"]["basecalled_bases"],
+                   "basecalled_fail_read_count": self.acquisition_data["yield_summary"]["basecalled_fail_read_count"],
+                   "basecalled_pass_read_count": self.acquisition_data["yield_summary"]["basecalled_pass_read_count"]
                    }
         for channel in channeldict:
             payload[str(channel)] = channeldict[channel]

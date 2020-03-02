@@ -661,23 +661,36 @@ class MinotourAPI:
         pass
 
     def get_minion_status(self,minion):
+        """
+        Get the status of a current Minion, as stored in MinoTour
+        Parameters
+        ----------
+        minion: dict
+            A dictionary of values that minoTour holds about the given minions
+
+        Returns
+        -------
+
+        """
 
         url = '/minions/{}/status/'.format(minion['id'])
 
         req = self.get(url)
 
         if req.status_code != 200:
+            extra_msg = ""
+            if req.status_code == 404:
+                extra_msg = "Could not be found. Attempting to create new Minion Status."
+            else:
+                log.error('Status-code {}'.format(req.status_code))
+                log.error('Text {}'.format(req.text))
 
-            log.error('minion ID {} could not be checked.'.format(minion['id']))
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
+            log.error(f'minion ID {minion["id"]} status could not be checked in Minotour. {extra_msg}')
             return None
 
         else:
 
             return jsonlibrary.loads(req.text)
-
-        pass
 
     def create_minion_info_mt(self, payload, minion):
         """
@@ -700,6 +713,8 @@ class MinotourAPI:
         req = self.post(url, json=payload)
 
         if req.status_code != 201:
+            if req.status_code == 400:
+                return None
 
             log.error('minion status {} could not be created.'.format(minion['id']))
             log.error('Status-code {}'.format(req.status_code))
@@ -710,17 +725,15 @@ class MinotourAPI:
 
             return jsonlibrary.loads(req.text)
 
-        pass
-
     def update_minion_info_mt(self, payload, minion):
         """
-        Post minion status information to MinoTour.
+        Put minion status information to MinoTour.
         Parameters
         ----------
         payload: dict
             The information that we have received from minKNOW.
         minion: dict
-            Information about the miinION that we have stored in MinoTour.
+            Information about the minION that we have stored in MinoTour.
 
         Returns
         -------
@@ -736,11 +749,14 @@ class MinotourAPI:
         req = self.put(url, json=payload)
 
         if req.status_code != 200:
-
-            log.error('minion status {} could not be updated.'.format(minion['id']))
-            log.error('Status-code {}'.format(req.status_code))
-            log.error('Text {}'.format(req.text))
-            return None
+            # Trying to duplicate an already created status
+            if req.status_code == 400:
+                return None
+            else:
+                log.error('minion status {} could not be updated.'.format(minion['id']))
+                log.error('Status-code {}'.format(req.status_code))
+                log.error('Text {}'.format(req.text))
+                return None
 
         else:
 
