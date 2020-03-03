@@ -5,8 +5,7 @@ import fileinput
 import logging
 import logging.handlers
 import time
-import threading
-import validators
+from pathlib import Path
 from .version import __version__
 
 
@@ -16,7 +15,7 @@ import platform
 def _minknow_path(operating_system=platform.system()):
     return {
         "Darwin": os.path.join(os.sep, "Applications", "MinKNOW.app", "Contents", "Resources"),
-        "Linux": os.path.join(os.sep, "opt", "ONT", "MinKNOW"),
+        "Linux": os.path.join(os.sep, "opt", "ont", "MinKNOW"),
         "Windows": os.path.join(os.sep, "C:\\\Program Files", "OxfordNanopore", "MinKNOW"),
     }.get(operating_system, None)
 """
@@ -105,7 +104,10 @@ else:
             os.sep, "Applications", "MinKNOW.app", "Contents", "Resources"
         )
     elif OPER == "Linux":
-        minknowbase = os.path.join(os.sep, "opt", "ONT", "MinKNOW")
+        if Path("/opt/ont/minknow").exists():
+            minknowbase = os.path.join(os.sep, "opt", "ont", "minknow")
+        else:
+            minknowbase = os.path.join(os.sep, "opt", "ont", "MinKNOW")
     elif OPER == "Windows":
         minknowbase = os.path.join(
             os.sep, "Program Files", "OxfordNanopore", "MinKNOW"
@@ -423,6 +425,22 @@ def main():
         "Content-Type": "application/json",
     }
 
+    ### List to hold folders we want to watch
+
+    args.WATCHLIST=[]
+    WATCHDICT = dict()
+
+    ### Horrible tracking of run stats.
+    args.files_seen = 0
+    args.files_processed = 0
+    args.files_skipped = 0
+    args.reads_seen = 0
+    args.reads_corrupt = 0
+    args.reads_skipped = 0
+    args.reads_uploaded = 0
+    args.fastqmessage = "No Fastq Seen"
+    args.update = False
+
     ### Check if we are connecting to https or http
 
     ## Moving this to the minotourapi class.
@@ -538,11 +556,11 @@ def main():
                 "When monitoring read data MinoTour requires a default name to assign the data to if it cannot determine flowcell and sample name. Please set this using the -n option."
             )
             os._exit(0)
-        if args.watchdir is None:
-            parser.error(
-                "When monitoring read data MinoTour needs to know where to look! Please specify a watch directory with the -w flag."
-            )
-            os._exit(0)
+        #if args.watchdir is None:
+        #    parser.error(
+        #        "When monitoring read data MinoTour needs to know where to look! Please specify a watch directory with the -w flag."
+        #    )
+        #    os._exit(0)
 
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:
@@ -584,14 +602,12 @@ def main():
 
         if not args.noFastQ:
             log.info("Setting up FastQ monitoring.")
-            event_handler = FastqHandler(args, header, rundict)
+
             # This block handles the fastq
-            observer = Observer()
-            observer.schedule(
-                event_handler, path=args.watchdir, recursive=True
-            )
-            observer.daemon = True
-            log.info("FastQ Monitoring Running.")
+            # Add our watchdir to our WATCHLIST
+            args.WATCHLIST.append(args.watchdir)
+
+
 
         if not args.noMinKNOW:
 
@@ -612,15 +628,42 @@ def main():
 
         sys.stdout.write("To stop minFQ use CTRL-C.\n")
 
+        event_handler = FastqHandler(args, header, rundict)
+
+        observer = Observer()
+        observer.start()
+
         try:
 
-            if not args.noFastQ:
 
-                observer.start()
+                #observer.start()
 
             while 1:
+                #### This code is constantly running - so this might be where we can change the minFQ watchfolders?
                 linecounter = 0
                 if not args.noFastQ:
+
+                    if len(args.WATCHLIST) > 0:
+                        for folder in args.WATCHLIST:
+                            if folder:
+                                if folder not in WATCHDICT.keys():
+                                    # We have a new folder that hasn't been added.
+                                    # We need to add this to our list to schedule and catalogue the files.
+                                    args.update = True
+                                    WATCHDICT[folder] = dict()
+                                    event_handler.addfolder(folder)
+                                    log.info("FastQ Monitoring added for {}".format(folder))
+                        if args.update:
+                            observer.unschedule_all()
+                            for folder in args.WATCHLIST:
+                                if folder:
+                                    observer.schedule(
+                                        event_handler, path=folder, recursive=True
+                                    )
+                            args.update=False
+
+
+
                     sys.stdout.write("{}\n".format(args.fastqmessage))
                     sys.stdout.write("FastQ Upload Status:\n")
                     sys.stdout.write(
@@ -642,7 +685,7 @@ def main():
                         )
                     )
 
-                    linecounter += 4
+                    linecounter += 5
 
                 if not args.noMinKNOW:
 
@@ -656,6 +699,7 @@ def main():
                     linecounter += 2
 
                 sys.stdout.flush()
+                print (args.WATCHLIST)
 
                 time.sleep(5)
                 if not args.verbose:
@@ -671,6 +715,8 @@ def main():
             if not args.noFastQ:
                 observer.stop()
                 observer.join()
+
+
 
             os._exit(0)
 
