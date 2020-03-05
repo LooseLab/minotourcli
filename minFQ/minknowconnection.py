@@ -242,7 +242,7 @@ class DeviceConnect(WebSocketClient):
             "minKNOW_exp_script_purpose": str(self.rpc_connection.protocol.get_protocol_purpose()),
             "minKNOW_flow_cell_id": self.get_flowcell_id(),
             "minKNOW_run_name": str(self.sampleid.sample_id),
-            "run_id": str(self.runidlink),
+            "run": self.runidlink,
             "minKNOW_version": str(self.rpc_connection.instance.get_version_info().minknow.full),
             "minKNOW_hash_run_id": str(self.runinformation.run_id),
             "minKNOW_script_run_id": str(self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[0]),
@@ -614,7 +614,7 @@ class DeviceConnect(WebSocketClient):
             #print (channelpandastates)
             log.debug(channelpandastates)
             for state, value in channelpandastates.iteritems():
-                log.debug(state, value)
+                log.debug(str(state), str(value))
             #    print (state,value)
                 channeldict[state]=value
             #print ("\n\n\n\n\n\n")
