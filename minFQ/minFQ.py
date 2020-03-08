@@ -618,7 +618,7 @@ def main():
                 minwsip = "ws://" + args.ip + ":9500/"
 
                 MinKNOWConnectionRPC = MinknowConnectRPC(minwsip, args, header)
-                log.info("MinKNOW RPC Monitoring Wokring.")
+                log.info("MinKNOW RPC Monitoring Working.")
 
             else:
 

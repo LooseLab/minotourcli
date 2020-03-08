@@ -302,7 +302,7 @@ def parse_fastq_record(
                 toml_dict = _prepare_toml(toml_dict)
 
             except FileNotFoundError as e:
-                print("Error, toml file not found. Please check that it hasn't been moved.")
+                log.error("Error, toml file not found. Please check that it hasn't been moved.")
                 os._exit(2)
 
             rundict[fastq_read["runid"]].add_toml_file(toml_dict)
@@ -332,7 +332,7 @@ def parse_fastq_record(
                 toml_dict = _prepare_toml(toml_dict)
 
             except FileNotFoundError as e:
-                print("Error, toml file not found. Please check that it hasn't been moved.")
+                log.error("Error, toml file not found. Please check that it hasn't been moved.")
                 os._exit(2)
 
             rundict[fastq_read["runid"]].add_toml_file(toml_dict)
@@ -342,7 +342,7 @@ def parse_fastq_record(
     if counter <=1:
         ## This is the first read we have seen from this file - so we are going to check for updates in the unblocked read file.
         if rundict[fastq_read["runid"]].unblocked_file is not None:
-            print ("reading in the unblocks")
+            #print ("reading in the unblocks")
             with OpenLine(rundict[fastq_read["runid"]].unblocked_file, rundict[fastq_read["runid"]].unblocked_line_start) as fh:
                 _d = {line: 1 for line in fh}
 
@@ -352,7 +352,7 @@ def parse_fastq_record(
 
             rundict[fastq_read["runid"]].unblocked_line_start += lines_returned
 
-            print (len(rundict[fastq_read["runid"]].unblocked_dict))
+            #print (len(rundict[fastq_read["runid"]].unblocked_dict))
 
 
     if fastq_read["read_id"] not in rundict[fastq_read["runid"]].readnames:
@@ -558,7 +558,7 @@ def parse_fastq_file(
                         fastqfile,
                         counter
                     )
-                print ("Taken {} to process one file.\n\n\n\n\n\n\n".format((time.time()-now)))
+                #print ("Taken {} to process one file.\n\n\n\n\n\n\n".format((time.time()-now)))
 
             except Exception as e:
 
