@@ -241,7 +241,9 @@ class MinotourAPI:
             return grouprun
 
     def create_run(self, name, runid, is_barcoded, has_fastq, flowcell, minion = None, start_time = None):
-        
+        #runid=""
+        if len(name) < 1:
+            name = "mux scan"
         payload = {
             "name": name,
             "sample_name": name,

@@ -657,9 +657,10 @@ def main():
                             observer.unschedule_all()
                             for folder in args.WATCHLIST:
                                 if folder:
-                                    observer.schedule(
-                                        event_handler, path=folder, recursive=True
-                                    )
+                                    if os.path.exists(folder):
+                                        observer.schedule(
+                                            event_handler, path=folder, recursive=True
+                                        )
                             args.update=False
 
 

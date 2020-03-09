@@ -324,10 +324,9 @@ class DeviceConnect(WebSocketClient):
             # createrun = requests.post(self.args.full_host+'api/v1/runs/', headers=self.header, json={"run_name": self.status_summary['run_name'], "run_id": runid, "barcode": barcoded, "is_barcoded":is_barcoded, "minION":self.minion["url"]})
 
             if not createrun:
-                log.error("Houston - we have a problem!")
+                log.error("Run not created!")
 
             else:
-                log.info("????")
                 log.info(createrun)
                 self.runidlink = createrun["url"]
                 self.runid = createrun["id"]  # TODO is it id or runid?
@@ -339,7 +338,7 @@ class DeviceConnect(WebSocketClient):
         else:
             self.runidlink = run["url"]
             self.runid = run["id"]
-        log.debug("***** self.runid", self.runid)
+        log.debug("***** self.runid: {}".format(self.runid))
 
         log.debug("**** run stats updated")
 
@@ -690,6 +689,7 @@ class DeviceConnect(WebSocketClient):
             try:
                 self.sampleid = self.rpc_connection.protocol.get_sample_id()
             except:
+                self.sampleid = {'sample_id': 'Mux Scan'}
                 log.debug("Sample ID not yet known.")
             log.debug("running update minion status")
             self.update_minion_info()

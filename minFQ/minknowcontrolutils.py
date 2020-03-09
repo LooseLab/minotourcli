@@ -777,22 +777,22 @@ class MinControlAPI:
                                              json=payload)
             if self.status_summary['status'] == 'processing':
 
-                print(">>> inside self.status_summary['status'] == 'processing'")
+                #print(">>> inside self.status_summary['status'] == 'processing'")
                 if self.current_run_id != self.status_summary['hash_run_id']:
 
-                    print(">>> inside self.current_run_id != self.status_summary['hash_run_id']")
+                    #print(">>> inside self.current_run_id != self.status_summary['hash_run_id']")
 
-                    print(">>> before create_run")
+                    #print(">>> before create_run")
                     self.create_run(self.status_summary['hash_run_id'])
 
-                    print(">>> before current_run_id")
+                    #print(">>> before current_run_id")
                     self.current_run_id = self.status_summary['hash_run_id']
 
-                    print(">>> after current_run_id")
+                    #print(">>> after current_run_id")
 
                 self.update_minion_stats(livedata,detailsdata,simplesummary)
         except Exception as err:
-            print ("Problem",err)
+            log.error("Problem",err)
 
     def update_minion_stats (self,livedata,detailsdata,simplesummary):
         if "yield_res" in livedata:
