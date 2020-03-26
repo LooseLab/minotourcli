@@ -574,10 +574,8 @@ def parse_fastq_file(
     #This chunk of code will mean we commit reads every time we get a new file?
 
     for runs in rundict:
-        log.info("Rundict for {} is {}.\n\n".format(runs,len(rundict[runs].readnames)))
         rundict[runs].readnames=list()
 
-    log.info("fastqdict length is {}".format(len(fastqdict)))
     if len(fastqdict) < 2:
         for runs in rundict:
             rundict[runs].commit_reads()
