@@ -575,10 +575,7 @@ def parse_fastq_file(
 
     for runs in rundict:
         rundict[runs].readnames=list()
-
-    if len(fastqdict) < 2:
-        for runs in rundict:
-            rundict[runs].commit_reads()
+        rundict[runs].commit_reads()
 
     try:
         fastqfile = MinotourConnection.create_file_info(
