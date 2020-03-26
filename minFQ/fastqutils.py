@@ -571,9 +571,16 @@ def parse_fastq_file(
 
         # continue
 
-    for runs in rundict:
+    #This chunk of code will mean we commit reads every time we get a new file?
 
-        rundict[runs].commit_reads()
+    for runs in rundict:
+        log.info("Rundict for {} is {}.\n\n".format(runs,len(rundict[runs].readnames)))
+        rundict[runs].readnames=list()
+
+    log.info("fastqdict length is {}".format(len(fastqdict)))
+    if len(fastqdict) < 2:
+        for runs in rundict:
+            rundict[runs].commit_reads()
 
     try:
         fastqfile = MinotourConnection.create_file_info(
@@ -813,7 +820,7 @@ class FastqHandler(FileSystemEventHandler):
         # if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
         #     self.creates[event.src_path] = time.time()
 
-        log.info("Processing file {}".format(event.src_path))
+        log.debug("Processing file {}".format(event.src_path))
         # time.sleep(5)
         if (
             event.src_path.endswith(".fastq")

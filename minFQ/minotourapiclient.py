@@ -56,9 +56,9 @@ class Runcollection():
         self.basecount = 0
         self.read_type_list = dict()
         if self.args.skip_sequence:
-            self.batchsize = 100
+            self.batchsize = 5000
         else:
-            self.batchsize = 100
+            self.batchsize = 1000
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
@@ -342,6 +342,8 @@ class Runcollection():
             if len(self.read_list) >= self.batchsize:
                 if not self.args.skip_sequence:
                     self.batchsize = int(1000000/(int(self.basecount)/self.readcount))
+                    #self.batchsize = self.batchsize
+                    #log.info("Batchsize is now {}".format(self.batchsize))
                 self.commit_reads()
 
             self.readcount += 1
