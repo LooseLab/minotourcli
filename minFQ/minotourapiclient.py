@@ -347,9 +347,7 @@ class Runcollection():
                     #self.batchsize = self.batchsize
                     #log.info("Batchsize is now {}".format(self.batchsize))
                 self.commit_reads()
-
-            if self.trackedbasecount >= 1000000:
-                print ("We have too uch data to upload!\n\n\n\n\n\n")
+            elif self.trackedbasecount >= 1000000:
                 self.commit_reads()
                 self.trackedbasecount = 0
 
