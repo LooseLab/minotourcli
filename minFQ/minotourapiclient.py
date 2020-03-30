@@ -348,7 +348,7 @@ class Runcollection():
                     #log.info("Batchsize is now {}".format(self.batchsize))
                 self.commit_reads()
 
-            if self.trackedbasecount >= 10000000:
+            if self.trackedbasecount >= 2000000:
                 self.commit_reads()
                 self.trackedbasecount = 0
 
