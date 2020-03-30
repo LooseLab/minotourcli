@@ -54,6 +54,7 @@ class Runcollection():
         self.readnames = list()
         self.readcount = 0
         self.basecount = 0
+        self.trackedbasecount = 0
         self.read_type_list = dict()
         if self.args.skip_sequence:
             self.batchsize = 5000
@@ -331,6 +332,7 @@ class Runcollection():
                 self.args.basecount += fastq_read_payload['sequence_length']
 
             self.basecount += fastq_read_payload['sequence_length']
+            self.trackedbasecount += fastq_read_payload['sequence_length']
 
             if self.args.GUI:
                 self.args.qualitysum += fastq_read_payload['quality_average']
@@ -345,6 +347,11 @@ class Runcollection():
                     #self.batchsize = self.batchsize
                     #log.info("Batchsize is now {}".format(self.batchsize))
                 self.commit_reads()
+
+            if self.trackedbasecount >= 10000000:
+                self.commit_reads()
+                self.trackedbasecount = 0
+
 
             self.readcount += 1
 
