@@ -414,9 +414,9 @@ def parse_fastq_record(
         else:
 
             fastq_read["sequence"] = str(seq)
-            #fastq_read["quality"] = qual
-            #For speed lets throw away the quality
-            fastq_read["quality"] = ""
+            fastq_read["quality"] = qual
+            #For speed lets throw away t12he quality
+            # fastq_read["quality"] = ""
         # Add the read to the class dictionary to be uploaded, pretty important
         rundict[fastq_read["runid"]].add_read(fastq_read)
 
@@ -467,13 +467,8 @@ def parse_fastq_file(
     :param header: The authorisation header for connecting to the minoTour client
     :type header: dict
     :param MinotourConnection: class for interacting with minoTour API
-    :param unblocked_dict: Dictionary containing unblocked read ids
-    :type unblocked_dict: dict
-    :param unblocked_line_start: The line number to start reading the unblocked_ids.txt file from
-    :type unblocked_line_start: int
     :return counter: Number of lines of a fastqfile we have parsed
     :return unblocked_line_start: The updated number of lines we have already seen from the unblocked read ids file
-    :type unblocked_line_start: int
     """
     log.debug("Parsing fastq file {}".format(fastq))
     # Get runId from the path
