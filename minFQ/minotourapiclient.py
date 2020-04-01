@@ -59,7 +59,7 @@ class Runcollection():
         if self.args.skip_sequence:
             self.batchsize = 5000
         else:
-            self.batchsize = 1000
+            self.batchsize = 4000
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
