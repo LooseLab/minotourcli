@@ -766,10 +766,6 @@ class FastqHandler(FileSystemEventHandler):
         :return:
         """
 
-        # Read in the toml file#
-
-
-
         while self.running:
 
             currenttime = time.time()
@@ -802,7 +798,7 @@ class FastqHandler(FileSystemEventHandler):
 
             if currenttime + 5 > time.time():
                 time.sleep(5)
-            # print ("still ticking")
+            log.debug("still ticking")
 
     def on_created(self, event):
         """Watchdog counts a new file in a folder it is watching as a new file"""
