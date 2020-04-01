@@ -270,7 +270,7 @@ class DeviceConnect(WebSocketClient):
         except:
             payload['experiment_id']="Not Known"
 
-        log.debug(">>>>>>>>", payload)
+        log.debug(">>>>>>>>{}".format(payload))
         updateruninfo = self.minotourapi.update_minion_run_info(payload,self.runid)
         log.debug(updateruninfo)
 
@@ -317,7 +317,7 @@ class DeviceConnect(WebSocketClient):
 
             has_fastq = True  # TODO do we known this info at this moment? This can be determined from run info
             log.debug(">>> before self.minotourapi.create_run")
-            log.debug("self.sampleid.sample_id",self.sampleid.sample_id)
+            log.debug("self.sampleid.sample_id {}".format(self.sampleid.sample_id))
             createrun = self.minotourapi.create_run(self.sampleid.sample_id, runid, is_barcoded, has_fastq, flowcell, self.minion, self.runinformation.start_time.ToDatetime().strftime('%Y-%m-%d %H:%M:%S'))
             log.debug(">>> after self.minotourapi.create_run")
 
@@ -488,7 +488,7 @@ class DeviceConnect(WebSocketClient):
 
     def dutytimemonitor(self):
         while True:
-            log.debug("Duty Time Monitor Running", self.status)
+            log.debug("Duty Time Monitor Running: {}".format(self.status))
             log.debug(str(self.status))
             while str(self.status).startswith("status: PROCESSING"):
                 log.debug("fetching duty time")
@@ -613,7 +613,7 @@ class DeviceConnect(WebSocketClient):
             #print (channelpandastates)
             log.debug(channelpandastates)
             for state, value in channelpandastates.iteritems():
-                log.debug(str(state), str(value))
+                log.debug("{} {}".format(state,value))
             #    print (state,value)
                 channeldict[state]=value
             #print ("\n\n\n\n\n\n")
@@ -653,11 +653,11 @@ class DeviceConnect(WebSocketClient):
         for channel in channeldict:
             payload[str(channel)] = channeldict[channel]
 
-        log.debug("This our new payload", payload)
+        log.debug("This our new payload: {}".format(payload))
 
         result = self.minotourapi.create_minion_statistic(payload, self.runid)
 
-        log.debug("This is our result.", result)
+        log.debug("This is our result: {}".format(result))
 
     def runinfo(self):
         """
