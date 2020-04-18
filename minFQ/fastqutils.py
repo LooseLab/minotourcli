@@ -6,6 +6,7 @@ import os
 import subprocess
 import threading
 import time
+import datetime
 import gzip
 import numpy as np
 import toml as toml_manager
@@ -795,6 +796,7 @@ class FastqHandler(FileSystemEventHandler):
                     #self.unblocked_line_start += new_unblocked_line_start
 
                     self.args.files_processed += 1
+                    self.args.read_up_time = datetime.datetime.now()
 
             if currenttime + 5 > time.time():
                 time.sleep(5)

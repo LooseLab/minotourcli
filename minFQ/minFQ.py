@@ -440,6 +440,7 @@ def main():
     args.reads_uploaded = 0
     args.fastqmessage = "No Fastq Seen"
     args.update = False
+    args.read_up_time = ""
 
     ### Check if we are connecting to https or http
 
@@ -668,12 +669,13 @@ def main():
                     sys.stdout.write("{}\n".format(args.fastqmessage))
                     sys.stdout.write("FastQ Upload Status:\n")
                     sys.stdout.write(
-                        "Files queued/processed/skipped:{}/{}/{}\n".format(
+                        "Files queued/processed/skipped/time:{}/{}/{}/{}\n".format(
                             args.files_seen
                             - args.files_processed
                             - args.files_skipped,
                             args.files_processed,
                             args.files_skipped,
+                            args.read_up_time,
                         )
                     )
                     sys.stdout.write(
