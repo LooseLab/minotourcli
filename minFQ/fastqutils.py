@@ -6,7 +6,6 @@ import os
 import subprocess
 import threading
 import time
-import datetime
 import gzip
 import numpy as np
 import toml as toml_manager
@@ -533,7 +532,7 @@ def parse_fastq_file(
 
         with open(fastq, "r") as fp:
             try:
-                now = time.time()
+                #now = time.time()
                 for desc, name, seq, qual in readfq(fp):
 
                     counter += 1
@@ -796,7 +795,8 @@ class FastqHandler(FileSystemEventHandler):
                     #self.unblocked_line_start += new_unblocked_line_start
 
                     self.args.files_processed += 1
-                    self.args.read_up_time = datetime.datetime.now() - self.args.read_up_time
+                    self.args.elapsed = time.time() - self.args.read_up_time
+                    self.args.read_up_time = time.time()
 
             if currenttime + 5 > time.time():
                 time.sleep(5)
