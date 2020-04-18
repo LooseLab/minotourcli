@@ -676,7 +676,7 @@ def main():
                             - args.files_skipped,
                             args.files_processed,
                             args.files_skipped,
-                            args.read_up_time.strftime('%X %x %Z'),
+                            args.read_up_time,
                             args.elapsed,
                         )
                     )
