@@ -4,7 +4,7 @@ import fnmatch, shutil, platform
 import fileinput
 import logging
 import logging.handlers
-import time
+import time,datetime
 from pathlib import Path
 from .version import __version__
 
@@ -440,7 +440,7 @@ def main():
     args.reads_uploaded = 0
     args.fastqmessage = "No Fastq Seen"
     args.update = False
-    args.read_up_time = ""
+    args.read_up_time = datetime.datetime.now()
 
     ### Check if we are connecting to https or http
 

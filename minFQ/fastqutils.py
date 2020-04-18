@@ -796,7 +796,7 @@ class FastqHandler(FileSystemEventHandler):
                     #self.unblocked_line_start += new_unblocked_line_start
 
                     self.args.files_processed += 1
-                    self.args.read_up_time = datetime.datetime.now()
+                    self.args.read_up_time = datetime.datetime.now() - self.args.read_up_time
 
             if currenttime + 5 > time.time():
                 time.sleep(5)
