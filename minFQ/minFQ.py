@@ -670,13 +670,13 @@ def main():
                     sys.stdout.write("{}\n".format(args.fastqmessage))
                     sys.stdout.write("FastQ Upload Status:\n")
                     sys.stdout.write(
-                        "Files queued/processed/skipped/time/elapsed:{}/{}/{}/{}\n".format(
+                        "Files queued/processed/skipped/time/elapsed:{}/{}/{}/{}/{}\n".format(
                             args.files_seen
                             - args.files_processed
                             - args.files_skipped,
                             args.files_processed,
                             args.files_skipped,
-                            args.read_up_time,
+                            args.read_up_time.strftime('%X %x %Z'),
                             args.elapsed,
                         )
                     )
