@@ -5,7 +5,7 @@ from fastq files and upload to minotour.
 import datetime
 import json
 import logging
-import sys
+import sys,time
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -258,6 +258,8 @@ class Runcollection():
         """
 
         self.minotourapi.create_reads(self.read_list)
+        #Throttle to limit rate of upload.
+        time.sleep(0.5)
         self.args.reads_uploaded += len(self.read_list)
         # Refresh the read list
         self.read_list = list()
