@@ -169,7 +169,6 @@ class Runcollection():
             else:
                 flowcellname = self.args.run_name
 
-
             #
             # get or create a flowcell
             #
@@ -179,14 +178,11 @@ class Runcollection():
             #flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)
             flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)['data']
             log.debug(flowcell)
-
-
             if not flowcell:
 
                 log.debug("Trying to create flowcell {}".format(flowcellname))
 
-                flowcell = self.minotourapi.\
-                    create_flowcell(flowcellname)
+                flowcell = self.minotourapi.create_flowcell(flowcellname)
                 # print(dir(args))
                 # If we have a job as an option
                 if args.job:

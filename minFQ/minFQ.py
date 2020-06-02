@@ -314,7 +314,7 @@ def main():
         type=str,
         # required=True,
         default=None,
-        help="An optional minotour job to run on your server.",
+        help="An optional minotour job to run on your server. Please enter the ID shown on the side when running --list, or the name separated by _.",
         dest="job",
     )
 
@@ -486,7 +486,7 @@ def main():
 
         for job in jobs["data"]:
             if not job["name"].startswith("Delete"):
-                print("\t:{}".format(job["name"]))
+                print("\t{}:{}".format(job["id"], job["name"].lower().replace(" ", "_")))
 
         print(
             "If you wish to run an alignment, the following references are available:"
@@ -503,23 +503,29 @@ def main():
 
         os._exit(0)
 
+    # Below we perform checks if we are trying to set a job.
     if args.job is not None:
-        # Instatntiate  a connection to Minotour
+        args.job = int(args.job)
+        # Instantiate  a connection to Minotour
         minotourapi = MinotourAPI(args.host_name, args.port_number, header)
         # Get availaible jobs
         jobs = minotourapi.get_job_options()
 
         args.job_id = -1
+        jobs_dict = {}
 
         for job in jobs["data"]:
-            if args.job == job["name"]:
-                args.job_id = job["id"]
-
+            log.info(job)
+            jobs_dict[job["name"].lower().replace(" ", "_")] = int(job["id"])
+            # Compare the names fetched from minoTour in with the name of the Task user specified
+            if args.job == job["name"].replace(" ", "_") or args.job == int(job["id"]):
+                args.job_id = int(job["id"])
+        log.info(jobs_dict)
         if args.job_id == -1:
-            log.info("Job not found. Please recheck.")
+            log.info("Job {} not found. Please recheck.".format(args.job))
             os._exit(0)
 
-        if args.job == "Minimap2":
+        if args.job == "minimap2" or args.job == jobs_dict.get("minimap2", ""):
             if args.reference == None:
                 log.info(
                     "You need to specify a reference for a Minimap2 task."
@@ -538,7 +544,7 @@ def main():
                 log.info("Reference not found. Please recheck.")
                 os._exit(0)
 
-        if args.job == "Metagenomics":
+        if args.job == "metagenomics" or args.job == jobs_dict.get("metagenomics", ""):
             if args.targets:
                 targets = minotourapi.get_target_sets(args.api_key)
                 if args.targets not in targets:
@@ -546,6 +552,9 @@ def main():
                         "Target set not found. Please check spelling and try again."
                     )
                     os._exit(0)
+
+        if args.job == jobs_dict.get(args.job, False) or args.job == "track_artic_coverage":
+            log.info("Starting the Artic task.")
 
     if not args.noMinKNOW and args.ip is None:
         parser.error(

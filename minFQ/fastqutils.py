@@ -524,8 +524,7 @@ def parse_fastq_file(
             except Exception as e:
                 args.reads_corrupt += 1
                 log.error(e)
-                log.error("Corrupt file observed in {}.".format(fastq))
-                log.error(e)
+                log.error("This gzipped file failed to upload - {}.".format(fastq))
                 # continue
 
     else:
@@ -559,7 +558,7 @@ def parse_fastq_file(
 
                 args.reads_corrupt += 1
                 log.error(e)
-                log.error("Corrupt file observed in {}.".format(fastq))
+                log.error("This uncompressed file failed to upload in {}.".format(fastq))
                 log.error(e)
                 # continue
 

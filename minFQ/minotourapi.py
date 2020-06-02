@@ -429,13 +429,23 @@ class MinotourAPI:
 
     def create_job(self, flowcell, job, reference=None, targets=None):
         """
+        Post to a connected minoTour instance to create a job.
+        Parameters
+        ----------
+        flowcell: int
+            The primary key of the Flowcell record.
+        job: int
+            The PK of the job we wish to start.
+        reference
+        targets
 
-        :param flowcell:
-        :param job:
-        :param reference:
-        :param targets:
-        :return:
+        Returns
+        -------
+
         """
+        log.info(flowcell)
+        log.info(job)
+        log.info("Creating job of type {}".format(job))
         payload = {
             'flowcell': flowcell,
             'job_type': job
