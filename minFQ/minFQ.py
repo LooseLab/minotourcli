@@ -291,6 +291,14 @@ def main():
     )
 
     parser.add_argument(
+        "--unique",
+        action="store_true",
+        default=False,
+        help="If you are flushing a flowcell, this option will force the flowcell to be named as a combination of flowcell ID and sample name. Thus data will be grouped appropriately.",
+        dest="force_unique",
+    )
+
+    parser.add_argument(
         "-f",
         "--is_flowcell",
         action="store_true",

@@ -160,20 +160,26 @@ class Runcollection():
 
         if not run:
 
-            #print (descriptiondict)
+            ## We want to add a force unique name - therefore we are going to use an extra argument in minFQ - forceunique?
 
             if 'flow_cell_id' in descriptiondict:
                 flowcellname = descriptiondict['flow_cell_id']
+            elif 'sample_id' in descriptiondict:
+                flowcellname = descriptiondict['sample_id']
             elif 'sampleid' in descriptiondict:
                 flowcellname = descriptiondict['sampleid']
             else:
                 flowcellname = self.args.run_name
 
+            if args.force_unique:
+                if 'flow_cell_id' in descriptiondict and 'sample_id' in descriptiondict:
+                    flowcellname = "{}_{}".format(descriptiondict['flow_cell_id'],descriptiondict['sample_id'])
+
             #
             # get or create a flowcell
             #
 
-            log.debug("Looking for flowcell {}".format(flowcellname))
+            log.info("Looking for flowcell {}".format(flowcellname))
 
             #flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)
             flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)['data']
