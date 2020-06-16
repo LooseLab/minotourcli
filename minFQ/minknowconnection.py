@@ -415,12 +415,14 @@ class DeviceConnect(WebSocketClient):
         pass
 
     def get_flowcell_id(self):
+        #ToDo make this function work out if we need to create a flowcell id for this run.
         if len(self.flowcelldata['user_specified_flow_cell_id']) > 0:
             log.debug("We have a self named flowcell")
-            return str(self.flowcelldata['user_specified_flow_cell_id'])
+            flowcell_id =  str(self.flowcelldata['user_specified_flow_cell_id'])
         else:
             log.debug("the flowcell id is fixed")
-            return str(self.flowcelldata['flow_cell_id'])
+            flowcell_id = str(self.flowcelldata['flow_cell_id'])
+        return flowcell_id
 
     def flowcellmonitor(self):
         """
