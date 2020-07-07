@@ -164,7 +164,7 @@ def main():
 
     else:
 
-        OPER = "linux"  # MS
+        OPER = "linux"
 
     if OPER is "linux":
 
@@ -484,7 +484,7 @@ def main():
 
         jobs = minotourapi.get_job_options()
 
-        references = minotourapi.get_references()
+        references = minotourapi.get_references()["data"]
 
         targets = minotourapi.get_target_sets(args.api_key)
 
@@ -499,7 +499,6 @@ def main():
         print(
             "If you wish to run an alignment, the following references are available:"
         )
-
         for reference in references:
             if not reference["private"]:
                 print("\t{}:{}".format(reference["id"], reference["name"]))
@@ -540,12 +539,11 @@ def main():
                 )
                 os._exit(0)
 
-            references = minotourapi.get_references()
+            references = minotourapi.get_references()["data"]
 
             args.reference_id = -1
-
             for reference in references:
-                if args.reference == reference["name"]:
+                if int(args.reference) == int(reference["id"]):
                     args.reference_id = reference["id"]
 
             if args.reference_id == -1:
@@ -606,9 +604,10 @@ def main():
         shall_exit = True
 
     clients = version["clients"]
+    print(clients)
 
     if CLIENT_VERSION not in clients:
-
+        print(CLIENT_VERSION)
         log.error(
             "Server does not support this client. Please change the client to a previous version or upgrade server."
         )
