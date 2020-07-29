@@ -80,9 +80,7 @@ if os.path.exists(os.path.join(root_directory, "rpc")):
 
 
 if OPER == "Windows":
-    RPCPATH = os.path.join(
-        "ont-python", "Lib", "site-packages", "minknow", "rpc"
-    )
+    RPCPATH = os.path.join("ont-python", "Lib", "site-packages", "minknow", "rpc")
 else:
     RPCPATH = os.path.join(
         "ont-python", "lib", "python2.7", "site-packages", "minknow", "rpc"
@@ -109,9 +107,7 @@ else:
         else:
             minknowbase = os.path.join(os.sep, "opt", "ont", "MinKNOW")
     elif OPER == "Windows":
-        minknowbase = os.path.join(
-            os.sep, "Program Files", "OxfordNanopore", "MinKNOW"
-        )
+        minknowbase = os.path.join(os.sep, "Program Files", "OxfordNanopore", "MinKNOW")
     else:
         print("Not configured for {} yet. Sorry.".format(OPER))
         sys.exit()
@@ -175,9 +171,7 @@ def main():
         )
     if OPER is "windows":
 
-        config_file = os.path.join(
-            os.path.sep, sys.prefix, "minfq_windows.config"
-        )
+        config_file = os.path.join(os.path.sep, sys.prefix, "minfq_windows.config")
 
     parser = configargparse.ArgParser(
         description="minFQ: A program to analyse minION fastq files in real-time or post-run and monitor the activity of MinKNOW.",
@@ -382,10 +376,7 @@ def main():
         dest="GUI",
     )
     parser.add_argument(
-        "-V",
-        "--version",
-        action="version",
-        version="%(prog)s (" + __version__ + ")",
+        "-V", "--version", action="version", version="%(prog)s (" + __version__ + ")",
     )
 
     parser.add_argument(
@@ -394,7 +385,7 @@ def main():
         default=None,
         required=False,
         help="Path to the configuration file for an experiment",
-        dest="toml"
+        dest="toml",
     )
     parser.add_argument(
         "-U",
@@ -402,7 +393,7 @@ def main():
         default=None,
         required=False,
         help="Path to an unblocked read_ids text file.",
-        dest="unblocks"
+        dest="unblocks",
     )
     args = parser.parse_args()
 
@@ -435,7 +426,7 @@ def main():
 
     ### List to hold folders we want to watch
 
-    args.WATCHLIST=[]
+    args.WATCHLIST = []
     WATCHDICT = dict()
 
     ### Horrible tracking of run stats.
@@ -466,14 +457,18 @@ def main():
     #    sys.exit()
     if args.toml is not None:
         if not os.path.exists(args.toml):
-            print("Toml file not found in this location. "
-                  "Please check that the specified file path is correct.")
+            print(
+                "Toml file not found in this location. "
+                "Please check that the specified file path is correct."
+            )
             os._exit(2)
 
     if args.unblocks is not None:
         if not os.path.exists(args.unblocks):
-            print("Unblocked read ids file not found in this location. "
-                  "Please check that the specified file path is correct.")
+            print(
+                "Unblocked read ids file not found in this location. "
+                "Please check that the specified file path is correct."
+            )
             os._exit(2)
 
     if args.list:
@@ -488,13 +483,13 @@ def main():
 
         targets = minotourapi.get_target_sets(args.api_key)
 
-        print(
-            "The following jobs are available on this minoTour installation:"
-        )
+        print("The following jobs are available on this minoTour installation:")
 
         for job in jobs["data"]:
             if not job["name"].startswith("Delete"):
-                print("\t{}:{}".format(job["id"], job["name"].lower().replace(" ", "_")))
+                print(
+                    "\t{}:{}".format(job["id"], job["name"].lower().replace(" ", "_"))
+                )
 
         print(
             "If you wish to run an alignment, the following references are available:"
@@ -534,9 +529,7 @@ def main():
 
         if args.job == "minimap2" or args.job == jobs_dict.get("minimap2", ""):
             if args.reference == None:
-                log.info(
-                    "You need to specify a reference for a Minimap2 task."
-                )
+                log.info("You need to specify a reference for a Minimap2 task.")
                 os._exit(0)
 
             references = minotourapi.get_references()["data"]
@@ -559,7 +552,10 @@ def main():
                     )
                     os._exit(0)
 
-        if args.job == jobs_dict.get(args.job, False) or args.job == "track_artic_coverage":
+        if (
+            args.job == jobs_dict.get(args.job, False)
+            or args.job == "track_artic_coverage"
+        ):
             log.info("Starting the Artic task.")
 
     if not args.noMinKNOW and args.ip is None:
@@ -573,7 +569,7 @@ def main():
                 "When monitoring read data MinoTour requires a default name to assign the data to if it cannot determine flowcell and sample name. Please set this using the -n option."
             )
             os._exit(0)
-        #if args.watchdir is None:
+        # if args.watchdir is None:
         #    parser.error(
         #        "When monitoring read data MinoTour needs to know where to look! Please specify a watch directory with the -w flag."
         #    )
@@ -625,8 +621,6 @@ def main():
             # Add our watchdir to our WATCHLIST
             args.WATCHLIST.append(args.watchdir)
 
-
-
         if not args.noMinKNOW:
 
             if RPC_SUPPORT:
@@ -640,9 +634,7 @@ def main():
 
             else:
 
-                print(
-                    "There is no support for MinKnow monitoring on this computer."
-                )
+                print("There is no support for MinKnow monitoring on this computer.")
 
         sys.stdout.write("To stop minFQ use CTRL-C.\n")
 
@@ -653,8 +645,7 @@ def main():
 
         try:
 
-
-                #observer.start()
+            # observer.start()
 
             while 1:
                 #### This code is constantly running - so this might be where we can change the minFQ watchfolders?
@@ -670,7 +661,9 @@ def main():
                                     args.update = True
                                     WATCHDICT[folder] = dict()
                                     event_handler.addfolder(folder)
-                                    log.info("FastQ Monitoring added for {}".format(folder))
+                                    log.info(
+                                        "FastQ Monitoring added for {}".format(folder)
+                                    )
                         if args.update:
                             observer.unschedule_all()
                             for folder in args.WATCHLIST:
@@ -679,17 +672,13 @@ def main():
                                         observer.schedule(
                                             event_handler, path=folder, recursive=True
                                         )
-                            args.update=False
-
-
+                            args.update = False
 
                     sys.stdout.write("{}\n".format(args.fastqmessage))
                     sys.stdout.write("FastQ Upload Status:\n")
                     sys.stdout.write(
                         "Files queued/processed/skipped/time/elapsed:{}/{}/{}/{}/{}\n".format(
-                            args.files_seen
-                            - args.files_processed
-                            - args.files_skipped,
+                            args.files_seen - args.files_processed - args.files_skipped,
                             args.files_processed,
                             args.files_skipped,
                             args.read_up_time,
@@ -698,9 +687,7 @@ def main():
                     )
                     sys.stdout.write(
                         "New reads seen/uploaded/skipped:{}/{}/{}\n".format(
-                            args.reads_seen
-                            - args.reads_uploaded
-                            - args.reads_skipped,
+                            args.reads_seen - args.reads_uploaded - args.reads_skipped,
                             args.reads_uploaded,
                             args.reads_skipped,
                         )
@@ -720,7 +707,7 @@ def main():
                     linecounter += 2
 
                 sys.stdout.flush()
-                print (args.WATCHLIST)
+                print(args.WATCHLIST)
 
                 time.sleep(5)
                 if not args.verbose:
@@ -736,8 +723,6 @@ def main():
             if not args.noFastQ:
                 observer.stop()
                 observer.join()
-
-
 
             os._exit(0)
 
