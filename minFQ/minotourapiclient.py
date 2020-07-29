@@ -5,7 +5,7 @@ from fastq files and upload to minotour.
 import datetime
 import json
 import logging
-import sys
+import sys,time
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -54,11 +54,12 @@ class Runcollection():
         self.readnames = list()
         self.readcount = 0
         self.basecount = 0
+        self.trackedbasecount = 0
         self.read_type_list = dict()
         if self.args.skip_sequence:
-            self.batchsize = 500
+            self.batchsize = 5000
         else:
-            self.batchsize = 100
+            self.batchsize = 4000
         self.run = None
         self.grouprun = None
         self.barcode_dict = {}
@@ -67,7 +68,20 @@ class Runcollection():
         self.fastqfileid = None
         self.minotourapi = MinotourAPI(self.args.host_name, self.args.port_number, self.header)
         self.get_readtype_list()
+        self.unblocked_dict=dict()
+        self.unblocked_file = None
+        self.unblocked_line_start = 0
+        self.runfolder = None
+        self.toml = None
 
+    def add_toml_file(self,toml_file):
+        self.toml = toml_file
+
+    def add_run_folder(self,folder):
+        self.runfolder = folder
+
+    def add_unblocked_reads_file(self):
+        pass
 
     def check_url(self):
         if self.base_url.startswith("http://"):
@@ -146,33 +160,35 @@ class Runcollection():
 
         if not run:
 
-            #print (descriptiondict)
+            ## We want to add a force unique name - therefore we are going to use an extra argument in minFQ - forceunique?
 
             if 'flow_cell_id' in descriptiondict:
                 flowcellname = descriptiondict['flow_cell_id']
+            elif 'sample_id' in descriptiondict:
+                flowcellname = descriptiondict['sample_id']
             elif 'sampleid' in descriptiondict:
                 flowcellname = descriptiondict['sampleid']
             else:
                 flowcellname = self.args.run_name
 
+            if args.force_unique:
+                if 'flow_cell_id' in descriptiondict and 'sample_id' in descriptiondict:
+                    flowcellname = "{}_{}".format(descriptiondict['flow_cell_id'],descriptiondict['sample_id'])
 
             #
             # get or create a flowcell
             #
 
-            log.debug("Looking for flowcell {}".format(flowcellname))
+            log.info("Looking for flowcell {}".format(flowcellname))
 
             #flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)
             flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)['data']
             log.debug(flowcell)
-
-
             if not flowcell:
 
                 log.debug("Trying to create flowcell {}".format(flowcellname))
 
-                flowcell = self.minotourapi.\
-                    create_flowcell(flowcellname)
+                flowcell = self.minotourapi.create_flowcell(flowcellname)
                 # print(dir(args))
                 # If we have a job as an option
                 if args.job:
@@ -236,11 +252,18 @@ class Runcollection():
         #self.get_readnames_by_run()
 
     def commit_reads(self):
+        """
+        Call create reads - which posts a batch of reads to the server.
+        Returns
+        -------
+        None
+        """
 
-        #Thread(target=self.minotourapi.create_reads(self.read_list)).start()
         self.minotourapi.create_reads(self.read_list)
+        #Throttle to limit rate of upload.
+        time.sleep(0.5)
         self.args.reads_uploaded += len(self.read_list)
-
+        # Refresh the read list
         self.read_list = list()
 
     def update_read_type(self, read_id, type):
@@ -253,31 +276,45 @@ class Runcollection():
             return True
 
     def add_read(self, fastq_read_payload):
+        """
+        Add a read to to the readnames list that we will commit to the minoTour server
+        Create any non present barcodes on the minoTour server
+        Parameters
+        ----------
+        fastq_read_payload: dict
+            The fastq read dictionary that will be added to the upload list
+
+        Returns
+        -------
+        None
+        """
 
         barcode_name = fastq_read_payload['barcode_name']
+        rejected_barcode_name = fastq_read_payload["rejected_barcode_name"]
         runid = fastq_read_payload['runid']
         read_id = fastq_read_payload['read_id']
-
         fastq_read_payload['run'] = self.run['id']
 
-        if barcode_name not in self.barcode_dict:
+        # Here we are going to create the sequenced/unblocked barcodes and read barcode
+        for barcode_name in [barcode_name, rejected_barcode_name]:
+            if barcode_name not in self.barcode_dict:
 
-            # print(">>> Found new barcode {} for run {}.".format(barcode_name, runid))
+                # print(">>> Found new barcode {} for run {}.".format(barcode_name, runid))
 
-            barcode = self.minotourapi.create_barcode(barcode_name, self.run['url'])
+                barcode = self.minotourapi.create_barcode(barcode_name, self.run['url'])
 
-            if barcode:
+                if barcode:
 
-                self.barcode_dict.update({
-                    barcode['name']: barcode['id']
-                })
+                    self.barcode_dict.update({
+                        barcode['name']: barcode['id']
+                    })
 
-            else:
-                log.critical("Problem finding barcodes.")
-                sys.exit()
+                else:
+                    log.critical("Problem finding barcodes.")
+                    sys.exit()
 
         fastq_read_payload['barcode'] = self.barcode_dict[fastq_read_payload['barcode_name']]
-
+        fastq_read_payload["rejected_barcode"] = self.barcode_dict[fastq_read_payload['rejected_barcode_name']]
         if read_id not in self.readnames:
 
             if self.check_1d2(read_id):
@@ -296,10 +333,10 @@ class Runcollection():
 
             if self.args.GUI:
                 self.args.readcount += 1
-
-            if self.args.GUI:
                 self.args.basecount += fastq_read_payload['sequence_length']
+
             self.basecount += fastq_read_payload['sequence_length']
+            self.trackedbasecount += fastq_read_payload['sequence_length']
 
             if self.args.GUI:
                 self.args.qualitysum += fastq_read_payload['quality_average']
@@ -311,10 +348,16 @@ class Runcollection():
             if len(self.read_list) >= self.batchsize:
                 if not self.args.skip_sequence:
                     self.batchsize = int(1000000/(int(self.basecount)/self.readcount))
+                    #self.batchsize = self.batchsize
+                    #log.info("Batchsize is now {}".format(self.batchsize))
                 self.commit_reads()
+            elif self.trackedbasecount >= 1000000:
+                self.commit_reads()
+                self.trackedbasecount = 0
+
 
             self.readcount += 1
 
         else:
-            print ("Skipping read")
+            print("Skipping read")
             self.args.reads_skipped += 1

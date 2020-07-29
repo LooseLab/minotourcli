@@ -47,7 +47,7 @@ def startstop(command,minION):
 
 def send_message_port(message,ipadd,port):
     message_to_send = \
-        '{"id":"1", "method":"user_message","params":{"content":"%s"}}' \
+        '{"id":"1", "method":"user_message","params":{"content":"minoTour: %s"}}' \
         % message
     results=""
     try:
@@ -84,6 +84,7 @@ def stoprun_message(port,ipadd,message):
 def send_custom_message(port,message):
     try:
         custommessage = "minoTour: %s" % (message)
+        #print (custommessage, "\n\n\n\n\n\n\n")
         custommessageresult=send_message_port(custommessage,port)
     except Exception as err:
         print >> sys.stderr, err
@@ -776,22 +777,22 @@ class MinControlAPI:
                                              json=payload)
             if self.status_summary['status'] == 'processing':
 
-                print(">>> inside self.status_summary['status'] == 'processing'")
+                #print(">>> inside self.status_summary['status'] == 'processing'")
                 if self.current_run_id != self.status_summary['hash_run_id']:
 
-                    print(">>> inside self.current_run_id != self.status_summary['hash_run_id']")
+                    #print(">>> inside self.current_run_id != self.status_summary['hash_run_id']")
 
-                    print(">>> before create_run")
+                    #print(">>> before create_run")
                     self.create_run(self.status_summary['hash_run_id'])
 
-                    print(">>> before current_run_id")
+                    #print(">>> before current_run_id")
                     self.current_run_id = self.status_summary['hash_run_id']
 
-                    print(">>> after current_run_id")
+                    #print(">>> after current_run_id")
 
                 self.update_minion_stats(livedata,detailsdata,simplesummary)
         except Exception as err:
-            print ("Problem",err)
+            log.error("Problem",err)
 
     def update_minion_stats (self,livedata,detailsdata,simplesummary):
         if "yield_res" in livedata:
@@ -858,15 +859,10 @@ class MinControlAPI:
                     payload[str(category)]=simplesummary[category]
                 #print (payload)
                 createminionstat = requests.post(self.runidlink + 'runstats/', headers=self.header, json=payload)
-                #print (createminionstat.text)
-                #print(createminionstat.status_code)
 
-
-    def update_minion_status (self,minION,computer,status):
+    def update_minion_events(self,minION,computer,status):
         self.computer = computer
-        #print (self.minion["url"])
-        #Second get id of status we are looking for:
-        statusidlink=""
+        statusidlink = ""
         r = requests.get(self.args.full_host + 'api/v1/events', headers=self.header)
         #print (r.text)
         for info in json.loads(r.text):
@@ -881,7 +877,6 @@ class MinControlAPI:
             headers=self.header,
             json=payload
         )
-        #print (updatestatus.text)
 
     def check_scripts(self,minION):
         r=requests.get(self.minion["url"] + 'scripts/', headers = self.header)
@@ -1039,7 +1034,7 @@ class HelpTheMinion(WebSocketClient):
                         #print ("INITIALISING self.minIONdict", deviceid)
                         self.minIONdict[deviceid]=dict()
                         self.minIONdict[deviceid]["APIHelp"] = MinControlAPI(deviceid, self.args, self.statedict, self.summarystatedict, self.minIONdict, self.header)
-                        self.minIONdict[deviceid]["APIHelp"].update_minion_status(deviceid,'UNKNOWN','connected')
+                        self.minIONdict[deviceid]["APIHelp"].update_minion_events(deviceid, 'UNKNOWN', 'connected')
                     # minIONports = list(map(lambda x:x,filter(lambda x:x,map(ord,thing))))
                     # print (minIONports)
                     # minIONports = list(map(lambda x: x, filter(lambda x: x > 120, map(ord, thing))))
@@ -1047,8 +1042,6 @@ class HelpTheMinion(WebSocketClient):
                     # minIONports = list(map(lambda x:x-192+8000,filter(lambda x:x>120,map(ord,thing))))
                     # print (minIONports)
                     minIONports = self.parse_ports(thing,deviceid)
-                    print (minIONports)
-
                     # time.sleep(1)
                     if len(minIONports) > 3:
                         # if min(minIONports) != minIONports[0]:
@@ -1070,7 +1063,7 @@ class HelpTheMinion(WebSocketClient):
                             results = execute_command_as_string(commands("machine_id"), self.args.ip,
                                                            self.minIONdict[deviceid]["port"])
 
-                            self.minIONdict[deviceid]["APIHelp"].update_minion_status(deviceid, str(results["result"]), 'active')
+                            self.minIONdict[deviceid]["APIHelp"].update_minion_events(deviceid, str(results["result"]), 'active')
                         except:
                             # print ("caught it")
                             minIONports = list(
@@ -1089,7 +1082,7 @@ class HelpTheMinion(WebSocketClient):
                             results = execute_command_as_string(commands("machine_id"), self.args.ip,
                                                                 self.minIONdict[deviceid]["port"])
                             # print ("should contain the computer name", results)
-                            self.minIONdict[deviceid]["APIHelp"].update_minion_status(deviceid,str(results["result"]),'active')
+                            self.minIONdict[deviceid]["APIHelp"].update_minion_events(deviceid, str(results["result"]), 'active')
                         # print (minIONports)
                     else:
                         self.minIONdict[deviceid]["state"]="inactive"
@@ -1097,7 +1090,7 @@ class HelpTheMinion(WebSocketClient):
                         self.minIONdict[deviceid]["ws_longpoll_port"]=""
                         self.minIONdict[deviceid]["ws_event_sampler_port"]=""
                         self.minIONdict[deviceid]["ws_raw_data_sampler_port"]=""
-                        self.minIONdict[deviceid]["APIHelp"].update_minion_status(deviceid, 'UNKNOWN', 'inactive')
+                        self.minIONdict[deviceid]["APIHelp"].update_minion_events(deviceid, 'UNKNOWN', 'inactive')
         self.mcrunning=True
 
     def process_minion_test(self):
@@ -1377,5 +1370,5 @@ class HelpTheMinion(WebSocketClient):
         #print ("Connected to Master MinION Controller!")
         #print ("Disconnecting MinIONs from minoTour control.")
         for minION in self.minIONclassdict:
-            self.minIONdict[minION]["APIHelp"].update_minion_status(minION, 'UNKNOWN', 'unplugged')
+            self.minIONdict[minION]["APIHelp"].update_minion_events(minION, 'UNKNOWN', 'unplugged')
         print ("bye bye")
