@@ -1,15 +1,11 @@
 import os
-import sys
-import datetime
 import configargparse
-import validators
 
 from ont_fast5_api import fast5_file, multi_fast5
-
 from minFQ.minotourapi import MinotourAPI
-
 from tqdm import tqdm
 
+# TODO I don't think we use this, can we delete this file?
 
 def main():
     parser = configargparse.ArgParser(
