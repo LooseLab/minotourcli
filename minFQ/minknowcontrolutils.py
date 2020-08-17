@@ -1382,824 +1382,824 @@ class MinControlAPI:
                 pass
 
 
-class HelpTheMinion(WebSocketClient):
-    def __init__(self, minswip, args, header):
-        WebSocketClient.__init__(self, minswip)
-        self.args = args
-        self.minIONdict = dict()
-        self.minIONdict_test = dict()
-        self.minIONclassdict = dict()
-        self.statedict = dict()
-        self.summarystatedict = dict()
-        self.mcrunning = False
-        self.header = header
-        # t = threading.Thread(target=self.process_minion_test())
-        # t.daemon = True
-        # t.start()
-
-    def opened(self):
-        if self.args.GUI:
-            self.args.minKNOWmessage = "Connected to MinKNOW"
-        print("Connected to Master MinION Controller!")
-
-    def initialiseminion():
-        if self.args.GUI:
-            self.args.minKNOWmessage = "Initialising MinION"
-        # result = self.send(json.dumps({"params": "null", "id": 5, "method": "initialization_status"}))
-        # print (result)
-
-    def determinetype(self, minION):
-        """
-        :param minION:
-        :return: devicetype,deviceid,portstring
-        """
-        devicetype = "unknown"
-        deviceid = "unknown"
-        if minION[1] == "M":
-            devicetype = "MinION"
-            deviceid = minION[1:8]
-        elif minION[1] == "G":
-            devicetype = "GridION"
-            deviceid = minION[1:8]
-        elif minION[1] == "1" or minION[1] == "2":
-            devicetype = "PromethION"
-            # print (minION[1:9])
-            promvals = minION[1:9].split("-")
-            if len(promvals[1]) == 2:
-                print(minION[1:8])
-                deviceid = minION[1:8]
-            else:
-                print(minION[1:10])
-                deviceid = minION[1:10]
-        print(devicetype)
-        return devicetype, deviceid  # ,portstring
-
-    def parse_ports(self, ports, minIONname):
-        """
-        :param ports: string to parse representing the ports
-        :return: list of ports
-        """
-        portset = list()
-        rawports = list(map(lambda x: x, filter(lambda x: x, map(ord, ports))))
-        chomplen = len(minIONname) + 4
-        print(rawports)
-        rawports = rawports[chomplen:-2]
-        rawvalues = list()
-        offset = list()
-        for index, port in enumerate(rawports):
-            if index % 3 == 0:
-                try:
-                    rawvalues.append(port)
-                    offset.append(rawports[(index + 1)])
-                except:
-                    print("fail")
-        # print (rawports)
-        # print (rawvalue)
-        # print (offset)
-
-        for index, rawvalue in enumerate(rawvalues):
-            try:
-                off = offset[index]
-                if off == 62:
-                    correction = 192
-                elif off == 63:
-                    correction = 64
-                else:
-                    print("These are not the ports you are looking for.")
-                    correction = 0
-                    # sys.exit()
-                port = rawvalue - correction + 8000
-                print(port)
-                portset.append(port)
-            except:
-                print("fail2")
-        return portset
-
-    def received_message(self, m):
-        for thing in "".join(map(chr, map(ord, (m.data).decode("latin-1")))).split(
-            "\n"
-        ):
-            if len(thing) > 5 and "2L" not in thing and "2n" not in thing:
-                devicetype, deviceid = self.determinetype(thing)
-                if len(thing) > 5 and (
-                    thing[1] == "M"
-                    or thing[1] == "G"
-                    or thing[1] == "1"
-                    or thing[1] == "2"
-                ):
-                    if deviceid not in self.minIONdict:
-                        # print ("INITIALISING self.minIONdict", deviceid)
-                        self.minIONdict[deviceid] = dict()
-                        self.minIONdict[deviceid]["APIHelp"] = MinControlAPI(
-                            deviceid,
-                            self.args,
-                            self.statedict,
-                            self.summarystatedict,
-                            self.minIONdict,
-                            self.header,
-                        )
-                        self.minIONdict[deviceid]["APIHelp"].update_minion_events(
-                            deviceid, "UNKNOWN", "connected"
-                        )
-                    # minIONports = list(map(lambda x:x,filter(lambda x:x,map(ord,thing))))
-                    # print (minIONports)
-                    # minIONports = list(map(lambda x: x, filter(lambda x: x > 120, map(ord, thing))))
-                    # print (minIONports)
-                    # minIONports = list(map(lambda x:x-192+8000,filter(lambda x:x>120,map(ord,thing))))
-                    # print (minIONports)
-                    minIONports = self.parse_ports(thing, deviceid)
-                    # time.sleep(1)
-                    if len(minIONports) > 3:
-                        # if min(minIONports) != minIONports[0]:
-                        #     print ("These are not the ports you are looking for.")
-                        #     minIONports = list(
-                        #         map(lambda x: x - 192 + 8000 + 128, filter(lambda x: x > 120, map(ord, thing))))
-                        #     print (minIONports)
-                        try:
-                            self.minIONdict[deviceid]["state"] = "active"
-                            port = minIONports[0]
-                            ws_longpoll_port = minIONports[1]
-                            ws_event_sampler_port = minIONports[2]
-                            ws_raw_data_sampler_port = minIONports[3]
-                            self.minIONdict[deviceid]["port"] = port
-                            self.minIONdict[deviceid][
-                                "ws_longpoll_port"
-                            ] = ws_longpoll_port
-                            self.minIONdict[deviceid][
-                                "ws_event_sampler_port"
-                            ] = ws_event_sampler_port
-                            self.minIONdict[deviceid][
-                                "ws_raw_data_sampler_port"
-                            ] = ws_raw_data_sampler_port
-                            # print ("port is:", port)
-                            results = execute_command_as_string(
-                                commands("machine_id"),
-                                self.args.ip,
-                                self.minIONdict[deviceid]["port"],
-                            )
-
-                            self.minIONdict[deviceid]["APIHelp"].update_minion_events(
-                                deviceid, str(results["result"]), "active"
-                            )
-                        except:
-                            # print ("caught it")
-                            minIONports = list(
-                                map(
-                                    lambda x: x - 192 + 8000 + 128,
-                                    filter(lambda x: x > 120, map(ord, thing)),
-                                )
-                            )
-                            # print (minIONports)
-                            self.minIONdict[deviceid]["state"] = "active"
-                            port = minIONports[0]
-                            ws_longpoll_port = minIONports[1]
-                            ws_event_sampler_port = minIONports[2]
-                            ws_raw_data_sampler_port = minIONports[3]
-                            self.minIONdict[deviceid]["port"] = port
-                            self.minIONdict[deviceid][
-                                "ws_longpoll_port"
-                            ] = ws_longpoll_port
-                            self.minIONdict[deviceid][
-                                "ws_event_sampler_port"
-                            ] = ws_event_sampler_port
-                            self.minIONdict[deviceid][
-                                "ws_raw_data_sampler_port"
-                            ] = ws_raw_data_sampler_port
-                            # print ("port is:", port)
-                            results = execute_command_as_string(
-                                commands("machine_id"),
-                                self.args.ip,
-                                self.minIONdict[deviceid]["port"],
-                            )
-                            # print ("should contain the computer name", results)
-                            self.minIONdict[deviceid]["APIHelp"].update_minion_events(
-                                deviceid, str(results["result"]), "active"
-                            )
-                        # print (minIONports)
-                    else:
-                        self.minIONdict[deviceid]["state"] = "inactive"
-                        self.minIONdict[deviceid]["port"] = ""
-                        self.minIONdict[deviceid]["ws_longpoll_port"] = ""
-                        self.minIONdict[deviceid]["ws_event_sampler_port"] = ""
-                        self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ""
-                        self.minIONdict[deviceid]["APIHelp"].update_minion_events(
-                            deviceid, "UNKNOWN", "inactive"
-                        )
-        self.mcrunning = True
-
-    def process_minion_test(self):
-        while True:
-            # print ("yo dawg")
-            time.sleep(1)
-
-    def process_minion(self):
-        while True:
-            while self.mcrunning:
-                print("Still Monitoring")
-                # print (".")
-                # print (self.mcrunning)
-                # print (minIONdict)
-                if (
-                    self.minIONdict == self.minIONdict_test
-                ):  ## The dictionary is unchanged since the last cycle
-                    active = 0
-                    inactive = 0
-                    for minION in self.minIONdict:
-                        if self.minIONdict[minION]["state"] == "active":
-                            active += 1
-                            # print ("minION is active")
-                            if minION not in self.minIONclassdict:
-                                # print ("adding minION to dict")
-                                self.minIONclassdict[minION] = dict()
-                            if "connected" not in self.minIONclassdict[minION]:
-                                connectip = (
-                                    "ws://"
-                                    + self.args.ip
-                                    + ":"
-                                    + str(self.minIONdict[minION]["ws_longpoll_port"])
-                                    + "/"
-                                )
-                                self.minIONclassdict[minION]["class"] = DummyClient(
-                                    connectip
-                                )
-                                connectip2 = (
-                                    "ws://"
-                                    + self.args.ip
-                                    + ":"
-                                    + str(self.minIONdict[minION]["ws_longpoll_port"])
-                                    + "/user_messages"
-                                )
-                                self.minIONclassdict[minION]["class2"] = MessagesClient(
-                                    connectip2, self.args
-                                )
-                                # print ("initial handshake")
-                            try:
-                                if "connected" not in self.minIONclassdict[minION]:
-                                    try:
-                                        self.minIONclassdict[minION]["class"].connect()
-                                        self.minIONclassdict[minION]["class2"].connect()
-                                        self.minIONclassdict[minION][
-                                            "class"
-                                        ].init_minion(minION, self.minIONdict)
-                                        print(
-                                            "Trying to init a messages client with {}".format(
-                                                minION
-                                            )
-                                        )
-                                        self.minIONclassdict[minION][
-                                            "class2"
-                                        ].init_minion(minION)
-                                        results = execute_command_as_string(
-                                            commands("get_analysis_configuration"),
-                                            self.args.ip,
-                                            self.minIONdict[minION]["port"],
-                                        )
-                                        # print ("getting the good stuff")
-
-                                        self.minIONdict[minION][
-                                            "channelstuff"
-                                        ] = results["result"]["channel_states"]
-                                        # print ("connection good")
-                                    except Exception as err:
-                                        print("380 Connection failed", err)
-                                    self.minIONclassdict[minION]["connected"] = "True"
-                                ##Check if connction is new or old:
-                                if minION in self.minIONdict_test:
-                                    if (
-                                        self.minIONdict[minION]["state"]
-                                        == self.minIONdict_test[minION]["state"]
-                                    ):
-                                        try:  # To catch mysterious bugs
-                                            livedata = (
-                                                dict()
-                                            )  # collect a dictionary of useful data - might change this
-                                            for query in (
-                                                "status",
-                                                "dataset",
-                                                "biasvoltageget",
-                                                "bias_voltage_gain",
-                                                "machine_id",
-                                                "machine_name",
-                                                "sample_id",
-                                                "user_error",
-                                                "sequenced_res",
-                                                "yield_res",
-                                                "current_script",
-                                                "disk_space",
-                                                "flow_cell_id",
-                                                "get_seq_metrics",
-                                                "get_engine_states",
-                                            ):  # ,'getstaticdata','get_analysis_configuration'):
-                                                results = execute_command_as_string(
-                                                    commands(query),
-                                                    self.args.ip,
-                                                    self.minIONdict[minION]["port"],
-                                                )
-                                                livedata[query] = results
-                                                # print (query,results)
-                                            self.minIONdict[minION][
-                                                "livedata"
-                                            ] = livedata  # append results to data stream
-                                            # print ("data appended")
-                                            # sys.exit()
-                                        except Exception as err:
-                                            print("line 1407", err)
-                                            pass
-                                        # print ("OK")
-                                    else:
-                                        if "scripts" in self.minIONdict[minION]:
-                                            # print ("running get run scripts line 1110")
-                                            if self.minIONdict[minION][
-                                                "scripts"
-                                            ] != get_run_scripts(
-                                                self.args.ip,
-                                                self.minIONdict[minION]["port"],
-                                            ):
-                                                # print("running get run scripts 1111")
-                                                self.minIONdict[minION][
-                                                    "scripts"
-                                                ] = get_run_scripts(
-                                                    self.args.ip,
-                                                    self.minIONdict[minION]["port"],
-                                                )
-                                                # print ("calling check scripts 1113")
-                                                self.minIONdict[minION][
-                                                    "APIHelp"
-                                                ].check_scripts(minION)
-                                                for script in self.minIONdict[minION][
-                                                    "scripts"
-                                                ]:
-                                                    # print (script)
-                                                    self.minIONdict[minION][
-                                                        "APIHelp"
-                                                    ].update_script(minION, script)
-                                        else:
-                                            # print("running get run scripts 1114")
-                                            self.minIONdict[minION][
-                                                "scripts"
-                                            ] = get_run_scripts(
-                                                self.args.ip,
-                                                self.minIONdict[minION]["port"],
-                                            )
-                                            # print("calling check scripts 1121")
-                                            self.minIONdict[minION][
-                                                "APIHelp"
-                                            ].check_scripts(minION)
-                                            for script in self.minIONdict[minION][
-                                                "scripts"
-                                            ]:
-                                                # print (script)
-                                                self.minIONdict[minION][
-                                                    "APIHelp"
-                                                ].update_script(minION, script)
-                                            results = execute_command_as_string(
-                                                commands("startmessagenew"),
-                                                self.args.ip,
-                                                self.minIONdict[minION]["port"],
-                                            )
-                                            try:  # To catch mysterious bugs
-                                                livedata = (
-                                                    dict()
-                                                )  # collect a dictionary of useful data - might change this
-                                                for query in (
-                                                    "status",
-                                                    "dataset",
-                                                    "biasvoltageget",
-                                                    "bias_voltage_gain",
-                                                    "machine_id",
-                                                    "machine_name",
-                                                    "sample_id",
-                                                    "user_error",
-                                                    "sequenced_res",
-                                                    "sequenced_res",
-                                                    "yield_res",
-                                                    "current_script",
-                                                    "disk_space",
-                                                    "flow_cell_id",
-                                                    "get_seq_metrics",
-                                                ):  # ,'getstaticdata','get_analysis_configuration'):
-                                                    # print query
-                                                    results = execute_command_as_string(
-                                                        commands(query),
-                                                        self.args.ip,
-                                                        self.minIONdict[minION]["port"],
-                                                    )
-                                                    livedata[query] = results
-                                                self.minIONdict[minION][
-                                                    "livedata"
-                                                ] = livedata  # append results to data stream
-                                            except Exception as err:
-                                                print("line 1438", err)
-                                                pass
-                            except Exception as err:
-                                print("line 1443", err)
-                                print("Connection Error")
-                            else:
-                                # print ("here")
-                                if "scripts" not in self.minIONdict[minION]:
-                                    # print ("running get run scripts 1147")
-                                    self.minIONdict[minION][
-                                        "scripts"
-                                    ] = get_run_scripts(
-                                        self.args.ip, self.minIONdict[minION]["port"]
-                                    )
-                                    # print("calling check scripts 1161")
-                                    self.minIONdict[minION]["APIHelp"].check_scripts(
-                                        minION
-                                    )
-                                    for script in self.minIONdict[minION]["scripts"]:
-                                        # print (script)
-                                        self.minIONdict[minION][
-                                            "APIHelp"
-                                        ].update_script(minION, script)
-                                    # print (get_run_scripts(self.args.ip,self.minIONdict[minION]["port"]))
-                                    # APIHelp = MinControlAPI()
-                                    # print("calling check scripts 1168")
-                                    # self.minIONdict[minION]["APIHelp"].check_scripts(minION)
-                                    for script in self.minIONdict[minION]["scripts"]:
-                                        # print (script)
-                                        self.minIONdict[minION][
-                                            "APIHelp"
-                                        ].update_script(minION, script)
-                                    # time.sleep(5)
-                                    # sys.exit()
-                        else:
-                            inactive += 1
-                        process_tracked_yield(self.minIONdict)
-                        process_channel_information(
-                            self.minIONdict, self.statedict, self.summarystatedict
-                        )
-                        self.minIONdict[minION]["APIHelp"].update_minion_current_stats(
-                            self.minIONdict[minION]["livedata"],
-                            self.minIONdict[minION]["detailsdata"],
-                            self.minIONdict[minION]["simplesummary"],
-                            self.minIONdict[minION]["channelstuff"],
-                        )
-                        self.minIONdict[minION]["APIHelp"].check_jobs(minION)
-                else:
-                    # print ("Dictionary has changed")
-                    for (
-                        minION
-                    ) in (
-                        self.minIONdict
-                    ):  # if yes then we check each minION to see what is happening
-                        if "state" in self.minIONdict[minION].keys():
-                            if (
-                                self.minIONdict[minION]["state"] == "active"
-                            ):  # we have a sequencing minION - what is it doing?
-                                # APIHelp =
-                                # print (minION, "ACTIVE")
-                                try:
-                                    if minION not in self.minIONclassdict:
-                                        connectip = (
-                                            "ws://"
-                                            + self.args.ip
-                                            + ":"
-                                            + str(
-                                                self.minIONdict[minION][
-                                                    "ws_longpoll_port"
-                                                ]
-                                            )
-                                            + "/"
-                                        )  # Connect to the self.minIONdict
-                                        connectip2 = (
-                                            "ws://"
-                                            + self.args.ip
-                                            + ":"
-                                            + str(
-                                                self.minIONdict[minION][
-                                                    "ws_longpoll_port"
-                                                ]
-                                            )
-                                            + "/user_messages"
-                                        )  # Connect to the self.minIONdict
-                                        self.minIONclassdict[
-                                            minION
-                                        ] = dict()  # Add minION to the dictionary
-                                    if "connected" not in self.minIONclassdict[minION]:
-                                        # print ("Connecting to this minION", minION)
-                                        self.minIONclassdict[minION][
-                                            "class"
-                                        ] = DummyClient(connectip)
-                                        self.minIONclassdict[minION][
-                                            "class2"
-                                        ] = MessagesClient(
-                                            connectip2, self.args, self.minIONdict
-                                        )
-                                    if "connected" not in self.minIONclassdict[minION]:
-                                        try:
-                                            self.minIONclassdict[minION][
-                                                "class"
-                                            ].connect()
-                                            self.minIONclassdict[minION][
-                                                "class2"
-                                            ].connect()
-                                        except Exception as err:
-                                            print("480 Connection failed", err)
-                                        try:
-                                            # print ("GETTING THE GOOD STUFF")
-                                            self.minIONclassdict[minION][
-                                                "class"
-                                            ].init_minion(minION, self.minIONdict)
-                                            print(
-                                                "Trying to set the minion Again.... {}".format(
-                                                    minION
-                                                )
-                                            )
-                                            self.minIONclassdict[minION][
-                                                "class2"
-                                            ].init_minion(minION)
-                                            results = execute_command_as_string(
-                                                commands("get_analysis_configuration"),
-                                                self.args.ip,
-                                                self.minIONdict[minION]["port"],
-                                            )
-                                            self.minIONdict[minION][
-                                                "channelstuff"
-                                            ] = results["result"]["channel_states"]
-                                        except Exception as err:
-                                            print("Connection failed", err)
-                                        self.minIONclassdict[minION][
-                                            "connected"
-                                        ] = "True"
-                                    livedata = (
-                                        dict()
-                                    )  # collect a dictionary of useful data - might change this
-                                    # print ("running get run scripts 1199")
-                                    self.minIONdict[minION][
-                                        "scripts"
-                                    ] = get_run_scripts(
-                                        self.args.ip, self.minIONdict[minION]["port"]
-                                    )
-                                    # print("calling check scripts 1216")
-                                    self.minIONdict[minION]["APIHelp"].check_scripts(
-                                        minION
-                                    )
-                                    for script in self.minIONdict[minION]["scripts"]:
-                                        # print (script)
-                                        self.minIONdict[minION][
-                                            "APIHelp"
-                                        ].update_script(minION, script)
-                                    for query in (
-                                        "status",
-                                        "dataset",
-                                        "biasvoltageget",
-                                        "bias_voltage_gain",
-                                        "machine_id",
-                                        "machine_name",
-                                        "sample_id",
-                                        "user_error",
-                                        "sequenced_res",
-                                        "sequenced_res",
-                                        "yield_res",
-                                        "current_script",
-                                        "disk_space",
-                                        "flow_cell_id",
-                                        "get_tracking_id",
-                                        "get_seq_metrics",
-                                        "get_engine_states",
-                                    ):  # ,'getstaticdata','get_analysis_configuration'):
-                                        results = execute_command_as_string(
-                                            commands(query),
-                                            self.args.ip,
-                                            self.minIONdict[minION]["port"],
-                                        )
-                                        livedata[query] = results
-                                    results = execute_command_as_string(
-                                        commands("get_statistics"),
-                                        self.args.ip,
-                                        self.minIONdict[minION]["port"],
-                                    )
-                                    # print ("Got Stats")
-                                    meanratio = list()
-                                    openpore = list()
-                                    instrand = list()
-                                    datatofetch = (
-                                        "seq_pore_level",
-                                        "seq_strand_delta",
-                                        "tba_pore_level",
-                                        "tba_event_delta",
-                                    )
-                                    for item in results["result"][
-                                        "stats_for_channel_name"
-                                    ]:
-                                        if (
-                                            float(
-                                                results["result"][
-                                                    "stats_for_channel_name"
-                                                ][item]["seq_strand_delta"]
-                                            )
-                                            != 0
-                                        ):
-                                            meanratio.append(
-                                                (
-                                                    float(
-                                                        results["result"][
-                                                            "stats_for_channel_name"
-                                                        ][item]["seq_pore_level"]
-                                                    )
-                                                    / float(
-                                                        results["result"][
-                                                            "stats_for_channel_name"
-                                                        ][item]["seq_strand_delta"]
-                                                    )
-                                                )
-                                            )
-                                            openpore.append(
-                                                float(
-                                                    results["result"][
-                                                        "stats_for_channel_name"
-                                                    ][item]["seq_pore_level"]
-                                                )
-                                            )
-                                            instrand.append(
-                                                float(
-                                                    results["result"][
-                                                        "stats_for_channel_name"
-                                                    ][item]["seq_strand_delta"]
-                                                )
-                                            )
-
-                                    results2 = execute_command_as_string(
-                                        commands("get_analysis_configuration"),
-                                        self.args.ip,
-                                        self.minIONdict[minION]["port"],
-                                    )
-                                    self.minIONdict[minION]["channelstuff"] = results2[
-                                        "result"
-                                    ]["channel_states"]
-                                    self.minIONdict[minION][
-                                        "livedata"
-                                    ] = livedata  # append results to data stream
-                                    # print (livedata)
-                                    if "class" in self.minIONclassdict[minION]:
-                                        for element in self.minIONclassdict[minION][
-                                            "class"
-                                        ].detailsdict:
-                                            if (
-                                                "detailsdata"
-                                                not in self.minIONdict[minION]
-                                            ):
-                                                print("Creating detailsdata")
-                                                self.minIONdict[minION][
-                                                    "detailsdata"
-                                                ] = dict()
-                                            try:
-                                                self.minIONdict[minION]["detailsdata"][
-                                                    "meanratio"
-                                                ] = np.mean(meanratio)
-                                                self.minIONdict[minION]["detailsdata"][
-                                                    "openpore"
-                                                ] = np.mean(openpore)
-                                                self.minIONdict[minION]["detailsdata"][
-                                                    "instrand"
-                                                ] = np.mean(instrand)
-                                            except:
-                                                self.minIONdict[minION]["detailsdata"][
-                                                    "meanratio"
-                                                ] = 0
-                                                self.minIONdict[minION]["detailsdata"][
-                                                    "openpore"
-                                                ] = 0
-                                                self.minIONdict[minION]["detailsdata"][
-                                                    "instrand"
-                                                ] = 0
-                                            if (
-                                                element == "statistics"
-                                                and self.minIONclassdict[minION][
-                                                    "class"
-                                                ].detailsdict[element]
-                                                != "null"
-                                            ):
-                                                if (
-                                                    element
-                                                    not in self.minIONdict[minION][
-                                                        "detailsdata"
-                                                    ]
-                                                ):
-                                                    self.minIONdict[minION][
-                                                        "detailsdata"
-                                                    ][element] = dict()
-                                                context = dict(
-                                                    list(
-                                                        self.minIONdict[minION][
-                                                            "detailsdata"
-                                                        ][element].items()
-                                                    )
-                                                    + list(
-                                                        self.minIONclassdict[minION][
-                                                            "class"
-                                                        ]
-                                                        .detailsdict[element]
-                                                        .items()
-                                                    )
-                                                )
-                                                self.minIONdict[minION]["detailsdata"][
-                                                    element
-                                                ] = context
-                                            if (
-                                                element == "engine_states"
-                                                and self.minIONclassdict[minION][
-                                                    "class"
-                                                ].detailsdict[element]
-                                                != "null"
-                                            ):
-                                                for element2 in self.minIONclassdict[
-                                                    minION
-                                                ]["class"].detailsdict[element]:
-                                                    if (
-                                                        self.minIONclassdict[minION][
-                                                            "class"
-                                                        ].detailsdict[element][element2]
-                                                        != "null"
-                                                    ):
-                                                        if (
-                                                            element
-                                                            not in self.minIONdict[
-                                                                minION
-                                                            ]["detailsdata"]
-                                                        ):
-                                                            self.minIONdict[minION][
-                                                                "detailsdata"
-                                                            ][element] = dict()
-                                                        self.minIONdict[minION][
-                                                            "detailsdata"
-                                                        ][element][
-                                                            element2
-                                                        ] = self.minIONclassdict[
-                                                            minION
-                                                        ][
-                                                            "class"
-                                                        ].detailsdict[
-                                                            element
-                                                        ][
-                                                            element2
-                                                        ]
-                                            else:
-                                                if (
-                                                    self.minIONclassdict[minION][
-                                                        "class"
-                                                    ].detailsdict[element]
-                                                    != "null"
-                                                ):
-                                                    self.minIONdict[minION][
-                                                        "detailsdata"
-                                                    ][element] = self.minIONclassdict[
-                                                        minION
-                                                    ][
-                                                        "class"
-                                                    ].detailsdict[
-                                                        element
-                                                    ]
-                                except Exception as err:
-                                    self.minIONclassdict.pop(minION)
-                                    print("line 1411 minCONTROL", err)
-                                    print("Connection Error")
-                                process_tracked_yield(self.minIONdict)
-                                process_channel_information(
-                                    self.minIONdict,
-                                    self.statedict,
-                                    self.summarystatedict,
-                                )
-                                if "livedata" in self.minIONdict[minION].keys():
-                                    try:
-                                        self.minIONdict[minION][
-                                            "APIHelp"
-                                        ].update_minion_current_stats(
-                                            self.minIONdict[minION]["livedata"],
-                                            self.minIONdict[minION]["detailsdata"],
-                                            self.minIONdict[minION]["simplesummary"],
-                                            self.minIONdict[minION]["channelstuff"],
-                                        )
-                                    except Exception as exception:
-                                        print("update failed")
-                                        print(">>> Exception")
-                                        print(exception)
-                                        print("<<< Exception")
-
-                                    self.minIONdict[minION]["APIHelp"].check_jobs(
-                                        minION
-                                    )
-
-                            else:  # minION state is inactive
-                                # print minION, "INACTIVE"
-                                if minION in self.minIONclassdict:
-                                    if "connected" in self.minIONclassdict[minION]:
-                                        keys = self.minIONclassdict[minION].keys()
-                                        for key in keys:
-                                            # print (key)
-                                            self.minIONclassdict[minION].pop(key, None)
-                time.sleep(5)
-            time.sleep(1)
-
-    def hang_up(self):
-        print("ctrl-c detected at top level")
-        if self.args.GUI:
-            self.args.minKNOWmessage = "Disconnecting MinIONs from minoTour control."
-        # print ("Connected to Master MinION Controller!")
-        # print ("Disconnecting MinIONs from minoTour control.")
-        for minION in self.minIONclassdict:
-            self.minIONdict[minION]["APIHelp"].update_minion_events(
-                minION, "UNKNOWN", "unplugged"
-            )
-        print("bye bye")
+# class HelpTheMinion(WebSocketClient):
+#     def __init__(self, minswip, args, header):
+#         WebSocketClient.__init__(self, minswip)
+#         self.args = args
+#         self.minIONdict = dict()
+#         self.minIONdict_test = dict()
+#         self.minIONclassdict = dict()
+#         self.statedict = dict()
+#         self.summarystatedict = dict()
+#         self.mcrunning = False
+#         self.header = header
+#         # t = threading.Thread(target=self.process_minion_test())
+#         # t.daemon = True
+#         # t.start()
+#
+#     def opened(self):
+#         if self.args.GUI:
+#             self.args.minKNOWmessage = "Connected to MinKNOW"
+#         print("Connected to Master MinION Controller!")
+#
+#     def initialiseminion():
+#         if self.args.GUI:
+#             self.args.minKNOWmessage = "Initialising MinION"
+#         # result = self.send(json.dumps({"params": "null", "id": 5, "method": "initialization_status"}))
+#         # print (result)
+#
+#     def determinetype(self, minION):
+#         """
+#         :param minION:
+#         :return: devicetype,deviceid,portstring
+#         """
+#         devicetype = "unknown"
+#         deviceid = "unknown"
+#         if minION[1] == "M":
+#             devicetype = "MinION"
+#             deviceid = minION[1:8]
+#         elif minION[1] == "G":
+#             devicetype = "GridION"
+#             deviceid = minION[1:8]
+#         elif minION[1] == "1" or minION[1] == "2":
+#             devicetype = "PromethION"
+#             # print (minION[1:9])
+#             promvals = minION[1:9].split("-")
+#             if len(promvals[1]) == 2:
+#                 print(minION[1:8])
+#                 deviceid = minION[1:8]
+#             else:
+#                 print(minION[1:10])
+#                 deviceid = minION[1:10]
+#         print(devicetype)
+#         return devicetype, deviceid  # ,portstring
+#
+#     def parse_ports(self, ports, minIONname):
+#         """
+#         :param ports: string to parse representing the ports
+#         :return: list of ports
+#         """
+#         portset = list()
+#         rawports = list(map(lambda x: x, filter(lambda x: x, map(ord, ports))))
+#         chomplen = len(minIONname) + 4
+#         print(rawports)
+#         rawports = rawports[chomplen:-2]
+#         rawvalues = list()
+#         offset = list()
+#         for index, port in enumerate(rawports):
+#             if index % 3 == 0:
+#                 try:
+#                     rawvalues.append(port)
+#                     offset.append(rawports[(index + 1)])
+#                 except:
+#                     print("fail")
+#         # print (rawports)
+#         # print (rawvalue)
+#         # print (offset)
+#
+#         for index, rawvalue in enumerate(rawvalues):
+#             try:
+#                 off = offset[index]
+#                 if off == 62:
+#                     correction = 192
+#                 elif off == 63:
+#                     correction = 64
+#                 else:
+#                     print("These are not the ports you are looking for.")
+#                     correction = 0
+#                     # sys.exit()
+#                 port = rawvalue - correction + 8000
+#                 print(port)
+#                 portset.append(port)
+#             except:
+#                 print("fail2")
+#         return portset
+#
+#     def received_message(self, m):
+#         for thing in "".join(map(chr, map(ord, (m.data).decode("latin-1")))).split(
+#             "\n"
+#         ):
+#             if len(thing) > 5 and "2L" not in thing and "2n" not in thing:
+#                 devicetype, deviceid = self.determinetype(thing)
+#                 if len(thing) > 5 and (
+#                     thing[1] == "M"
+#                     or thing[1] == "G"
+#                     or thing[1] == "1"
+#                     or thing[1] == "2"
+#                 ):
+#                     if deviceid not in self.minIONdict:
+#                         # print ("INITIALISING self.minIONdict", deviceid)
+#                         self.minIONdict[deviceid] = dict()
+#                         self.minIONdict[deviceid]["APIHelp"] = MinControlAPI(
+#                             deviceid,
+#                             self.args,
+#                             self.statedict,
+#                             self.summarystatedict,
+#                             self.minIONdict,
+#                             self.header,
+#                         )
+#                         self.minIONdict[deviceid]["APIHelp"].update_minion_events(
+#                             deviceid, "UNKNOWN", "connected"
+#                         )
+#                     # minIONports = list(map(lambda x:x,filter(lambda x:x,map(ord,thing))))
+#                     # print (minIONports)
+#                     # minIONports = list(map(lambda x: x, filter(lambda x: x > 120, map(ord, thing))))
+#                     # print (minIONports)
+#                     # minIONports = list(map(lambda x:x-192+8000,filter(lambda x:x>120,map(ord,thing))))
+#                     # print (minIONports)
+#                     minIONports = self.parse_ports(thing, deviceid)
+#                     # time.sleep(1)
+#                     if len(minIONports) > 3:
+#                         # if min(minIONports) != minIONports[0]:
+#                         #     print ("These are not the ports you are looking for.")
+#                         #     minIONports = list(
+#                         #         map(lambda x: x - 192 + 8000 + 128, filter(lambda x: x > 120, map(ord, thing))))
+#                         #     print (minIONports)
+#                         try:
+#                             self.minIONdict[deviceid]["state"] = "active"
+#                             port = minIONports[0]
+#                             ws_longpoll_port = minIONports[1]
+#                             ws_event_sampler_port = minIONports[2]
+#                             ws_raw_data_sampler_port = minIONports[3]
+#                             self.minIONdict[deviceid]["port"] = port
+#                             self.minIONdict[deviceid][
+#                                 "ws_longpoll_port"
+#                             ] = ws_longpoll_port
+#                             self.minIONdict[deviceid][
+#                                 "ws_event_sampler_port"
+#                             ] = ws_event_sampler_port
+#                             self.minIONdict[deviceid][
+#                                 "ws_raw_data_sampler_port"
+#                             ] = ws_raw_data_sampler_port
+#                             # print ("port is:", port)
+#                             results = execute_command_as_string(
+#                                 commands("machine_id"),
+#                                 self.args.ip,
+#                                 self.minIONdict[deviceid]["port"],
+#                             )
+#
+#                             self.minIONdict[deviceid]["APIHelp"].update_minion_events(
+#                                 deviceid, str(results["result"]), "active"
+#                             )
+#                         except:
+#                             # print ("caught it")
+#                             minIONports = list(
+#                                 map(
+#                                     lambda x: x - 192 + 8000 + 128,
+#                                     filter(lambda x: x > 120, map(ord, thing)),
+#                                 )
+#                             )
+#                             # print (minIONports)
+#                             self.minIONdict[deviceid]["state"] = "active"
+#                             port = minIONports[0]
+#                             ws_longpoll_port = minIONports[1]
+#                             ws_event_sampler_port = minIONports[2]
+#                             ws_raw_data_sampler_port = minIONports[3]
+#                             self.minIONdict[deviceid]["port"] = port
+#                             self.minIONdict[deviceid][
+#                                 "ws_longpoll_port"
+#                             ] = ws_longpoll_port
+#                             self.minIONdict[deviceid][
+#                                 "ws_event_sampler_port"
+#                             ] = ws_event_sampler_port
+#                             self.minIONdict[deviceid][
+#                                 "ws_raw_data_sampler_port"
+#                             ] = ws_raw_data_sampler_port
+#                             # print ("port is:", port)
+#                             results = execute_command_as_string(
+#                                 commands("machine_id"),
+#                                 self.args.ip,
+#                                 self.minIONdict[deviceid]["port"],
+#                             )
+#                             # print ("should contain the computer name", results)
+#                             self.minIONdict[deviceid]["APIHelp"].update_minion_events(
+#                                 deviceid, str(results["result"]), "active"
+#                             )
+#                         # print (minIONports)
+#                     else:
+#                         self.minIONdict[deviceid]["state"] = "inactive"
+#                         self.minIONdict[deviceid]["port"] = ""
+#                         self.minIONdict[deviceid]["ws_longpoll_port"] = ""
+#                         self.minIONdict[deviceid]["ws_event_sampler_port"] = ""
+#                         self.minIONdict[deviceid]["ws_raw_data_sampler_port"] = ""
+#                         self.minIONdict[deviceid]["APIHelp"].update_minion_events(
+#                             deviceid, "UNKNOWN", "inactive"
+#                         )
+#         self.mcrunning = True
+#
+#     def process_minion_test(self):
+#         while True:
+#             # print ("yo dawg")
+#             time.sleep(1)
+#
+#     def process_minion(self):
+#         while True:
+#             while self.mcrunning:
+#                 print("Still Monitoring")
+#                 # print (".")
+#                 # print (self.mcrunning)
+#                 # print (minIONdict)
+#                 if (
+#                     self.minIONdict == self.minIONdict_test
+#                 ):  ## The dictionary is unchanged since the last cycle
+#                     active = 0
+#                     inactive = 0
+#                     for minION in self.minIONdict:
+#                         if self.minIONdict[minION]["state"] == "active":
+#                             active += 1
+#                             # print ("minION is active")
+#                             if minION not in self.minIONclassdict:
+#                                 # print ("adding minION to dict")
+#                                 self.minIONclassdict[minION] = dict()
+#                             if "connected" not in self.minIONclassdict[minION]:
+#                                 connectip = (
+#                                     "ws://"
+#                                     + self.args.ip
+#                                     + ":"
+#                                     + str(self.minIONdict[minION]["ws_longpoll_port"])
+#                                     + "/"
+#                                 )
+#                                 self.minIONclassdict[minION]["class"] = DummyClient(
+#                                     connectip
+#                                 )
+#                                 connectip2 = (
+#                                     "ws://"
+#                                     + self.args.ip
+#                                     + ":"
+#                                     + str(self.minIONdict[minION]["ws_longpoll_port"])
+#                                     + "/user_messages"
+#                                 )
+#                                 self.minIONclassdict[minION]["class2"] = MessagesClient(
+#                                     connectip2, self.args
+#                                 )
+#                                 # print ("initial handshake")
+#                             try:
+#                                 if "connected" not in self.minIONclassdict[minION]:
+#                                     try:
+#                                         self.minIONclassdict[minION]["class"].connect()
+#                                         self.minIONclassdict[minION]["class2"].connect()
+#                                         self.minIONclassdict[minION][
+#                                             "class"
+#                                         ].init_minion(minION, self.minIONdict)
+#                                         print(
+#                                             "Trying to init a messages client with {}".format(
+#                                                 minION
+#                                             )
+#                                         )
+#                                         self.minIONclassdict[minION][
+#                                             "class2"
+#                                         ].init_minion(minION)
+#                                         results = execute_command_as_string(
+#                                             commands("get_analysis_configuration"),
+#                                             self.args.ip,
+#                                             self.minIONdict[minION]["port"],
+#                                         )
+#                                         # print ("getting the good stuff")
+#
+#                                         self.minIONdict[minION][
+#                                             "channelstuff"
+#                                         ] = results["result"]["channel_states"]
+#                                         # print ("connection good")
+#                                     except Exception as err:
+#                                         print("380 Connection failed", err)
+#                                     self.minIONclassdict[minION]["connected"] = "True"
+#                                 ##Check if connction is new or old:
+#                                 if minION in self.minIONdict_test:
+#                                     if (
+#                                         self.minIONdict[minION]["state"]
+#                                         == self.minIONdict_test[minION]["state"]
+#                                     ):
+#                                         try:  # To catch mysterious bugs
+#                                             livedata = (
+#                                                 dict()
+#                                             )  # collect a dictionary of useful data - might change this
+#                                             for query in (
+#                                                 "status",
+#                                                 "dataset",
+#                                                 "biasvoltageget",
+#                                                 "bias_voltage_gain",
+#                                                 "machine_id",
+#                                                 "machine_name",
+#                                                 "sample_id",
+#                                                 "user_error",
+#                                                 "sequenced_res",
+#                                                 "yield_res",
+#                                                 "current_script",
+#                                                 "disk_space",
+#                                                 "flow_cell_id",
+#                                                 "get_seq_metrics",
+#                                                 "get_engine_states",
+#                                             ):  # ,'getstaticdata','get_analysis_configuration'):
+#                                                 results = execute_command_as_string(
+#                                                     commands(query),
+#                                                     self.args.ip,
+#                                                     self.minIONdict[minION]["port"],
+#                                                 )
+#                                                 livedata[query] = results
+#                                                 # print (query,results)
+#                                             self.minIONdict[minION][
+#                                                 "livedata"
+#                                             ] = livedata  # append results to data stream
+#                                             # print ("data appended")
+#                                             # sys.exit()
+#                                         except Exception as err:
+#                                             print("line 1407", err)
+#                                             pass
+#                                         # print ("OK")
+#                                     else:
+#                                         if "scripts" in self.minIONdict[minION]:
+#                                             # print ("running get run scripts line 1110")
+#                                             if self.minIONdict[minION][
+#                                                 "scripts"
+#                                             ] != get_run_scripts(
+#                                                 self.args.ip,
+#                                                 self.minIONdict[minION]["port"],
+#                                             ):
+#                                                 # print("running get run scripts 1111")
+#                                                 self.minIONdict[minION][
+#                                                     "scripts"
+#                                                 ] = get_run_scripts(
+#                                                     self.args.ip,
+#                                                     self.minIONdict[minION]["port"],
+#                                                 )
+#                                                 # print ("calling check scripts 1113")
+#                                                 self.minIONdict[minION][
+#                                                     "APIHelp"
+#                                                 ].check_scripts(minION)
+#                                                 for script in self.minIONdict[minION][
+#                                                     "scripts"
+#                                                 ]:
+#                                                     # print (script)
+#                                                     self.minIONdict[minION][
+#                                                         "APIHelp"
+#                                                     ].update_script(minION, script)
+#                                         else:
+#                                             # print("running get run scripts 1114")
+#                                             self.minIONdict[minION][
+#                                                 "scripts"
+#                                             ] = get_run_scripts(
+#                                                 self.args.ip,
+#                                                 self.minIONdict[minION]["port"],
+#                                             )
+#                                             # print("calling check scripts 1121")
+#                                             self.minIONdict[minION][
+#                                                 "APIHelp"
+#                                             ].check_scripts(minION)
+#                                             for script in self.minIONdict[minION][
+#                                                 "scripts"
+#                                             ]:
+#                                                 # print (script)
+#                                                 self.minIONdict[minION][
+#                                                     "APIHelp"
+#                                                 ].update_script(minION, script)
+#                                             results = execute_command_as_string(
+#                                                 commands("startmessagenew"),
+#                                                 self.args.ip,
+#                                                 self.minIONdict[minION]["port"],
+#                                             )
+#                                             try:  # To catch mysterious bugs
+#                                                 livedata = (
+#                                                     dict()
+#                                                 )  # collect a dictionary of useful data - might change this
+#                                                 for query in (
+#                                                     "status",
+#                                                     "dataset",
+#                                                     "biasvoltageget",
+#                                                     "bias_voltage_gain",
+#                                                     "machine_id",
+#                                                     "machine_name",
+#                                                     "sample_id",
+#                                                     "user_error",
+#                                                     "sequenced_res",
+#                                                     "sequenced_res",
+#                                                     "yield_res",
+#                                                     "current_script",
+#                                                     "disk_space",
+#                                                     "flow_cell_id",
+#                                                     "get_seq_metrics",
+#                                                 ):  # ,'getstaticdata','get_analysis_configuration'):
+#                                                     # print query
+#                                                     results = execute_command_as_string(
+#                                                         commands(query),
+#                                                         self.args.ip,
+#                                                         self.minIONdict[minION]["port"],
+#                                                     )
+#                                                     livedata[query] = results
+#                                                 self.minIONdict[minION][
+#                                                     "livedata"
+#                                                 ] = livedata  # append results to data stream
+#                                             except Exception as err:
+#                                                 print("line 1438", err)
+#                                                 pass
+#                             except Exception as err:
+#                                 print("line 1443", err)
+#                                 print("Connection Error")
+#                             else:
+#                                 # print ("here")
+#                                 if "scripts" not in self.minIONdict[minION]:
+#                                     # print ("running get run scripts 1147")
+#                                     self.minIONdict[minION][
+#                                         "scripts"
+#                                     ] = get_run_scripts(
+#                                         self.args.ip, self.minIONdict[minION]["port"]
+#                                     )
+#                                     # print("calling check scripts 1161")
+#                                     self.minIONdict[minION]["APIHelp"].check_scripts(
+#                                         minION
+#                                     )
+#                                     for script in self.minIONdict[minION]["scripts"]:
+#                                         # print (script)
+#                                         self.minIONdict[minION][
+#                                             "APIHelp"
+#                                         ].update_script(minION, script)
+#                                     # print (get_run_scripts(self.args.ip,self.minIONdict[minION]["port"]))
+#                                     # APIHelp = MinControlAPI()
+#                                     # print("calling check scripts 1168")
+#                                     # self.minIONdict[minION]["APIHelp"].check_scripts(minION)
+#                                     for script in self.minIONdict[minION]["scripts"]:
+#                                         # print (script)
+#                                         self.minIONdict[minION][
+#                                             "APIHelp"
+#                                         ].update_script(minION, script)
+#                                     # time.sleep(5)
+#                                     # sys.exit()
+#                         else:
+#                             inactive += 1
+#                         process_tracked_yield(self.minIONdict)
+#                         process_channel_information(
+#                             self.minIONdict, self.statedict, self.summarystatedict
+#                         )
+#                         self.minIONdict[minION]["APIHelp"].update_minion_current_stats(
+#                             self.minIONdict[minION]["livedata"],
+#                             self.minIONdict[minION]["detailsdata"],
+#                             self.minIONdict[minION]["simplesummary"],
+#                             self.minIONdict[minION]["channelstuff"],
+#                         )
+#                         self.minIONdict[minION]["APIHelp"].check_jobs(minION)
+#                 else:
+#                     # print ("Dictionary has changed")
+#                     for (
+#                         minION
+#                     ) in (
+#                         self.minIONdict
+#                     ):  # if yes then we check each minION to see what is happening
+#                         if "state" in self.minIONdict[minION].keys():
+#                             if (
+#                                 self.minIONdict[minION]["state"] == "active"
+#                             ):  # we have a sequencing minION - what is it doing?
+#                                 # APIHelp =
+#                                 # print (minION, "ACTIVE")
+#                                 try:
+#                                     if minION not in self.minIONclassdict:
+#                                         connectip = (
+#                                             "ws://"
+#                                             + self.args.ip
+#                                             + ":"
+#                                             + str(
+#                                                 self.minIONdict[minION][
+#                                                     "ws_longpoll_port"
+#                                                 ]
+#                                             )
+#                                             + "/"
+#                                         )  # Connect to the self.minIONdict
+#                                         connectip2 = (
+#                                             "ws://"
+#                                             + self.args.ip
+#                                             + ":"
+#                                             + str(
+#                                                 self.minIONdict[minION][
+#                                                     "ws_longpoll_port"
+#                                                 ]
+#                                             )
+#                                             + "/user_messages"
+#                                         )  # Connect to the self.minIONdict
+#                                         self.minIONclassdict[
+#                                             minION
+#                                         ] = dict()  # Add minION to the dictionary
+#                                     if "connected" not in self.minIONclassdict[minION]:
+#                                         # print ("Connecting to this minION", minION)
+#                                         self.minIONclassdict[minION][
+#                                             "class"
+#                                         ] = DummyClient(connectip)
+#                                         self.minIONclassdict[minION][
+#                                             "class2"
+#                                         ] = MessagesClient(
+#                                             connectip2, self.args, self.minIONdict
+#                                         )
+#                                     if "connected" not in self.minIONclassdict[minION]:
+#                                         try:
+#                                             self.minIONclassdict[minION][
+#                                                 "class"
+#                                             ].connect()
+#                                             self.minIONclassdict[minION][
+#                                                 "class2"
+#                                             ].connect()
+#                                         except Exception as err:
+#                                             print("480 Connection failed", err)
+#                                         try:
+#                                             # print ("GETTING THE GOOD STUFF")
+#                                             self.minIONclassdict[minION][
+#                                                 "class"
+#                                             ].init_minion(minION, self.minIONdict)
+#                                             print(
+#                                                 "Trying to set the minion Again.... {}".format(
+#                                                     minION
+#                                                 )
+#                                             )
+#                                             self.minIONclassdict[minION][
+#                                                 "class2"
+#                                             ].init_minion(minION)
+#                                             results = execute_command_as_string(
+#                                                 commands("get_analysis_configuration"),
+#                                                 self.args.ip,
+#                                                 self.minIONdict[minION]["port"],
+#                                             )
+#                                             self.minIONdict[minION][
+#                                                 "channelstuff"
+#                                             ] = results["result"]["channel_states"]
+#                                         except Exception as err:
+#                                             print("Connection failed", err)
+#                                         self.minIONclassdict[minION][
+#                                             "connected"
+#                                         ] = "True"
+#                                     livedata = (
+#                                         dict()
+#                                     )  # collect a dictionary of useful data - might change this
+#                                     # print ("running get run scripts 1199")
+#                                     self.minIONdict[minION][
+#                                         "scripts"
+#                                     ] = get_run_scripts(
+#                                         self.args.ip, self.minIONdict[minION]["port"]
+#                                     )
+#                                     # print("calling check scripts 1216")
+#                                     self.minIONdict[minION]["APIHelp"].check_scripts(
+#                                         minION
+#                                     )
+#                                     for script in self.minIONdict[minION]["scripts"]:
+#                                         # print (script)
+#                                         self.minIONdict[minION][
+#                                             "APIHelp"
+#                                         ].update_script(minION, script)
+#                                     for query in (
+#                                         "status",
+#                                         "dataset",
+#                                         "biasvoltageget",
+#                                         "bias_voltage_gain",
+#                                         "machine_id",
+#                                         "machine_name",
+#                                         "sample_id",
+#                                         "user_error",
+#                                         "sequenced_res",
+#                                         "sequenced_res",
+#                                         "yield_res",
+#                                         "current_script",
+#                                         "disk_space",
+#                                         "flow_cell_id",
+#                                         "get_tracking_id",
+#                                         "get_seq_metrics",
+#                                         "get_engine_states",
+#                                     ):  # ,'getstaticdata','get_analysis_configuration'):
+#                                         results = execute_command_as_string(
+#                                             commands(query),
+#                                             self.args.ip,
+#                                             self.minIONdict[minION]["port"],
+#                                         )
+#                                         livedata[query] = results
+#                                     results = execute_command_as_string(
+#                                         commands("get_statistics"),
+#                                         self.args.ip,
+#                                         self.minIONdict[minION]["port"],
+#                                     )
+#                                     # print ("Got Stats")
+#                                     meanratio = list()
+#                                     openpore = list()
+#                                     instrand = list()
+#                                     datatofetch = (
+#                                         "seq_pore_level",
+#                                         "seq_strand_delta",
+#                                         "tba_pore_level",
+#                                         "tba_event_delta",
+#                                     )
+#                                     for item in results["result"][
+#                                         "stats_for_channel_name"
+#                                     ]:
+#                                         if (
+#                                             float(
+#                                                 results["result"][
+#                                                     "stats_for_channel_name"
+#                                                 ][item]["seq_strand_delta"]
+#                                             )
+#                                             != 0
+#                                         ):
+#                                             meanratio.append(
+#                                                 (
+#                                                     float(
+#                                                         results["result"][
+#                                                             "stats_for_channel_name"
+#                                                         ][item]["seq_pore_level"]
+#                                                     )
+#                                                     / float(
+#                                                         results["result"][
+#                                                             "stats_for_channel_name"
+#                                                         ][item]["seq_strand_delta"]
+#                                                     )
+#                                                 )
+#                                             )
+#                                             openpore.append(
+#                                                 float(
+#                                                     results["result"][
+#                                                         "stats_for_channel_name"
+#                                                     ][item]["seq_pore_level"]
+#                                                 )
+#                                             )
+#                                             instrand.append(
+#                                                 float(
+#                                                     results["result"][
+#                                                         "stats_for_channel_name"
+#                                                     ][item]["seq_strand_delta"]
+#                                                 )
+#                                             )
+#
+#                                     results2 = execute_command_as_string(
+#                                         commands("get_analysis_configuration"),
+#                                         self.args.ip,
+#                                         self.minIONdict[minION]["port"],
+#                                     )
+#                                     self.minIONdict[minION]["channelstuff"] = results2[
+#                                         "result"
+#                                     ]["channel_states"]
+#                                     self.minIONdict[minION][
+#                                         "livedata"
+#                                     ] = livedata  # append results to data stream
+#                                     # print (livedata)
+#                                     if "class" in self.minIONclassdict[minION]:
+#                                         for element in self.minIONclassdict[minION][
+#                                             "class"
+#                                         ].detailsdict:
+#                                             if (
+#                                                 "detailsdata"
+#                                                 not in self.minIONdict[minION]
+#                                             ):
+#                                                 print("Creating detailsdata")
+#                                                 self.minIONdict[minION][
+#                                                     "detailsdata"
+#                                                 ] = dict()
+#                                             try:
+#                                                 self.minIONdict[minION]["detailsdata"][
+#                                                     "meanratio"
+#                                                 ] = np.mean(meanratio)
+#                                                 self.minIONdict[minION]["detailsdata"][
+#                                                     "openpore"
+#                                                 ] = np.mean(openpore)
+#                                                 self.minIONdict[minION]["detailsdata"][
+#                                                     "instrand"
+#                                                 ] = np.mean(instrand)
+#                                             except:
+#                                                 self.minIONdict[minION]["detailsdata"][
+#                                                     "meanratio"
+#                                                 ] = 0
+#                                                 self.minIONdict[minION]["detailsdata"][
+#                                                     "openpore"
+#                                                 ] = 0
+#                                                 self.minIONdict[minION]["detailsdata"][
+#                                                     "instrand"
+#                                                 ] = 0
+#                                             if (
+#                                                 element == "statistics"
+#                                                 and self.minIONclassdict[minION][
+#                                                     "class"
+#                                                 ].detailsdict[element]
+#                                                 != "null"
+#                                             ):
+#                                                 if (
+#                                                     element
+#                                                     not in self.minIONdict[minION][
+#                                                         "detailsdata"
+#                                                     ]
+#                                                 ):
+#                                                     self.minIONdict[minION][
+#                                                         "detailsdata"
+#                                                     ][element] = dict()
+#                                                 context = dict(
+#                                                     list(
+#                                                         self.minIONdict[minION][
+#                                                             "detailsdata"
+#                                                         ][element].items()
+#                                                     )
+#                                                     + list(
+#                                                         self.minIONclassdict[minION][
+#                                                             "class"
+#                                                         ]
+#                                                         .detailsdict[element]
+#                                                         .items()
+#                                                     )
+#                                                 )
+#                                                 self.minIONdict[minION]["detailsdata"][
+#                                                     element
+#                                                 ] = context
+#                                             if (
+#                                                 element == "engine_states"
+#                                                 and self.minIONclassdict[minION][
+#                                                     "class"
+#                                                 ].detailsdict[element]
+#                                                 != "null"
+#                                             ):
+#                                                 for element2 in self.minIONclassdict[
+#                                                     minION
+#                                                 ]["class"].detailsdict[element]:
+#                                                     if (
+#                                                         self.minIONclassdict[minION][
+#                                                             "class"
+#                                                         ].detailsdict[element][element2]
+#                                                         != "null"
+#                                                     ):
+#                                                         if (
+#                                                             element
+#                                                             not in self.minIONdict[
+#                                                                 minION
+#                                                             ]["detailsdata"]
+#                                                         ):
+#                                                             self.minIONdict[minION][
+#                                                                 "detailsdata"
+#                                                             ][element] = dict()
+#                                                         self.minIONdict[minION][
+#                                                             "detailsdata"
+#                                                         ][element][
+#                                                             element2
+#                                                         ] = self.minIONclassdict[
+#                                                             minION
+#                                                         ][
+#                                                             "class"
+#                                                         ].detailsdict[
+#                                                             element
+#                                                         ][
+#                                                             element2
+#                                                         ]
+#                                             else:
+#                                                 if (
+#                                                     self.minIONclassdict[minION][
+#                                                         "class"
+#                                                     ].detailsdict[element]
+#                                                     != "null"
+#                                                 ):
+#                                                     self.minIONdict[minION][
+#                                                         "detailsdata"
+#                                                     ][element] = self.minIONclassdict[
+#                                                         minION
+#                                                     ][
+#                                                         "class"
+#                                                     ].detailsdict[
+#                                                         element
+#                                                     ]
+#                                 except Exception as err:
+#                                     self.minIONclassdict.pop(minION)
+#                                     print("line 1411 minCONTROL", err)
+#                                     print("Connection Error")
+#                                 process_tracked_yield(self.minIONdict)
+#                                 process_channel_information(
+#                                     self.minIONdict,
+#                                     self.statedict,
+#                                     self.summarystatedict,
+#                                 )
+#                                 if "livedata" in self.minIONdict[minION].keys():
+#                                     try:
+#                                         self.minIONdict[minION][
+#                                             "APIHelp"
+#                                         ].update_minion_current_stats(
+#                                             self.minIONdict[minION]["livedata"],
+#                                             self.minIONdict[minION]["detailsdata"],
+#                                             self.minIONdict[minION]["simplesummary"],
+#                                             self.minIONdict[minION]["channelstuff"],
+#                                         )
+#                                     except Exception as exception:
+#                                         print("update failed")
+#                                         print(">>> Exception")
+#                                         print(exception)
+#                                         print("<<< Exception")
+#
+#                                     self.minIONdict[minION]["APIHelp"].check_jobs(
+#                                         minION
+#                                     )
+#
+#                             else:  # minION state is inactive
+#                                 # print minION, "INACTIVE"
+#                                 if minION in self.minIONclassdict:
+#                                     if "connected" in self.minIONclassdict[minION]:
+#                                         keys = self.minIONclassdict[minION].keys()
+#                                         for key in keys:
+#                                             # print (key)
+#                                             self.minIONclassdict[minION].pop(key, None)
+#                 time.sleep(5)
+#             time.sleep(1)
+#
+#     def hang_up(self):
+#         print("ctrl-c detected at top level")
+#         if self.args.GUI:
+#             self.args.minKNOWmessage = "Disconnecting MinIONs from minoTour control."
+#         # print ("Connected to Master MinION Controller!")
+#         # print ("Disconnecting MinIONs from minoTour control.")
+#         for minION in self.minIONclassdict:
+#             self.minIONdict[minION]["APIHelp"].update_minion_events(
+#                 minION, "UNKNOWN", "unplugged"
+#             )
+#         print("bye bye")
