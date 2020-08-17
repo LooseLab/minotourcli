@@ -254,7 +254,7 @@ class DeviceConnect(WebSocketClient):
             log.debug(self.channels)
             log.debug("FLOWCELL DATA: {}".format(self.get_flowcell_id()))
             log.debug("trying to create run")
-            self.create_run(self.runinformation.run_id)
+            self.create_run(self.runinformation.run_primary_key)
             log.debug("run created!!!!!!!")
             #### Grab the folder and if we are allowed, add it to the watchlist?
             FolderPath = parsemessage(
@@ -295,7 +295,7 @@ class DeviceConnect(WebSocketClient):
             "minKNOW_version": str(
                 self.rpc_connection.instance.get_version_info().minknow.full
             ),
-            "minKNOW_hash_run_id": str(self.runinformation.run_id),
+            "minKNOW_hash_run_id": str(self.runinformation.run_primary_key),
             "minKNOW_script_run_id": str(
                 self.rpc_connection.protocol.get_current_protocol_run().acquisition_run_ids[
                     0
@@ -618,6 +618,8 @@ class DeviceConnect(WebSocketClient):
         -------
         None
         """
+
+        # fixme Status watcher not in minKnow api 4.0
         while True:
             status_watcher = rpc.wrappers.StatusWatcher(self.rpc_connection)
             msgs = rpc.acquisition_service
@@ -1017,14 +1019,6 @@ class MinknowConnectRPC:
                         self.header,
                         deviceid,
                     )
-                    # self.minIONdict[deviceid]["legacydevicedata"] = DeviceConnectLegacy(connectip,self.args,self.minIONdict[deviceid]["grpc_connection"])
-                    """
-                    try:
-                        self.minIONdict[deviceid]["device_connection"].connect()
-                    except Exception as err:
-                        print ("Problem connecting to device.", err)
-                        log.error("Problem connecting to device.", err)
-                    """
                     self.minIONdict[deviceid]["state"] = "active"
             time.sleep(5)
 
@@ -1034,7 +1028,7 @@ class MinknowConnectRPC:
     def disconnect_nicely(self):
         for device in self.minIONdict:
             log.info("Disconnecting {} from the server.".format(device))
-            self.minIONdict[device]["device_connection"].disconnect_nicely()
+            self.minIONdict[device]["device_connection"].stop_monitoring()
         log.info("Stopped successfully.")
 
 
