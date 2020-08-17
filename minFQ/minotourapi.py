@@ -15,7 +15,6 @@ log = logging.getLogger(__name__)
 
 class MinotourAPI:
     def __init__(self, base_url, port_number, request_headers):
-
         self.base_url = base_url
         self.port_number = port_number
         self.check_url()
