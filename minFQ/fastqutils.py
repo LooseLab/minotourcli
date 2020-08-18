@@ -800,6 +800,10 @@ class FastqHandler(FileSystemEventHandler):
 
                     self.args.files_processed += 1
                     self.args.elapsed = time.time() - self.args.read_up_time
+                    hours, remainder = divmod(self.args.elapsed, 3600)
+                    minutes, seconds = divmod(remainder, 60)
+                    self.args.elapsed = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
+
                     self.args.read_up_time = time.time()
 
             if currenttime + 5 > time.time():
