@@ -1,18 +1,23 @@
 import datetime
 import json
 import logging
-import os
+import os,sys
 import threading
 import time
 
 import pandas as pd
 from google.protobuf.json_format import MessageToJson
 
+import minknow_api
 from minknow_api.manager import Manager
-from minknow_api.acquisition_pb2 import AcquisitionState
+from minknow_api.acquisition_pb2 import AcquisitionState, MinknowStatus
+from minknow_api.protocol_pb2 import ProtocolState
+from minknow_api.device import get_device_type
+
 from minFQ.minotourapi import MinotourAPI as MinotourAPINew
 
 log = logging.getLogger(__name__)
+
 
 
 class DeviceMonitor:
@@ -39,8 +44,10 @@ class DeviceMonitor:
         self.device_active = False
         self.api_connection = api_connection
         # Here we need to check if we are good to run against this version.
+
         self.version = self.api_connection.instance.get_version_info().minknow.full
-        self.device_type = self.api_connection.instance.get_host_type().host_type
+
+        self.device_type = get_device_type(self.api_connection).name
         # log.error(self.device_type)
         if str(self.device_type).startswith("PROMETHION"):
             log.warning(self.device_type)
@@ -56,13 +63,15 @@ class DeviceMonitor:
             log.warning("If you experience problems, let us know.")
             # sys.exit()
         self.header = header
-        self.channels = self.api_connection.device.get_flow_cell_info().channel_count
+        self.channels = self.api_connection.device.get_flow_cell_info().channel_count #this is ok
         self.channel_states = {i: None for i in range(1, self.channels + 1)}
-        self.status = AcquisitionState.ACQUISITION_COMPLETED
+        #self.status = AcquisitionState.ACQUISITION_COMPLETED
+        self.status = ""
         self.interval = 30  # we will poll for updates every 30 seconds.
         self.long_interval = 30  # we have a short loop and a long loop
-        self.position_id = position_id
-        self.computer_name = self.api_connection.instance.get_machine_id().machine_id
+        self.position_id = position_id  # This has been remanme from self.minIONid
+
+        self.computer_name = self.api_connection.instance.get_machine_id().machine_id #This isn't what we want - it reports Macbook-Pro for my computer but should report "DestroyerofWorlds" or similar.
         self.minknow_version = (
             self.api_connection.instance.get_version_info().minknow.full
         )
@@ -78,10 +87,12 @@ class DeviceMonitor:
         if not minion:
             minion = self.minotour_api.create_minion(self.position_id)
         self.minion = minion
+        self.minIONstatus = self.minotour_api.get_minion_status(self.minion)
         self.minotour_run_url = ""
 
         try:
             self.acquisition_data = (
+                #self.api_connection.acquisition.current_status().status
                 self.api_connection.acquisition.get_acquisition_info()
             )
         except:
@@ -92,10 +103,10 @@ class DeviceMonitor:
         thread_targets = [
             self.run_monitor,
             self.flowcell_monitor,
-            self.get_messages,
-            self.new_channel_state_monitor,
-            self.new_histogram_monitor,
-            self.jobs_monitor,
+            #self.get_messages,
+            #self.new_channel_state_monitor,
+            #self.new_histogram_monitor,
+            #self.jobs_monitor,
         ]
         for thread_target in thread_targets:
             threading.Thread(target=thread_target, args=(), daemon=True).start()
@@ -200,7 +211,7 @@ class DeviceMonitor:
             "minKNOW_real_sample_rate": int(
                 str(self.api_connection.device.get_sample_rate().sample_rate)
             ),
-            "minKNOW_asic_id": self.flowcell_data.asic_id,
+            "minKNOW_asic_id": self.flowcell_data.asic_id_str,
             "minKNOW_start_time": self.run_information.start_time.ToDatetime().strftime(
                 "%Y-%m-%d %H:%M:%S"
             ),
@@ -473,7 +484,7 @@ class DeviceMonitor:
             for (
                 run_info
             ) in self.api_connection.acquisition.watch_current_acquisition_run():
-                self.status = run_info.state
+                self.status = ProtocolState.Name(run_info.state)
                 if str(self.status).startswith("ACQUISITION_STARTING"):
                     self.device_active = True
                     self.run_start()
@@ -487,7 +498,7 @@ class DeviceMonitor:
                 if self.device_active and str(self.status).startswith("status: READY"):
                     self.device_active = False
                     self.run_stop()
-                log.debug(status)
+                log.debug(self.status)
 
     def update_minion_info(self):
         """
@@ -499,10 +510,16 @@ class DeviceMonitor:
         None
 
         """
-        if len(self.acquisition_data) < 1:
-            current_script = "Nothing Running"
+        #if len(self.acquisition_data) < 1:
+        print (self.acquisition_data)
+        print (dir(self.acquisition_data))
+        if "state" in self.acquisition_data.keys():
+            if self.acquisition_data.state != MinknowStatus.PROCESSING:
+                current_script = "Nothing Running"
+            else:
+                current_script = self.api_connection.protocol.get_run_info().protocol_id
         else:
-            current_script = self.api_connection.protocol.get_run_info().protocol_id
+            current_script = "Nothing Running"
 
         if not self.disk_space_info:
             self.disk_space_info = self.api_connection.instance.get_disk_space_info()
@@ -510,7 +527,7 @@ class DeviceMonitor:
 
         payload = {
             "minion": str(self.minion["url"]),
-            "minKNOW_status": self.acquisition_data.state,
+            "minKNOW_status": MinknowStatus.Name(self.acquisition_data.state),
             "minKNOW_current_script": current_script,
             "minKNOW_exp_script_purpose": str(
                 self.api_connection.protocol.get_protocol_purpose()
@@ -519,7 +536,7 @@ class DeviceMonitor:
             "minKNOW_real_sample_rate": int(
                 str(self.api_connection.device.get_sample_rate().sample_rate)
             ),
-            "minKNOW_asic_id": self.flowcell_data.asic_id,
+            "minKNOW_asic_id": self.flowcell_data.asic_id_str,
             "minKNOW_total_drive_space": self.disk_space_info.filesystem_disk_space_info[
                 0
             ].bytes_capacity,
@@ -760,6 +777,7 @@ class MinionManager(Manager):
         """
         while True:
             for position in self.flow_cell_positions():
+                print (position)
                 device_id = position.name
                 if device_id not in self.connected_positions and position.running:
                     # TODO note that we cannot connect to a remote instance without an ip websocket

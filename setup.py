@@ -37,7 +37,7 @@ setup(
         "numpy==1.17",
         "watchdog",
         "configargparse",
-        "grpcio==1.22",
+        "grpcio==1.25",
         "google",
         "protobuf",
         "pandas",

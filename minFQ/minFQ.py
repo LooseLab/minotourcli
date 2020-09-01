@@ -13,7 +13,8 @@ from minFQ.fastqutils import FastqHandler
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 from minFQ.minotourapi import MinotourAPI
-from minFQ.minknowconnection import MinknowConnectRPC
+#from minFQ.minknowconnection import MinknowConnectRPC
+
 
 """We are setting clear_lines the code to copy and import the rpc service from minKNOW and make
 it work on our own code. This prevents us from having to distribute ONT code ourselves."""
@@ -280,6 +281,7 @@ def main():
         dest="unblocks",
     )
     args = parser.parse_args()
+    args.loglevel = getattr(logging, args.loglevel)
     logging.basicConfig(
         format="%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s",
         filename="minFQ.log",
@@ -288,7 +290,7 @@ def main():
     )
     # define a Handler which writes INFO messages or higher to the sys.stderr
     console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
+    console.setLevel(args.loglevel)
     # set a format which is simpler for console use
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
     # tell the handler to use this format
