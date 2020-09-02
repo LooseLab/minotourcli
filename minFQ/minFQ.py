@@ -93,7 +93,7 @@ if not os.path.exists(os.path.join(root_directory, "rpc")):
     os.makedirs(os.path.join(root_directory, "rpc"))
 if os.path.isfile(os.path.join(root_directory, "rpc", "__init__.py")):
     RPC_SUPPORT = True
-    from minFQ.minknowconnection import MinknowConnectRPC
+    from minknowconnection import MinknowConnectRPC
 
     print("RPC Available")
     pass
@@ -121,7 +121,7 @@ else:
 
         copyfiles(sourceRPC, dstRPC, "*.py", "rpc")
         RPC_SUPPORT = True
-        from minFQ.minknowconnection import MinknowConnectRPC
+        from minknowconnection import MinknowConnectRPC
 
         print("RPC Configured")
 
@@ -134,12 +134,12 @@ else:
 
 sys.path.insert(0, os.path.join(root_directory, "rpc"))
 
-from minFQ.fastqutils import FastqHandler
-from minFQ.minknowcontrolutils import HelpTheMinion
+from fastqutils import FastqHandler
+from minknowcontrolutils import HelpTheMinion
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 
-from minFQ.minotourapi import MinotourAPI
+from minotourapi import MinotourAPI
 
 CLIENT_VERSION = "1.0"
 
