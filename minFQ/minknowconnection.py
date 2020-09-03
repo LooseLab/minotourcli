@@ -186,7 +186,7 @@ class DeviceConnect(WebSocketClient):
         """
         log.debug("First connection observed")
         log.debug("All is well with connection. {}".format(self.minion))
-
+        print ("DO WE GET HERE?")
         self.minotourapi.update_minion_event(self.minion, self.computer_name, "active")
         # TODO removed for now as we are not allowing user to start runs. May be added back in later.
         # self.minotourapi.fetch_minion_scripts(self.minion)
@@ -194,6 +194,7 @@ class DeviceConnect(WebSocketClient):
         #     protocoldict = self.parse_protocol(protocol)
         #     #print (self.minion,protocoldict)
         #     self.minotourapi.update_minion_script(self.minion,protocoldict)
+        print  ("!!!!!!!!!  MONKEY {}".format(self.status))
         if str(self.status).startswith("status: PROCESSING"):
             self.deviceactive = True
             self.run_start()

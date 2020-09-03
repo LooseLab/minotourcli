@@ -90,23 +90,24 @@ class DeviceMonitor:
         self.minIONstatus = self.minotour_api.get_minion_status(self.minion)
         self.minotour_run_url = ""
 
-        try:
+        if self.api_connection.acquisition.current_status().status != MinknowStatus.READY:
             self.acquisition_data = (
                 #self.api_connection.acquisition.current_status().status
-                self.api_connection.acquisition.get_acquisition_info()
+                    self.api_connection.acquisition.get_acquisition_info()
             )
-        except:
+        else:
             # if self.args.verbose:
             log.debug("No active run")
-            self.acquisition_data = {}
+            self.acquisition_data = None
 
         thread_targets = [
             self.run_monitor,
             self.flowcell_monitor,
-            #self.get_messages,
-            #self.new_channel_state_monitor,
-            #self.new_histogram_monitor,
-            #self.jobs_monitor,
+            self.run_information_monitor,
+            self.get_messages,
+            self.new_channel_state_monitor,
+            self.new_histogram_monitor,
+            self.jobs_monitor,
         ]
         for thread_target in thread_targets:
             threading.Thread(target=thread_target, args=(), daemon=True).start()
@@ -141,8 +142,13 @@ class DeviceMonitor:
         log.debug("All is well with connection. {}".format(self.minion))
         # TODO change to use the minknow status/state
         self.minotour_api.update_minion_event(self.minion, self.computer_name, "active")
-        if str(self.status).startswith("ACQUISITION_PROCESSING"):
+        print ("YODAWG {}".format(self.status))
+        print (type(self.status))
+        #if self.status==AcquisitionState.ACQUISITION_RUNNING:
+
+        if str(self.status).startswith("ACQUISITION_RUNNING"):
             self.device_active = True
+            print ("slartibartfasr")
             self.run_start()
 
     def run_start(self):
@@ -163,7 +169,7 @@ class DeviceMonitor:
             self.run_information = (
                 self.api_connection.acquisition.get_current_acquisition_run()
             )
-            self.create_run(self.run_information.run_primary_key)
+            self.create_run(self.run_information.run_id)
             log.debug("run created!!!!!!!")
             #### Grab the folder and if we are allowed, add it to the watchlist?
             FolderPath = self.api_connection.protocol.get_current_protocol_run().output_path
@@ -192,12 +198,12 @@ class DeviceMonitor:
             "minKNOW_current_script": str(
                 self.api_connection.protocol.get_run_info().protocol_id
             ),
-            "minKNOW_sample_name": str(self.sampleid.sample_id),
+            "minKNOW_sample_name": str(self.sampleid.sample_id.value),
             "minKNOW_exp_script_purpose": str(
                 self.api_connection.protocol.get_protocol_purpose()
             ),
             "minKNOW_flow_cell_id": self.get_flowcell_id(),
-            "minKNOW_run_name": str(self.sampleid.sample_id),
+            "minKNOW_run_name": str(self.sampleid.sample_id.value),
             "run": self.minotour_run_url,
             "minKNOW_version": str(
                 self.api_connection.instance.get_version_info().minknow.full
@@ -270,8 +276,9 @@ class DeviceMonitor:
                 flowcell = self.minotour_api.create_flowcell(self.get_flowcell_id())
             is_barcoded = False  # TODO do we known this info at this moment? This can be determined from run info.
             has_fastq = True  # TODO do we known this info at this moment? This can be determined from run info
+            print (self.sampleid)
             create_run = self.minotour_api.create_run(
-                self.sampleid.sample_id,
+                self.sampleid.sample_id.value,
                 runid,
                 is_barcoded,
                 has_fastq,
@@ -383,12 +390,14 @@ class DeviceMonitor:
 
     def get_flowcell_id(self):
         # ToDo make this function work out if we need to create a flowcell id for this run.
+        print (self.flowcell_data.user_specified_flow_cell_id)
         if len(self.flowcell_data.user_specified_flow_cell_id) > 0:
             log.debug("We have a self named flowcell")
             flowcell_id = self.flowcell_data.user_specified_flow_cell_id
         else:
             log.debug("the flowcell id is fixed")
             flowcell_id = self.flowcell_data.flow_cell_id
+        print ("!!!!!!!!! {}".format(flowcell_id))
         return flowcell_id
 
     def flowcell_monitor(self):
@@ -454,6 +463,7 @@ class DeviceMonitor:
                 if not str(self.status).startswith("status: PROCESSING"):
                     break
             except:
+                print ("error")
                 pass
             time.sleep(self.interval)
             pass
@@ -484,7 +494,7 @@ class DeviceMonitor:
             for (
                 run_info
             ) in self.api_connection.acquisition.watch_current_acquisition_run():
-                self.status = ProtocolState.Name(run_info.state)
+                self.status = AcquisitionState.Name(run_info.state)
                 if str(self.status).startswith("ACQUISITION_STARTING"):
                     self.device_active = True
                     self.run_start()
@@ -513,13 +523,14 @@ class DeviceMonitor:
         #if len(self.acquisition_data) < 1:
         print (self.acquisition_data)
         print (dir(self.acquisition_data))
-        if "state" in self.acquisition_data.keys():
-            if self.acquisition_data.state != MinknowStatus.PROCESSING:
-                current_script = "Nothing Running"
-            else:
-                current_script = self.api_connection.protocol.get_run_info().protocol_id
+        ### changing as acquisition data will be None if nothing in it
+        if self.acquisition_data is not None:
+            minknowstatus = AcquisitionState.Name(self.acquisition_data.state)
+            current_script = self.api_connection.protocol.get_run_info().protocol_id
         else:
             current_script = "Nothing Running"
+            #ToDO: move minknowstatus to MinKNOWStatus object and work out how to handle a first connect with no active or previous run
+            minknowstatus = "No Run"
 
         if not self.disk_space_info:
             self.disk_space_info = self.api_connection.instance.get_disk_space_info()
@@ -527,15 +538,11 @@ class DeviceMonitor:
 
         payload = {
             "minion": str(self.minion["url"]),
-            "minKNOW_status": MinknowStatus.Name(self.acquisition_data.state),
+            "minKNOW_status": minknowstatus,
             "minKNOW_current_script": current_script,
-            "minKNOW_exp_script_purpose": str(
-                self.api_connection.protocol.get_protocol_purpose()
-            ),
+            "minKNOW_exp_script_purpose": self.api_connection.protocol.get_protocol_purpose().purpose,
             "minKNOW_flow_cell_id": self.get_flowcell_id(),
-            "minKNOW_real_sample_rate": int(
-                str(self.api_connection.device.get_sample_rate().sample_rate)
-            ),
+            "minKNOW_real_sample_rate": self.api_connection.device.get_sample_rate().sample_rate,
             "minKNOW_asic_id": self.flowcell_data.asic_id_str,
             "minKNOW_total_drive_space": self.disk_space_info.filesystem_disk_space_info[
                 0
@@ -558,10 +565,11 @@ class DeviceMonitor:
                 0
             ]
         except:
+            print ("!!!!!! big error")
             pass
         if hasattr(self, "sampleid"):
-            payload["minKNOW_sample_name"] = str(self.sampleid.sample_id)
-            payload["minKNOW_run_name"] = str(self.sampleid.sample_id)
+            payload["minKNOW_sample_name"] = str(self.sampleid.sample_id.value)
+            payload["minKNOW_run_name"] = str(self.sampleid.protocol_group_id.value)
 
         if hasattr(self, "run_information"):
             if hasattr(self.run_information, "run_id"):
@@ -569,7 +577,7 @@ class DeviceMonitor:
 
         if hasattr(self, "runinfo_api"):
             payload["wells_per_channel"] = self.runinfo_api.flow_cell.wells_per_channel
-
+        print (payload)
         if self.minIONstatus:  # i.e the minION status already exists
 
             self.minIONstatus = self.minotour_api.update_minion_info_mt(
@@ -619,6 +627,7 @@ class DeviceMonitor:
             openpore = 0  # channeldict["good_single"]+channeldict["pore"]
             meanratio = 0  # todo work out if we can still do this
         except:
+            print ("error")
             meanratio = 0
             instrand = 0
             openpore = 0
@@ -674,6 +683,7 @@ class DeviceMonitor:
                 log.debug("No active run")
                 self.acquisition_data = {}
             self.temperature_data = self.api_connection.device.get_temperature()
+            #ToDo: Check this code on a promethION.
             if str(self.device_type).startswith("PROMETHION"):
                 self.minion_settings = (
                     self.api_connection.promethion_device.get_device_settings()
@@ -689,7 +699,7 @@ class DeviceMonitor:
             except:
                 log.debug("Run Info not yet known.")
             try:
-                self.sampleid = self.api_connection.protocol.get_sample_id()
+                self.sampleid = self.api_connection.protocol.get_run_info().user_info
             except:
                 self.sampleid = {"sample_id": "Mux Scan"}
                 log.debug("Sample ID not yet known.")
@@ -777,7 +787,7 @@ class MinionManager(Manager):
         """
         while True:
             for position in self.flow_cell_positions():
-                print (position)
+                #print (position)
                 device_id = position.name
                 if device_id not in self.connected_positions and position.running:
                     # TODO note that we cannot connect to a remote instance without an ip websocket
