@@ -166,9 +166,7 @@ class DeviceMonitor:
         # We wait for 10 seconds to allow the run to start
         time.sleep(self.interval)
         try:
-            self.run_information = (
-                self.api_connection.acquisition.get_current_acquisition_run()
-            )
+            self.run_information = self.api_connection.acquisition.get_current_acquisition_run()
             self.create_run(self.run_information.run_id)
             log.debug("run created!!!!!!!")
             #### Grab the folder and if we are allowed, add it to the watchlist?
@@ -208,7 +206,7 @@ class DeviceMonitor:
             "minKNOW_version": str(
                 self.api_connection.instance.get_version_info().minknow.full
             ),
-            "minKNOW_hash_run_id": str(self.run_information.run_primary_key),
+            "minKNOW_hash_run_id": str(self.run_information.run_id),
             "minKNOW_script_run_id": str(
                 self.api_connection.protocol.get_current_protocol_run().acquisition_run_ids[
                     0
@@ -237,9 +235,14 @@ class DeviceMonitor:
             payload[key] = context_info[key]
         run_info = self.api_connection.protocol.get_run_info()
         if run_info.user_info.HasField("protocol_group_id"):
-            payload["experiment_id"] = run_info.user_info.protocol_group_id
+            payload["experiment_id"] = run_info.user_info.protocol_group_id.value
         else:
             payload["experiment_id"] = "Not Known"
+
+        print ("!!!!!!!****** PAYLOAD")
+        print (payload)
+        for k,x in payload.items():
+            print (k, type(x))
         update_run_info = self.minotour_api.update_minion_run_info(
             payload, self.run_primary_key
         )
@@ -433,10 +436,11 @@ class DeviceMonitor:
                 else:
                     rltype = 1
                 histogram_stream = self.api_connection.statistics.stream_read_length_histogram(
-                    poll_time=60,
-                    wait_for_processing=True,
+                    #poll_time=60,
+                    #wait_for_processing=True,
                     read_length_type=rltype,
                     bucket_value_type=1,
+                    acquisition_run_id=self.run_information.run_id,
                 )
                 try:
                     for histogram_event in histogram_stream:
@@ -647,11 +651,12 @@ class DeviceMonitor:
             "mean_ratio": meanratio,
             "open_pore": openpore,
             "in_strand": instrand,
-            "minKNOW_histogram_values": str(self.histogram_data.histogram_data.buckets),
+            "minKNOW_histogram_values": str(self.histogram_data.histogram_data[0].bucket_values),
             "minKNOW_histogram_bin_width": self.histogram_data.histogram_data.width,
-            "actual_max_val": self.histogram_data.histogram_data.actual_max_val,
+            #ToDo Determine if this actually exsits!
+            #"actual_max_val": self.histogram_data.histogram_data.actual_max_val,
             "minKNOW_read_count": read_count,
-            "n50_data": self.histogram_data.n50_data.value,
+            "n50_data": self.histogram_data.histogram_data[0].n50,
             "estimated_selected_bases": self.acquisition_data.yield_summary.estimated_selected_bases,
             "basecalled_bases": self.acquisition_data.yield_summary.basecalled_bases,
             "basecalled_fail_read_count": self.acquisition_data.yield_summary.basecalled_fail_read_count,
@@ -706,9 +711,7 @@ class DeviceMonitor:
             log.debug("running update minion status")
             self.update_minion_info()
             if str(self.status).startswith("status: PROCESSING"):
-                self.run_information = (
-                    self.api_connection.acquisition.get_current_acquisition_run()
-                )
+                self.run_information = self.api_connection.acquisition.get_current_acquisition_run()
                 try:
                     log.debug("running update minion stats")
                     if hasattr(self, "runid"):
