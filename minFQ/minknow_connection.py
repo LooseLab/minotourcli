@@ -111,7 +111,7 @@ class DeviceMonitor:
         ]
         for thread_target in thread_targets:
             threading.Thread(target=thread_target, args=(), daemon=True).start()
-        #self.first_connect()
+        self.first_connect()
 
     def disconnect_nicely(self):
         """
@@ -146,7 +146,7 @@ class DeviceMonitor:
 
         if str(self.status).startswith("ACQUISITION_RUNNING") or str(self.status).startswith("ACQUISITION_STARTING"):
             self.device_active = True
-            self.run_start()
+            #self.run_start()
 
     def run_start(self):
         """
