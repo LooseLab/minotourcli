@@ -532,6 +532,7 @@ def main():
             if not args.noFastQ:
                 observer.stop()
                 observer.join()
+            event_handler.stopt()
             sys.exit(0)
         except Exception as e:
             log.error(e)
