@@ -526,7 +526,7 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
 
                     args.reads_seen += 1
 
-                    args.fastqmessage = "processing read {}".format(counter)
+                    args.fastq_message = "processing read {}".format(counter)
 
                     parse_fastq_record(
                         desc,
@@ -558,7 +558,7 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
 
                     args.reads_seen += 1
 
-                    args.fastqmessage = "processing read {}".format(counter)
+                    args.fastq_message = "processing read {}".format(counter)
 
                     parse_fastq_record(
                         desc,
@@ -622,7 +622,7 @@ def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
 
             log.info("caching existing fastq files in: %s" % (path))
 
-            args.fastqmessage = "caching existing fastq files in: %s" % (path)
+            args.fastq_message = "caching existing fastq files in: %s" % (path)
 
             ## ToDo Consider moving these to top level
             novelrunset = set()
@@ -696,19 +696,20 @@ def file_dict_of_folder_simple(path, args, MinotourConnection, fastqdict):
 
         log.info("processed %s files" % (counter))
 
-        args.fastqmessage = "processed %s files" % (counter)
+        args.fastq_message = "processed %s files" % (counter)
 
         log.info(
             "found %d existing fastq files to process first." % (len(file_list_dict))
         )
 
     else:
-        args.fastqmessage = "Ignoring existing fastq files in: %s" % (path)
+        args.fastq_message = "Ignoring existing fastq files in: %s" % (path)
 
     return file_list_dict
 
 
 class FastqHandler(FileSystemEventHandler):
+    # TODO check this out another time
     def __init__(self, args, header, rundict):
         """
         Collect information about files already in the folders

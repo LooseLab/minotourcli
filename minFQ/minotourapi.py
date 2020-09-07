@@ -1,6 +1,8 @@
 import datetime
 import json as jsonlibrary
 import logging
+import sys
+
 import requests
 import gzip
 import time
@@ -14,6 +16,9 @@ log = logging.getLogger(__name__)
 
 
 class MinotourAPI:
+    """
+    Connect class for minoTour server. Lists methods to connect to various API end points.
+    """
     def __init__(self, base_url, port_number, request_headers):
         self.base_url = base_url
         self.port_number = port_number
@@ -22,73 +27,125 @@ class MinotourAPI:
         self.minion_event_types = self.get_minion_event_types()
 
     def check_url(self):
+        """
+        Check URL to decide whether this is a HTTP or HTTPS connection, test connectio to minoTour
+        Returns
+        -------
+        None
+        """
         if self.base_url.startswith("http://"):
             self.base_url = self.base_url[7:]
         if self.base_url.startswith(("https://")):
             self.base_url = self.base_url[8:]
-        if int(self.port_number) != 80:
-            r = requests.get("http://{}:{}/".format(self.base_url, self.port_number))
-        else:
-            r = requests.get("http://{}/".format(self.base_url))
-        # print (r.url)
+            # TODO is this where an incorrect address errors out
+        url = "http://{}:{}/".format(self.base_url, self.port_number)
+        try:
+            r = requests.get(url)
+        except requests.exceptions.RequestException:
+            log.error("Failed to connect to minoTour server at address {}".format(url))
+            sys.exit(1)
         if r.url.startswith("https"):
             self.base_url = "https://{}/".format(self.base_url)
         else:
-            self.base_url = "http://{}:{}/".format(self.base_url, self.port_number)
-
-    def test(self):
-
-        return "OK"
+            self.base_url = url
 
     def get(self, partial_url, parameters=None):
+        """
+        Send GET requests
+        Parameters
+        ----------
+        partial_url: str
+            The partial URL to append to our base URL address
+        parameters: dict
+            The paramaters to send with the GET request, if any. Default None.
 
+        Returns
+        -------
+        json
+        """
         if not parameters:
-
             url = "{}api/v1{}".format(self.base_url, partial_url)
-
         else:
-
             url = "{}api/v1{}".format(self.base_url, partial_url)
-
         return requests.get(url, headers=self.request_headers, params=parameters)
 
     def post(self, partial_url, json, parameters=None):
+        """
+        Send a post request to minoTour
+        Parameters
+        ----------
+        partial_url: str
+            The partial url to append to our base URL
+        json: dict # TODO check what this is
+            The JSON dict to post that contains data.
+        parameters: dict
 
+        Returns
+        -------
+        json
+            The response of the post request
+        """
+        print(type(json))
         if not parameters:
-
             url = "{}api/v1{}".format(self.base_url, partial_url)
-
         else:
-
             url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
-
-        # print (url)
-
         return requests.post(url, headers=self.request_headers, json=json)
 
     def put(self, partial_url, json, parameters=None):
+        """
+        Send a Put request to minoTour
+        Parameters
+        ----------
+        partial_url: str
+            The partial url to append to our base URL
+        json: dict # TODO check what this is
+            The JSON dict to put that contains data.
+        parameters: dict
 
+        Returns
+        -------
+        json
+            The response of the put request
+        """
         if not parameters:
-
             url = "{}api/v1{}".format(self.base_url, partial_url)
-
         else:
-
             url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
-
         return requests.put(url, headers=self.request_headers, json=json)
 
     def delete(self, partial_url, json, parameters=None):
+        """
+            Send a delete request to minoTour
+            Parameters
+            ----------
+            partial_url: str
+                The partial url to append to our base URL
+            json: dict # TODO check what this is
+                The JSON dict to post that contains data.
+            parameters: dict
 
+            Returns
+            -------
+            json
+                The response of the DELETE request
+        """
         if not parameters:
-
             url = "{}api/v1{}".format(self.base_url, partial_url)
-
         else:
-
             url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
-
         return requests.delete(url, headers=self.request_headers, json=json)
+
+    def test(self):
+        """
+        Test connection to minoTour.
+        Returns
+        -------
+        Any errors that are encountered.
+        """
+        response = self.get("/minknow_data/test")
+        if not response.status_code == 200:
+            sys.exit(1)
 
     def get_target_sets(self, api_key=""):
         """
@@ -117,35 +174,26 @@ class MinotourAPI:
         Get a list of the jobs available to be started from the client
         :return:
         """
-        url = "/tasktypes/"
-
+        url = "/reads/tasktypes/"
         payload = {"cli": True}
-
         req = self.get(url, parameters=payload)
-
         if req.status_code != 200:
             log.error("Couldn't find tasks to run.")
             log.error("Status-code {}".format(req.status_code))
             log.error("Text {}".format(req.text))
             return None
-
         else:
             return jsonlibrary.loads(req.text)
 
-    def get_references(self):
-
+    def get_references(self, params={}):
         url = "/reference/"
-
-        req = self.get(url)
-
+        req = self.get(url, params)
         if req.status_code != 200:
             log.error("Couldn't find references.")
             log.error("Status-code {}".format(req.status_code))
             log.error("Text {}".format(req.text))
             return None
-
         else:
-
             return jsonlibrary.loads(req.text)
 
     def get_file_info_by_runid(self, runid):
@@ -236,6 +284,7 @@ class MinotourAPI:
         minion=None,
         start_time=None,
     ):
+        # TODO inspect this
         # runid=""
         if len(name) < 1:
             name = "mux scan"
@@ -606,31 +655,23 @@ class MinotourAPI:
         url = "/minions/{}/events/".format(minion["id"])
         for info in self.minion_event_types:
             for item in info:
-
                 if item == "name":
                     if info[item] == status:
                         statusidlink = info["url"]
-
         payload = {
             "computer_name": computer,
             "datetime": str(datetime.datetime.now()),
             "event": str(urlparse(statusidlink).path),
             "minION": str(minion["url"]),
         }
-
         req = self.post(url, json=payload)
-
         if req.status_code != 201:
-
             log.debug("event {} could not be updated.".format(status))
             log.debug("Status-code {}".format(req.status_code))
             log.debug("Text {}".format(req.text))
             return None
-
         else:
-
             return jsonlibrary.loads(req.text)
-
         pass
 
     def update_minion_run_info(self, payload, runid):

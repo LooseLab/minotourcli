@@ -130,7 +130,7 @@ class Runcollection:
             # for page in tqdm(range(number_pages)):
             for page in range(number_pages):
 
-                self.args.fastqmessage = "Fetching {} of {} pages.".format(
+                self.args.fastq_message = "Fetching {} of {} pages.".format(
                     page, number_pages
                 )
 
@@ -153,7 +153,7 @@ class Runcollection:
 
     def add_run(self, descriptiondict, args):
 
-        self.args.fastqmessage = "Adding run."
+        self.args.fastq_message = "Adding run."
 
         runid = descriptiondict["runid"]
 

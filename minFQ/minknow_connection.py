@@ -44,24 +44,22 @@ class DeviceMonitor:
         self.device_active = False
         self.api_connection = api_connection
         # Here we need to check if we are good to run against this version.
-
         self.version = self.api_connection.instance.get_version_info().minknow.full
-
         self.device_type = get_device_type(self.api_connection).name
         # log.error(self.device_type)
         if str(self.device_type).startswith("PROMETHION"):
             log.warning(self.device_type)
             log.warning("This version of minFQ may not be compatible with PromethION.")
             # sys.exit()
+        self.acceptable_versions = []
         # if str(self.version) != "3.3.13":
-        if not str(self.version).startswith("3.3"):
+        if not str(self.version) in ["3.3.35", "4.0.4"]:
             log.warning(self.version)
             log.warning(
                 "This version of minFQ may not be compatible with the MinKNOW version you are running."
             )
             log.warning("As a consequence, live monitoring MAY NOT WORK.")
             log.warning("If you experience problems, let us know.")
-            # sys.exit()
         self.header = header
         self.channels = self.api_connection.device.get_flow_cell_info().channel_count #this is ok
         self.channel_states = {i: None for i in range(1, self.channels + 1)}
@@ -781,6 +779,7 @@ class MinionManager(Manager):
     def __init__(
         self, host="localhost", port=None, use_tls=False, args=None, header=None
     ):
+        print(port)
         super().__init__(host, port, use_tls)
         self.connected_positions = {}
         self.device_monitor_thread = threading.Thread(
@@ -805,7 +804,6 @@ class MinionManager(Manager):
         """
         while True:
             for position in self.flow_cell_positions():
-                #print (position)
                 device_id = position.name
                 if device_id not in self.connected_positions and position.running:
                     # TODO note that we cannot connect to a remote instance without an ip websocket
