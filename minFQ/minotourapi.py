@@ -67,7 +67,12 @@ class MinotourAPI:
             url = "{}api/v1{}".format(self.base_url, partial_url)
         else:
             url = "{}api/v1{}".format(self.base_url, partial_url)
-        return requests.get(url, headers=self.request_headers, params=parameters)
+        response = requests.get(url, headers=self.request_headers, params=parameters)
+        if response.status_code != 200:
+            log.error("Error in Get request.")
+            log.error("Status-code {}".format(response.status_code))
+            log.error("Text {}".format(response.text))
+        return response, jsonlibrary.loads(response.text)
 
     def post(self, partial_url, json, parameters=None):
         """
@@ -82,15 +87,20 @@ class MinotourAPI:
 
         Returns
         -------
-        json
-            The response of the post request
+        requests.Request, dict
+            The response of the POST request, and any data from that response
         """
         print(type(json))
         if not parameters:
             url = "{}api/v1{}".format(self.base_url, partial_url)
         else:
             url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
-        return requests.post(url, headers=self.request_headers, json=json)
+        response = requests.post(url, headers=self.request_headers, json=json)
+        if response.status_code not in [200, 201]:
+            log.error("File info {} could not be created.")
+            log.error("Status-code {}".format(response.status_code))
+            log.error("Text {}".format(response.text))
+        return response, jsonlibrary.loads(response.text)
 
     def put(self, partial_url, json, parameters=None):
         """
@@ -105,17 +115,27 @@ class MinotourAPI:
 
         Returns
         -------
-        json
-            The response of the put request
+        requests.Request, dict
+            The response of the PUT request, and any data from that response
         """
         if not parameters:
             url = "{}api/v1{}".format(self.base_url, partial_url)
         else:
             url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
-        return requests.put(url, headers=self.request_headers, json=json)
+        response = requests.put(url, headers=self.request_headers, json=json)
+        if response.status_code != 200:
+            # Trying to duplicate an already created status
+            if response.status_code == 400:
+                return None
+            else:
+                log.error("error in the put request")
+                log.error("Status-code {}".format(response.status_code))
+                log.error("Text {}".format(response.text))
+                return None
+        return response, jsonlibrary.loads(response.text)
 
     def delete(self, partial_url, json, parameters=None):
-        """
+        """ todo unused as of 08/09/2020
             Send a delete request to minoTour
             Parameters
             ----------
@@ -146,97 +166,6 @@ class MinotourAPI:
         response = self.get("/minknow_data/test")
         if not response.status_code == 200:
             sys.exit(1)
-
-    def get_target_sets(self, api_key=""):
-        """
-        Get a list of the target sets, to show during the listing
-        :return:
-        """
-        url = "/metagenomics/targetsets"
-        if api_key == "":
-            payload = {}
-        else:
-            payload = {"api_key": api_key, "cli": True}
-
-        req = self.get(url, parameters=payload)
-
-        if req.status_code != 200:
-            log.error("Couldn't find target sets to run.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-            return jsonlibrary.loads(req.text)
-
-    def get_job_options(self):
-        """
-        Get a list of the jobs available to be started from the client
-        :return:
-        """
-        url = "/reads/tasktypes/"
-        payload = {"cli": True}
-        req = self.get(url, parameters=payload)
-        if req.status_code != 200:
-            log.error("Couldn't find tasks to run.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-        else:
-            return jsonlibrary.loads(req.text)
-
-    def get_references(self, params={}):
-        url = "/reference/"
-        req = self.get(url, params)
-        if req.status_code != 200:
-            log.error("Couldn't find references.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-        else:
-            return jsonlibrary.loads(req.text)
-
-    def get_file_info_by_runid(self, runid):
-
-        url = "/runs/{}/files/".format(runid)
-
-        req = self.get(url)
-
-        if req.status_code != 200:
-            log.error("Did not find files for {}.".format(runid))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def create_file_info(self, filename, runid, md5check, run):
-        """
-        Create file info in the database in minoTour
-        :param filename: fastq filename
-        :param runid: the run id of this run
-        :param md5check: an MD5 checksum
-        :param run: The run
-        :return:
-        """
-        payload = {"name": filename, "runid": runid, "md5": md5check, "run": run}
-
-        url = "/runs/{}/files/".format(runid)
-
-        req = self.post(url, json=payload)
-
-        if req.status_code != 201:
-
-            log.error("File info {} could not be created.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-            fileinfo = jsonlibrary.loads(req.text)
-            return fileinfo
 
     def get_run_by_runid(self, runid):
 
