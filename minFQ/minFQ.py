@@ -7,7 +7,7 @@ import time
 from minFQ.minknow_connection import MinionManager
 from minFQ.utils import add_args, configure_logging, list_minotour_options, validate_args, check_job_from_client, \
     check_server_compatibility, SequencingStatistics, check_upload_directories, write_out_fastq_stats
-from minFQ.fastqutils import FastqHandler
+from minFQ.fastq_handler import FastqHandler
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 from minFQ.minotourapi import MinotourAPI
@@ -45,34 +45,34 @@ def monitor_sequencing(args, log, header):
     -------
 
     """
-    upload_stats = SequencingStatistics()
+    upload_monitor_data = SequencingStatistics()
 
     if not args.no_minknow:
         # if we are connecting to minKNOW
         # this block is going to handle the running of minknow monitoring by the client.
-        minknow_connection = MinionManager(args=args, header=header)
+        minknow_connection = MinionManager(args=args, header=header, upload_data=upload_monitor_data)
         log.info("MinKNOW RPC Monitoring Working.")
 
     if not args.no_fastq:
         ### Horrible tracking of run stats.
         WATCH_DICT = {}
-        rundict = {}
+        run_dict = {}
         log.info("Setting clear_lines FastQ monitoring.")
         # This block handles the fastq
         # Add our watchdir to our WATCHLIST
-        upload_stats.directory_watch_list.append(args.watchdir)
+        upload_monitor_data.directory_watch_list.append(args.watchdir)
         sys.stdout.write("To stop minFQ use CTRL-C.\n")
         # sort out watch dog stuff
-        event_handler = FastqHandler(args, header, rundict)
+        event_handler = FastqHandler(args, header, run_dict, upload_data=upload_monitor_data)
         observer = Observer()
         observer.start()
     try:
         while 1:
             line_counter = 0
-            if not args.no_fastq and upload_stats.directory_watch_list:
+            if not args.no_fastq and upload_monitor_data.directory_watch_list:
                 # fixme global use of args name space, replace with SequencingStats
-                check_upload_directories(upload_stats, WATCH_DICT, event_handler, observer, log)
-                line_counter = write_out_fastq_stats(upload_stats, line_counter)
+                check_upload_directories(upload_monitor_data, WATCH_DICT, event_handler, observer, log)
+                line_counter = write_out_fastq_stats(upload_monitor_data, line_counter)
             if not args.no_minknow:
                 sys.stdout.write("MinKNOW Monitoring Status:\n")
                 sys.stdout.write(
