@@ -82,6 +82,30 @@ class Runcollection:
     def add_unblocked_reads_file(self):
         pass
 
+    def create_jobs(self, flowcell, args):
+        """
+        Create jobs when runCollection is initialised
+        Returns
+        -------
+
+        """
+        # If there is a target set
+        if args.targets is not None:
+            self.minotourapi.create_job(
+                flowcell["id"], int(args.job_id), None, args.targets
+            )
+        # If there is a reference and not a target set
+        elif args.reference and not args.targets:
+            self.minotourapi.create_job(
+                flowcell["id"], int(args.job_id), args.reference, None
+            )
+        # If there is neither
+        else:
+            self.minotourapi.create_job(
+                flowcell["id"], int(args.job_id), None, None
+            )
+
+
     def check_url(self):
         if self.base_url.startswith("http://"):
             self.base_url = self.base_url[7:]
@@ -154,37 +178,28 @@ class Runcollection:
     def add_run(self, descriptiondict, args):
 
         self.args.fastqmessage = "Adding run."
-
         runid = descriptiondict["runid"]
-
         run = self.minotourapi.get_run_by_runid(runid)
+        if "flow_cell_id" in descriptiondict:
+            flowcellname = descriptiondict["flow_cell_id"]
+        elif "sample_id" in descriptiondict:
+            flowcellname = descriptiondict["sample_id"]
+        elif "sampleid" in descriptiondict:
+            flowcellname = descriptiondict["sampleid"]
+        else:
+            flowcellname = self.args.run_name
 
+        if args.force_unique:
+            if "flow_cell_id" in descriptiondict and "sample_id" in descriptiondict:
+                flowcellname = "{}_{}".format(
+                    descriptiondict["flow_cell_id"], descriptiondict["sample_id"]
+                )
         if not run:
-
             ## We want to add a force unique name - therefore we are going to use an extra argument in minFQ - forceunique?
-
-            if "flow_cell_id" in descriptiondict:
-                flowcellname = descriptiondict["flow_cell_id"]
-            elif "sample_id" in descriptiondict:
-                flowcellname = descriptiondict["sample_id"]
-            elif "sampleid" in descriptiondict:
-                flowcellname = descriptiondict["sampleid"]
-            else:
-                flowcellname = self.args.run_name
-
-            if args.force_unique:
-                if "flow_cell_id" in descriptiondict and "sample_id" in descriptiondict:
-                    flowcellname = "{}_{}".format(
-                        descriptiondict["flow_cell_id"], descriptiondict["sample_id"]
-                    )
-
             #
             # get or create a flowcell
             #
-
             log.info("Looking for flowcell {}".format(flowcellname))
-
-            # flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)
             flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)["data"]
             log.debug(flowcell)
             if not flowcell:
@@ -194,22 +209,7 @@ class Runcollection:
                 flowcell = self.minotourapi.create_flowcell(flowcellname)
                 # print(dir(args))
                 # If we have a job as an option
-                if args.job:
-                    # If there is a target set
-                    if args.targets is not None:
-                        self.minotourapi.create_job(
-                            flowcell["id"], int(args.job_id), None, args.targets
-                        )
-                    # If there is a reference and not a target set
-                    elif args.reference and not args.targets:
-                        self.minotourapi.create_job(
-                            flowcell["id"], int(args.job_id), args.reference, None
-                        )
-                    # If there is neither
-                    else:
-                        self.minotourapi.create_job(
-                            flowcell["id"], int(args.job_id), None, None
-                        )
+
                 log.debug("Created flowcell {}".format(flowcellname))
 
             #
@@ -249,6 +249,8 @@ class Runcollection:
                 log.debug("run created")
 
             run = createrun
+        if args.job:
+            self.create_jobs(flowcell, args)
 
         if not self.run:
 
