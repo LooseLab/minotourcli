@@ -30,7 +30,7 @@ class DeviceMonitor:
 
         Parameters
         ----------
-        args: dict
+        args: argparse.NameSpace
             The argument name space
         api_connection: minknow_api.Connection
             Connection to the flowcell position
@@ -263,16 +263,22 @@ class DeviceMonitor:
             #
             # get or create a flowcell
             #
-            flowcell = self.minotour_api.get_flowcell_by_name(self.get_flowcell_id())[
+            if self.args.force_unique:
+                flowcell_name = "{}_{}".format(
+                    self.get_flowcell_id(), self.sampleid.sample_id.value
+                )
+            else:
+                flowcell_name = self.get_flowcell_id()
+            flowcell = self.minotour_api.get_flowcell_by_name(flowcell_name)[
                 "data"
             ]
             log.debug(flowcell)
             if not flowcell:
                 log.debug(">>> no flowcell")
-                flowcell = self.minotour_api.create_flowcell(self.get_flowcell_id())
+
+                flowcell = self.minotour_api.create_flowcell(flowcell_name)
             is_barcoded = False  # TODO do we known this info at this moment? This can be determined from run info.
             has_fastq = True  # TODO do we known this info at this moment? This can be determined from run info
-
             create_run = self.minotour_api.create_run(
                 self.sampleid.sample_id.value,
                 runid,
