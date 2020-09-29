@@ -493,7 +493,7 @@ def main():
                     sys.stdout.write("{}\n".format(args.fastqmessage))
                     sys.stdout.write("FastQ Upload Status:\n")
                     sys.stdout.write(
-                        "Files queued/processed/skipped/time/elapsed:{}/{}/{}/{}/{}\n".format(
+                        "Files queued/processed/skipped/time/per file:{}/{}/{}/{}/{}\n".format(
                             args.files_seen - args.files_processed - args.files_skipped,
                             args.files_processed,
                             args.files_skipped,
@@ -508,7 +508,7 @@ def main():
                             args.reads_skipped,
                         )
                     )
-                    sys.stdout.write(args.WATCHLIST)
+                    sys.stdout.write(", ".join(args.WATCHLIST) + "\n")
                     line_counter += 6
 
                 if not args.noMinKNOW:
