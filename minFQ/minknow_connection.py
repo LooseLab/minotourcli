@@ -434,16 +434,15 @@ class DeviceMonitor:
                     rltype = 2
                 else:
                     rltype = 1
-                histogram_stream = self.api_connection.statistics.stream_read_length_histogram(
-                    #poll_time=60,
-                    #wait_for_processing=True,
-                    read_length_type=rltype,
-                    bucket_value_type=1,
-                    acquisition_run_id=self.run_information.run_id,
-                )
                 try:
+                    histogram_stream = self.api_connection.statistics.stream_read_length_histogram(
+                        #poll_time=60,
+                        #wait_for_processing=True,
+                        read_length_type=rltype,
+                        bucket_value_type=1,
+                        acquisition_run_id=self.run_information.run_id,
+                    )
                     for histogram_event in histogram_stream:
-                        # print (parsemessage(histogram_event))
                         log.debug(histogram_event)
                         self.histogram_data = histogram_event
                         if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(self.status).startswith("ACQUISITION_STARTING"):
@@ -451,7 +450,7 @@ class DeviceMonitor:
                 except Exception as e:
                     # print ("Histogram Problem: {}".format(e))
                     log.error("histogram problem: {}".format(e))
-                    break
+                    continue
             time.sleep(self.interval)
             pass
 
