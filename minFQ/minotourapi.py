@@ -419,8 +419,10 @@ class MinotourAPI:
             The primary key of the Flowcell record.
         job: int
             The PK of the job we wish to start.
-        reference
-        targets
+        reference: int
+            The primary key of the reference we wish to use
+        targets: int
+            The primary key of the targets we wish to use
 
         Returns
         -------
