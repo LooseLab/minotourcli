@@ -734,11 +734,8 @@ class FastqHandler(FileSystemEventHandler):
         self.t = threading.Thread(target=self.processfiles)
         self.grouprun = None
 
-        try:
-            self.t.start()
-        except KeyboardInterrupt:
-            self.t.stop()
-            raise
+        self.t.start()
+
 
     def addfolder(self, folder):
         self.creates.update(
@@ -769,14 +766,15 @@ class FastqHandler(FileSystemEventHandler):
         Process fastq files in a threaded manner |
         :return:
         """
-
+        print("reinit")
         while self.running:
-
+            print(self.running)
             currenttime = time.time()
 
             for fastqfile, createtime in sorted(
                 self.creates.items(), key=lambda x: x[1]
             ):
+                print(self.running)
 
                 delaytime = 10
 
@@ -805,6 +803,9 @@ class FastqHandler(FileSystemEventHandler):
                     self.args.elapsed = '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
 
                     self.args.read_up_time = time.time()
+
+                if not self.running:
+                    break
 
             if currenttime + 5 > time.time():
                 time.sleep(5)
