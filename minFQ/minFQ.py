@@ -508,7 +508,8 @@ def main():
                             args.reads_skipped,
                         )
                     )
-                    line_counter += 5
+                    sys.stdout.write(args.WATCHLIST)
+                    line_counter += 6
 
                 if not args.noMinKNOW:
                     sys.stdout.write("MinKNOW Monitoring Status:\n")
@@ -520,7 +521,6 @@ def main():
                     line_counter += 2
 
                 sys.stdout.flush()
-                print(args.WATCHLIST)
                 time.sleep(5)
                 if not args.verbose:
                     clear_lines(line_counter)
