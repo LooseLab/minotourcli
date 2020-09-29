@@ -1,7 +1,7 @@
 import datetime
 import json
 import logging
-import os,sys
+import os, sys
 import threading
 import time
 
@@ -11,13 +11,12 @@ from google.protobuf.json_format import MessageToJson
 import minknow_api
 from minknow_api.manager import Manager
 from minknow_api.acquisition_pb2 import AcquisitionState, MinknowStatus
-from minknow_api.protocol_pb2 import ProtocolState,ProtocolRunUserInfo
+from minknow_api.protocol_pb2 import ProtocolState, ProtocolRunUserInfo
 from minknow_api.device import get_device_type
 
 from minFQ.minotourapi import MinotourAPI as MinotourAPINew
 
 log = logging.getLogger(__name__)
-
 
 
 class DeviceMonitor:
@@ -63,15 +62,19 @@ class DeviceMonitor:
             log.warning("If you experience problems, let us know.")
             # sys.exit()
         self.header = header
-        self.channels = self.api_connection.device.get_flow_cell_info().channel_count #this is ok
+        self.channels = (
+            self.api_connection.device.get_flow_cell_info().channel_count
+        )  # this is ok
         self.channel_states = {i: None for i in range(1, self.channels + 1)}
-        #self.status = AcquisitionState.ACQUISITION_COMPLETED
+        # self.status = AcquisitionState.ACQUISITION_COMPLETED
         self.status = ""
         self.interval = 30  # we will poll for updates every 30 seconds.
         self.long_interval = 30  # we have a short loop and a long loop
         self.position_id = position_id  # This has been remanme from self.minIONid
 
-        self.computer_name = self.api_connection.instance.get_machine_id().machine_id #This isn't what we want - it reports Macbook-Pro for my computer but should report "DestroyerofWorlds" or similar.
+        self.computer_name = (
+            self.api_connection.instance.get_machine_id().machine_id
+        )  # This isn't what we want - it reports Macbook-Pro for my computer but should report "DestroyerofWorlds" or similar.
         self.minknow_version = (
             self.api_connection.instance.get_version_info().minknow.full
         )
@@ -89,16 +92,21 @@ class DeviceMonitor:
         self.minion = minion
         self.minIONstatus = self.minotour_api.get_minion_status(self.minion)
         self.minotour_run_url = ""
-
-        if self.api_connection.acquisition.current_status().status != MinknowStatus.READY:
+        self.run_bool = True
+        if (
+            self.api_connection.acquisition.current_status().status
+            != MinknowStatus.READY
+        ):
             self.acquisition_data = (
-                #self.api_connection.acquisition.current_status().status
-                    self.api_connection.acquisition.get_acquisition_info()
+                # self.api_connection.acquisition.current_status().status
+                self.api_connection.acquisition.get_acquisition_info()
             )
         else:
             # if self.args.verbose:
             log.debug("No active run")
             self.acquisition_data = None
+        # initialise histogram dataw
+        self.histogram_data = None
 
         thread_targets = [
             self.run_monitor,
@@ -121,6 +129,7 @@ class DeviceMonitor:
 
         """
         log.debug("Trying to disconnect nicely")
+        self.run_bool = False
         self.minotour_api.update_minion_event(
             self.minion, self.computer_name, "unplugged"
         )
@@ -142,11 +151,13 @@ class DeviceMonitor:
         log.debug("All is well with connection. {}".format(self.minion))
         # TODO change to use the minknow status/state
         self.minotour_api.update_minion_event(self.minion, self.computer_name, "active")
-        #if self.status==AcquisitionState.ACQUISITION_RUNNING:
+        # if self.status==AcquisitionState.ACQUISITION_RUNNING:
 
-        if str(self.status).startswith("ACQUISITION_RUNNING") or str(self.status).startswith("ACQUISITION_STARTING"):
+        if str(self.status).startswith("ACQUISITION_RUNNING") or str(
+            self.status
+        ).startswith("ACQUISITION_STARTING"):
             self.device_active = True
-            #self.run_start()
+            # self.run_start()
 
     def run_start(self):
         """
@@ -163,11 +174,15 @@ class DeviceMonitor:
         # We wait for 10 seconds to allow the run to start
         time.sleep(self.interval)
         try:
-            self.run_information = self.api_connection.acquisition.get_current_acquisition_run()
+            self.run_information = (
+                self.api_connection.acquisition.get_current_acquisition_run()
+            )
             self.create_run(self.run_information.run_id)
             log.debug("run created!!!!!!!")
             #### Grab the folder and if we are allowed, add it to the watchlist?
-            FolderPath = self.api_connection.protocol.get_current_protocol_run().output_path
+            FolderPath = (
+                self.api_connection.protocol.get_current_protocol_run().output_path
+            )
             # print ("New Run Seen {}".format(FolderPath))
             if not self.args.noFastQ:
                 if FolderPath not in self.args.WATCHLIST:
@@ -216,12 +231,11 @@ class DeviceMonitor:
             "minKNOW_start_time": self.run_information.start_time.ToDatetime().strftime(
                 "%Y-%m-%d %H:%M:%S"
             ),
-            "minKNOW_colours_string":
-                MessageToJson(
-                    self.api_connection.analysis_configuration.get_channel_states_desc(),
-                    preserving_proto_field_name=True,
-                    including_default_value_fields=True,
-                ),
+            "minKNOW_colours_string": MessageToJson(
+                self.api_connection.analysis_configuration.get_channel_states_desc(),
+                preserving_proto_field_name=True,
+                including_default_value_fields=True,
+            ),
             "minKNOW_computer": str(self.computer_name),
             "target_temp": self.temperature_data.target_temperature,
             "flowcell_type": self.flowcell_data.user_specified_product_code,
@@ -269,9 +283,7 @@ class DeviceMonitor:
                 )
             else:
                 flowcell_name = self.get_flowcell_id()
-            flowcell = self.minotour_api.get_flowcell_by_name(flowcell_name)[
-                "data"
-            ]
+            flowcell = self.minotour_api.get_flowcell_by_name(flowcell_name)["data"]
             log.debug(flowcell)
             if not flowcell:
                 log.debug(">>> no flowcell")
@@ -327,7 +339,7 @@ class DeviceMonitor:
         This function will check the remote server for new jobs to be done.
         :return:
         """
-        while True:
+        while self.run_bool:
             log.debug("!!!!!!checking for jobs!!!!!!")
             jobs = self.minotour_api.get_minion_jobs(self.minion)
             log.debug(jobs)
@@ -409,7 +421,7 @@ class DeviceMonitor:
         -------
 
         """
-        while True:
+        while self.run_bool:
             flowcellinfo = self.api_connection.device.stream_flow_cell_info()
             for event in flowcellinfo:
                 log.debug(event)
@@ -425,19 +437,25 @@ class DeviceMonitor:
         None
 
         """
-        while True:
-            if str(self.status).startswith("ACQUISITION_RUNNING") or str(self.status).startswith("ACQUISITION_STARTING"):
+        while self.run_bool:
+            if str(self.status).startswith("ACQUISITION_RUNNING") or str(
+                self.status
+            ).startswith("ACQUISITION_STARTING"):
                 ###We need to test if we are doing basecalling or not.
-                self.run_information = self.api_connection.acquisition.get_current_acquisition_run()
-                self.basecalling = self.run_information.config_summary.basecalling_enabled
+                self.run_information = (
+                    self.api_connection.acquisition.get_current_acquisition_run()
+                )
+                self.basecalling = (
+                    self.run_information.config_summary.basecalling_enabled
+                )
                 if self.basecalling:
                     rltype = 2
                 else:
                     rltype = 1
                 try:
                     histogram_stream = self.api_connection.statistics.stream_read_length_histogram(
-                        #poll_time=60,
-                        #wait_for_processing=True,
+                        # poll_time=60,
+                        # wait_for_processing=True,
                         read_length_type=rltype,
                         bucket_value_type=1,
                         acquisition_run_id=self.run_information.run_id,
@@ -445,7 +463,9 @@ class DeviceMonitor:
                     for histogram_event in histogram_stream:
                         log.debug(histogram_event)
                         self.histogram_data = histogram_event
-                        if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(self.status).startswith("ACQUISITION_STARTING"):
+                        if not str(self.status).startswith(
+                            "ACQUISITION_RUNNING"
+                        ) or not str(self.status).startswith("ACQUISITION_STARTING"):
                             break
                 except Exception as e:
                     # print ("Histogram Problem: {}".format(e))
@@ -455,7 +475,7 @@ class DeviceMonitor:
             pass
 
     def new_channel_state_monitor(self):
-        while True:
+        while self.run_bool:
             channel_states = self.api_connection.data.get_channel_states(
                 wait_for_processing=True, first_channel=1, last_channel=512
             )
@@ -463,19 +483,23 @@ class DeviceMonitor:
                 for state in channel_states:
                     for channel in state.channel_states:  # print (state)
                         self.channel_states[int(channel.channel)] = channel.state_name
-                if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(self.status).startswith("ACQUISITION_STARTING"):
+                if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(
+                    self.status
+                ).startswith("ACQUISITION_STARTING"):
                     break
             except:
-                #print ("error")
+                # print ("error")
                 pass
             time.sleep(self.interval)
             pass
 
     def dutytimemonitor(self):
-        while True:
+        while self.run_bool:
             log.debug("Duty Time Monitor Running: {}".format(self.status))
             log.debug(str(self.status))
-            while str(self.status).startswith("ACQUISITION_RUNNING") or str(self.status).startswith("ACQUISITION_STARTING"):
+            while str(self.status).startswith("ACQUISITION_RUNNING") or str(
+                self.status
+            ).startswith("ACQUISITION_STARTING"):
                 log.debug("fetching duty time")
                 dutytime = self.api_connection.statistics.stream_duty_time(
                     wait_for_processing=True, step=60
@@ -493,12 +517,14 @@ class DeviceMonitor:
         None
         """
         # TODO fixme Watcher is not used
-        while True:
+        while self.run_bool:
             for (
                 acquisition_status
             ) in self.api_connection.acquisition.watch_current_acquisition_run():
                 self.status = AcquisitionState.Name(acquisition_status.state)
-                if str(self.status).startswith("ACQUISITION_RUNNING") or str(self.status).startswith("ACQUISITION_STARTING"):
+                if str(self.status).startswith("ACQUISITION_RUNNING") or str(
+                    self.status
+                ).startswith("ACQUISITION_STARTING"):
                     self.device_active = True
                     self.run_start()
 
@@ -508,7 +534,9 @@ class DeviceMonitor:
                     self.device_active = True
                     self.run_start()
                 ###So - a run which is still basecalling will report as finishing - so we may need to spot this...
-                if self.device_active and str(self.status).startswith("ACQUISITION_COMPLETED"):
+                if self.device_active and str(self.status).startswith(
+                    "ACQUISITION_COMPLETED"
+                ):
                     self.device_active = False
                     self.run_stop()
                 log.debug(self.status)
@@ -523,7 +551,7 @@ class DeviceMonitor:
         None
 
         """
-        #if len(self.acquisition_data) < 1:
+        # if len(self.acquisition_data) < 1:
 
         ### changing as acquisition data will be None if nothing in it
         log.debug(self.acquisition_data)
@@ -532,7 +560,7 @@ class DeviceMonitor:
             current_script = self.api_connection.protocol.get_run_info().protocol_id
         else:
             current_script = "Nothing Running"
-            #ToDO: move minknowstatus to MinKNOWStatus object and work out how to handle a first connect with no active or previous run
+            # ToDO: move minknowstatus to MinKNOWStatus object and work out how to handle a first connect with no active or previous run
             minknowstatus = "No Run"
 
         if not self.disk_space_info:
@@ -568,7 +596,7 @@ class DeviceMonitor:
                 0
             ]
         except:
-            #print ("!!!!!! big error")
+            # print ("!!!!!! big error")
             pass
         if hasattr(self, "sampleid"):
             log.debug(self.sampleid)
@@ -576,6 +604,9 @@ class DeviceMonitor:
             log.debug(dir(self.sampleid))
             payload["minKNOW_sample_name"] = str(self.sampleid.sample_id.value)
             payload["minKNOW_run_name"] = str(self.sampleid.protocol_group_id.value)
+
+        if self.acquisition_data:
+            payload["read_length_type"] = "BASECALLED BASES" if self.acquisition_data.config_summary.basecalling_enabled else "ESTIMATED BASES"
 
         if hasattr(self, "run_information"):
             if hasattr(self.run_information, "run_id"):
@@ -634,7 +665,7 @@ class DeviceMonitor:
             openpore = 0  # channeldict["good_single"]+channeldict["pore"]
             meanratio = 0  # todo work out if we can still do this
         except:
-            #("error")
+            # ("error")
             meanratio = 0
             instrand = 0
             openpore = 0
@@ -654,20 +685,34 @@ class DeviceMonitor:
             "mean_ratio": meanratio,
             "open_pore": openpore,
             "in_strand": instrand,
-            "minKNOW_histogram_values": str(self.histogram_data.histogram_data[0].bucket_values),
-            "minKNOW_histogram_bin_width": self.histogram_data.bucket_ranges[0].end,
-            #ToDo Determine if this actually exsits!
-            #"actual_max_val": self.histogram_data.histogram_data.actual_max_val,
             "minKNOW_read_count": read_count,
-            "n50_data": self.histogram_data.histogram_data[0].n50,
             "estimated_selected_bases": self.acquisition_data.yield_summary.estimated_selected_bases,
-
         }
-
-        if hasattr(self.acquisition_data.yield_summary,"basecalled_bases"):
-            payload["basecalled_bases"] = self.acquisition_data.yield_summary.basecalled_bases
-            payload["basecalled_fail_read_count"] = self.acquisition_data.yield_summary.basecalled_fail_read_count
-            payload["basecalled_pass_read_count"] = self.acquisition_data.yield_summary.basecalled_pass_read_count
+        if self.histogram_data:
+            payload.update(
+                {
+                    "minKNOW_histogram_values": str(
+                        self.histogram_data.histogram_data[0].bucket_values
+                    ),
+                    "minKNOW_histogram_bin_width": self.histogram_data.bucket_ranges[
+                        0
+                    ].end,
+                    # ToDo Determine if this actually exsits!
+                    "actual_max_val": self.histogram_data.source_data_end,
+                    "n50_data": self.histogram_data.histogram_data[0].n50,
+                }
+            )
+        if self.acquisition_data:
+            print("hello")
+            payload[
+                "basecalled_bases"
+            ] = int(self.acquisition_data.yield_summary.basecalled_pass_bases) + int(self.acquisition_data.yield_summary.basecalled_fail_bases)
+            payload[
+                "basecalled_fail_read_count"
+            ] = self.acquisition_data.yield_summary.basecalled_fail_read_count
+            payload[
+                "basecalled_pass_read_count"
+            ] = self.acquisition_data.yield_summary.basecalled_pass_read_count
 
         for channel in channel_dict:
             payload[str(channel)] = channel_dict[channel]
@@ -686,7 +731,7 @@ class DeviceMonitor:
         None
 
         """
-        while True:
+        while self.run_bool:
             log.debug("Checking run info")
             try:
                 self.acquisition_data = (
@@ -696,7 +741,7 @@ class DeviceMonitor:
                 log.debug("No active run")
                 self.acquisition_data = None
             self.temperature_data = self.api_connection.device.get_temperature()
-            #ToDo: Check this code on a promethION.
+            # ToDo: Check this code on a promethION.
             if str(self.device_type).startswith("PROMETHION"):
                 self.minion_settings = (
                     self.api_connection.promethion_device.get_device_settings()
@@ -722,28 +767,20 @@ class DeviceMonitor:
             log.debug("running update minion status")
             self.update_minion_info()
 
-            if str(self.status).startswith("ACQUISITION_RUNNING") or str(self.status).startswith("ACQUISITION_STARTING"):
-                self.run_information = self.api_connection.acquisition.get_current_acquisition_run()
+            if str(self.status).startswith("ACQUISITION_RUNNING") or str(
+                self.status
+            ).startswith("ACQUISITION_STARTING"):
+                self.run_information = (
+                    self.api_connection.acquisition.get_current_acquisition_run()
+                )
                 try:
-                    #print ("Running Update MinION Stats")
                     log.debug("running update minion stats")
-                    #print (self.run_primary_key)
                     if hasattr(self, "run_primary_key"):
                         self.update_minion_stats()
 
                 except Exception as err:
                     log.error("Problem updating stats to device.", err)
                     pass
-            ### This stuff no longer exists!
-            #try:
-            #    log.debug(self.read_event_weighted_hist)
-            #except:
-            #    log.debug("Couldn't log histogram data.")
-            #try:
-            ##    log.debug(self.read_hist_bin_width)
-            #except:
-            #    log.debug("Couldn't log histogram data (width).")
-
             time.sleep(self.interval)
 
     def sendmessage(self, severitylevel, message):
@@ -752,7 +789,7 @@ class DeviceMonitor:
         )
 
     def get_messages(self):
-        while True:
+        while self.run_bool:
             if not self.minotour_run_url:
                 time.sleep(1)
                 continue
@@ -787,6 +824,7 @@ class MinionManager(Manager):
         self, host="localhost", port=None, use_tls=False, args=None, header=None
     ):
         super().__init__(host, port, use_tls)
+        self.monitor = True
         self.connected_positions = {}
         self.device_monitor_thread = threading.Thread(
             target=self.monitor_devices, args=()
@@ -808,9 +846,9 @@ class MinionManager(Manager):
         -------
 
         """
-        while True:
+        while self.monitor:
             for position in self.flow_cell_positions():
-                #print (position)
+                # print (position)
                 device_id = position.name
                 if device_id not in self.connected_positions and position.running:
                     # TODO note that we cannot connect to a remote instance without an ip websocket
@@ -818,11 +856,12 @@ class MinionManager(Manager):
                         self.args, position.connect(), self.header, device_id,
                     )
             time.sleep(5)
+        print("Stopped successfully.")
 
     def stop_monitoring(self):
         """
         Inform minoTour that we have interrupted monitoring, and disconnect from minoTour
-        Stops device monitor for each posiiion.
+        Stops device monitor for each position.
         Returns
         -------
         None
@@ -830,4 +869,4 @@ class MinionManager(Manager):
         for flowcell_name, connection in self.connected_positions.items():
             log.info("Disconnecting {} from the server.".format(flowcell_name))
             connection.disconnect_nicely()
-        log.info("Stopped successfully.")
+        self.monitor = False
