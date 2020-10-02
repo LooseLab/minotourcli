@@ -172,8 +172,8 @@ def main():
     parser.add_argument(
         "--unique",
         action="store_true",
-        default=False,
-        help="If you are flushing a flowcell, this option will force the flowcell to be named as a combination of flowcell ID and sample name. Thus data will be grouped appropriately.",
+        default=True,
+        help="If you are flushing a flowcell, this option will force the flowcell to be named as a combination of flowcell ID and sample name. Thus data will be grouped appropriately. Default true.",
         dest="force_unique",
     )
 
@@ -509,7 +509,7 @@ def main():
                         )
                     )
                     sys.stdout.write(", ".join(args.WATCHLIST) + "\n")
-                    line_counter += 6
+                    line_counter += 5
 
                 if not args.noMinKNOW:
                     sys.stdout.write("MinKNOW Monitoring Status:\n")
@@ -536,8 +536,6 @@ def main():
             sys.exit(0)
         except Exception as e:
             log.error(e)
-        finally:
-            print("Finally done.")
 
 
 if __name__ == "__main__":
