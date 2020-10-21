@@ -358,24 +358,15 @@ def parse_fastq_record(
                 rundict[fastq_read["runid"]].unblocked_line_start,
             ) as fh:
                 _d = {line: 1 for line in fh}
-
                 lines_returned = len(_d)
-
                 rundict[fastq_read["runid"]].unblocked_dict.update(_d)
-
             rundict[fastq_read["runid"]].unblocked_line_start += lines_returned
-
-            # print (len(rundict[fastq_read["runid"]].unblocked_dict))
-
     if fastq_read["read_id"] not in rundict[fastq_read["runid"]].readnames:
-
         quality = qual
-
         # Turns out this is not the way to calculate quality...
         # This is slow.
         if quality is not None:
             fastq_read["quality_average"] = round(average_quality(quality), 2,)
-
         fastq_read["is_pass"] = check_is_pass(fastq, fastq_read["quality_average"])
         # print (quality_average)
 
@@ -396,7 +387,6 @@ def parse_fastq_record(
             fastq_read["barcode_name"] = rundict[fastq_read["runid"]].toml[
                 int(fastq_read["channel"])
             ]
-
         if (
             rundict[fastq_read["runid"]].unblocked_dict
             and fastq_read["read_id"] in rundict[fastq_read["runid"]].unblocked_dict
@@ -545,6 +535,7 @@ def parse_fastq_file(fastq, rundict, fastqdict, args, header, MinotourConnection
                 args.reads_corrupt += 1
                 log.error(e)
                 log.error("This gzipped file failed to upload - {}.".format(fastq))
+                raise Exception
                 # continue
 
     else:
@@ -766,23 +757,16 @@ class FastqHandler(FileSystemEventHandler):
         Process fastq files in a threaded manner |
         :return:
         """
-        print("reinit")
         while self.running:
-            print(self.running)
             currenttime = time.time()
 
             for fastqfile, createtime in sorted(
                 self.creates.items(), key=lambda x: x[1]
             ):
-                print(self.running)
-
                 delaytime = 10
-
                 # file created 5 sec ago, so should be complete. For simulations we make the time longer.
                 if int(createtime) + delaytime < time.time():
-
                     del self.creates[fastqfile]
-
                     c = parse_fastq_file(
                         fastqfile,
                         self.rundict,
@@ -793,9 +777,6 @@ class FastqHandler(FileSystemEventHandler):
                         # self.unblocked_read_ids_dict,
                         # self.unblocked_line_start
                     )
-
-                    # self.unblocked_line_start += new_unblocked_line_start
-
                     self.args.files_processed += 1
                     self.args.elapsed = time.time() - self.args.read_up_time
                     hours, remainder = divmod(self.args.elapsed, 3600)
