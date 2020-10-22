@@ -194,6 +194,11 @@ class Runcollection:
                 flowcellname = "{}_{}".format(
                     descriptiondict["flow_cell_id"], descriptiondict["sample_id"]
                 )
+
+        if not flowcellname:
+            self.args.errored = True
+            self.args.error_message = "Flowcell name is required. This may be old FASTQ data, please provide a name with -n."
+            sys.exit("Flowcell name is required. This may be old FASTQ data, please provide a name with -n.")
         flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)["data"]
 
         if not run:
