@@ -6,177 +6,56 @@ import logging
 import logging.handlers
 import time
 from pathlib import Path
+
+from minFQ.minknow_connection import MinionManager
 from .version import __version__
+from minFQ.fastqutils import FastqHandler
+import configargparse
+from watchdog.observers.polling import PollingObserver as Observer
+from minFQ.minotourapi import MinotourAPI
+#from minFQ.minknowconnection import MinknowConnectRPC
 
 
-PATCH_INIT = """
-
-import platform
-def _minknow_path(operating_system=platform.system()):
-    return {
-        "Darwin": os.path.join(os.sep, "Applications", "MinKNOW.app", "Contents", "Resources"),
-        "Linux": os.path.join(os.sep, "opt", "ont", "MinKNOW"),
-        "Windows": os.path.join(os.sep, "C:\\\Program Files", "OxfordNanopore", "MinKNOW"),
-    }.get(operating_system, None)
-"""
-
-"""We are setting up the code to copy and import the rpc service from minKNOW and make
+"""We are setting clear_lines the code to copy and import the rpc service from minKNOW and make
 it work on our own code. This prevents us from having to distribute ONT code ourselves."""
 
 root_directory = os.path.dirname(os.path.realpath(__file__))
 
-"""def copyfiles(srcdir, dstdir, filepattern):
-    def failed(exc):
-        raise exc
-    dstdir = os.path.join(root_directory,dstdir)
-    for dirpath, dirs, files in os.walk(srcdir, topdown=True, onerror=failed):
-        for file in fnmatch.filter(files, filepattern):
-            shutil.copy2(os.path.join(dirpath, file), dstdir)
-            editfile(os.path.join(dstdir,file),'minknow.rpc','minFQ.rpc')
-        break # no recursion
-        """
-
-
-def copyfiles(srcdir, dstdir, filepattern, module):
-    def failed(exc):
-        raise exc
-
-    dstdir = os.path.join(root_directory, dstdir)
-    for dirpath, dirs, files in os.walk(srcdir, topdown=True, onerror=failed):
-        for file in fnmatch.filter(files, filepattern):
-            shutil.copy2(os.path.join(dirpath, file), dstdir)
-            editfile(
-                os.path.join(dstdir, file),
-                "minknow.{}".format(module),
-                "minFQ.{}".format(module),
-            )
-            editfile(
-                os.path.join(dstdir, file),
-                "minknow.paths.minknow_base_dir()",
-                "_minknow_path()",
-            )
-            editfile(os.path.join(dstdir, file), "import minknow.paths", "")
-            if file == "__init__.py":
-                with open(os.path.join(dstdir, file), "a") as out:
-                    out.write(PATCH_INIT)
-        break  # no recursion
-
-
-def editfile(filename, text_to_search, replacement_text):
-    with fileinput.FileInput(filename, inplace=True) as file:
-        for line in file:
-            print(line.replace(text_to_search, replacement_text), end="")
-
-
-dstRPC = "rpc"
-
-OPER = platform.system()
-
-### We're going to force the replacement of the RPC each time minFQ is running.
-
-if os.path.exists(os.path.join(root_directory, "rpc")):
-    print("Removing previous RPC.")
-    shutil.rmtree(os.path.join(root_directory, "rpc"))
-
-
-if OPER == "Windows":
-    RPCPATH = os.path.join(
-        "ont-python", "Lib", "site-packages", "minknow", "rpc"
-    )
-else:
-    RPCPATH = os.path.join(
-        "ont-python", "lib", "python2.7", "site-packages", "minknow", "rpc"
-    )
-
-
-if not os.path.exists(os.path.join(root_directory, "rpc")):
-    os.makedirs(os.path.join(root_directory, "rpc"))
-if os.path.isfile(os.path.join(root_directory, "rpc", "__init__.py")):
-    RPC_SUPPORT = True
-    from minFQ.minknowconnection import MinknowConnectRPC
-
-    print("RPC Available")
-    pass
-else:
-    print("No RPC")
-    if OPER == "Darwin":
-        minknowbase = os.path.join(
-            os.sep, "Applications", "MinKNOW.app", "Contents", "Resources"
-        )
-    elif OPER == "Linux":
-        if Path("/opt/ont/minknow").exists():
-            minknowbase = os.path.join(os.sep, "opt", "ont", "minknow")
-        else:
-            minknowbase = os.path.join(os.sep, "opt", "ont", "MinKNOW")
-    elif OPER == "Windows":
-        minknowbase = os.path.join(
-            os.sep, "Program Files", "OxfordNanopore", "MinKNOW"
-        )
-    else:
-        print("Not configured for {} yet. Sorry.".format(OPER))
-        sys.exit()
-    sourceRPC = os.path.join(minknowbase, RPCPATH)
-
-    if os.path.exists(sourceRPC):
-
-        copyfiles(sourceRPC, dstRPC, "*.py", "rpc")
-        RPC_SUPPORT = True
-        from minFQ.minknowconnection import MinknowConnectRPC
-
-        print("RPC Configured")
-
-    else:
-
-        RPC_SUPPORT = False
-        print(
-            "Can not find MinKnow on this computer. You can use this client to process Fastq files, but not to monitor the sequencing process."
-        )
-
-sys.path.insert(0, os.path.join(root_directory, "rpc"))
-
-from minFQ.fastqutils import FastqHandler
-from minFQ.minknowcontrolutils import HelpTheMinion
-import configargparse
-from watchdog.observers.polling import PollingObserver as Observer
-
-from minFQ.minotourapi import MinotourAPI
-
 CLIENT_VERSION = "1.0"
 
 
-def up(lines=1):
+def clear_lines(lines=1):
+    """
+    Some weird print function, clears lines to print our new code
+    Parameters
+    ----------
+    lines: int
+        NUmber of line to go clear_lines and clear
+
+    Returns
+    -------
+    None
+    """
     clearline = "\033[2K"  # clear a line
-    upline = "\033[1A"  # Move cursor up a line
+    upline = "\033[1A"  # Move cursor clear_lines a line
     for _ in range(lines):
         sys.stdout.write(upline)
         sys.stdout.write(clearline)
 
 
 def main():
+    """
+    Entry point for minFQ, parser CLI arguments
+    Returns
+    -------
 
-    global OPER
+    """
 
-    OPER = platform.system()
-
-    if OPER is "Windows":  # MS
-
-        OPER = "windows"
-
+    if platform.system() == "Windows":  # MS
+        config_file = os.path.join(os.path.sep, sys.prefix, "minfq_windows.config")
     else:
-
-        OPER = "linux"
-
-    if OPER is "linux":
-
         config_file = os.path.join(
-            os.path.sep,
-            os.path.dirname(os.path.realpath("__file__")),
-            "minfq_posix.config",
-        )
-    if OPER is "windows":
-
-        config_file = os.path.join(
-            os.path.sep, sys.prefix, "minfq_windows.config"
+            os.path.sep, os.path.dirname(os.path.realpath("__file__")), "minfq.config",
         )
 
     parser = configargparse.ArgParser(
@@ -293,8 +172,8 @@ def main():
     parser.add_argument(
         "--unique",
         action="store_true",
-        default=False,
-        help="If you are flushing a flowcell, this option will force the flowcell to be named as a combination of flowcell ID and sample name. Thus data will be grouped appropriately.",
+        default=True,
+        help="If you are flushing a flowcell, this option will force the flowcell to be named as a combination of flowcell ID and sample name. Thus data will be grouped appropriately. Default true.",
         dest="force_unique",
     )
 
@@ -382,10 +261,7 @@ def main():
         dest="GUI",
     )
     parser.add_argument(
-        "-V",
-        "--version",
-        action="version",
-        version="%(prog)s (" + __version__ + ")",
+        "-V", "--version", action="version", version="%(prog)s (" + __version__ + ")",
     )
 
     parser.add_argument(
@@ -394,7 +270,7 @@ def main():
         default=None,
         required=False,
         help="Path to the configuration file for an experiment",
-        dest="toml"
+        dest="toml",
     )
     parser.add_argument(
         "-U",
@@ -402,43 +278,37 @@ def main():
         default=None,
         required=False,
         help="Path to an unblocked read_ids text file.",
-        dest="unblocks"
+        dest="unblocks",
     )
     args = parser.parse_args()
-
+    args.loglevel = getattr(logging, args.loglevel)
     logging.basicConfig(
         format="%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s",
         filename="minFQ.log",
         # level=os.environ.get('LOGLEVEL', 'INFO')
         level=args.loglevel,
     )
-
     # define a Handler which writes INFO messages or higher to the sys.stderr
     console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
+    console.setLevel(args.loglevel)
     # set a format which is simpler for console use
-    # formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
     # tell the handler to use this format
     console.setFormatter(formatter)
     # add the handler to the root logger
     logging.getLogger("").addHandler(console)
-
     log = logging.getLogger(__name__)
-
     log.info("Initialising minFQ.")
-
     header = {
         "Authorization": "Token {}".format(args.api_key),
         "Content-Type": "application/json",
     }
-
     ### List to hold folders we want to watch
-
-    args.WATCHLIST=[]
-    WATCHDICT = dict()
+    args.WATCHLIST = []
+    WATCHDICT = {}
 
     ### Horrible tracking of run stats.
+    # todO fix this horrendous abuse of naMespaces
     args.files_seen = 0
     args.files_processed = 0
     args.files_skipped = 0
@@ -451,51 +321,33 @@ def main():
     args.read_up_time = time.time()
     args.elapsed = 0
 
-    ### Check if we are connecting to https or http
-
-    ## Moving this to the minotourapi class.
-    # if args.host_name.startswith("https://"):
-    #    args.full_host = "{}:{}/".format(args.host_name, str(args.port_number))
-    # else:
-    #    args.full_host = "https://{}:{}/".format(args.host_name, str(args.port_number))
-
-    # if not validators.url(args.full_host):
-    #    print("Please check your url.")
-    #    print("You entered:")
-    #    print("{}".format(args.host_name))
-    #    sys.exit()
     if args.toml is not None:
         if not os.path.exists(args.toml):
-            print("Toml file not found in this location. "
-                  "Please check that the specified file path is correct.")
-            os._exit(2)
+            sys.exit(
+                "Toml file not found in this location. "
+                "Please check that the specified file path is correct."
+            )
 
     if args.unblocks is not None:
         if not os.path.exists(args.unblocks):
-            print("Unblocked read ids file not found in this location. "
-                  "Please check that the specified file path is correct.")
-            os._exit(2)
+            sys.exit(
+                "Unblocked read ids file not found in this location. "
+                "Please check that the specified file path is correct."
+            )
 
     if args.list:
-
         log.info("Checking available jobs.")
-
         minotourapi = MinotourAPI(args.host_name, args.port_number, header)
-
         jobs = minotourapi.get_job_options()
-
         references = minotourapi.get_references()["data"]
-
         targets = minotourapi.get_target_sets(args.api_key)
 
-        print(
-            "The following jobs are available on this minoTour installation:"
-        )
-
+        print("The following jobs are available on this minoTour installation:")
         for job in jobs["data"]:
             if not job["name"].startswith("Delete"):
-                print("\t{}:{}".format(job["id"], job["name"].lower().replace(" ", "_")))
-
+                print(
+                    "\t{}:{}".format(job["id"], job["name"].lower().replace(" ", "_"))
+                )
         print(
             "If you wish to run an alignment, the following references are available:"
         )
@@ -507,8 +359,7 @@ def main():
         )
         for target in targets:
             print("\t:{}".format(target))
-
-        os._exit(0)
+        sys.exit(0)
 
     # Below we perform checks if we are trying to set a job.
     if args.job is not None:
@@ -517,7 +368,6 @@ def main():
         minotourapi = MinotourAPI(args.host_name, args.port_number, header)
         # Get availaible jobs
         jobs = minotourapi.get_job_options()
-
         args.job_id = -1
         jobs_dict = {}
 
@@ -534,9 +384,7 @@ def main():
 
         if args.job == "minimap2" or args.job == jobs_dict.get("minimap2", ""):
             if args.reference == None:
-                log.info(
-                    "You need to specify a reference for a Minimap2 task."
-                )
+                log.info("You need to specify a reference for a Minimap2 task.")
                 os._exit(0)
 
             references = minotourapi.get_references()["data"]
@@ -559,7 +407,10 @@ def main():
                     )
                     os._exit(0)
 
-        if args.job == jobs_dict.get(args.job, False) or args.job == "track_artic_coverage":
+        if (
+            args.job == jobs_dict.get(args.job, False)
+            or args.job == "track_artic_coverage"
+        ):
             log.info("Starting the Artic task.")
 
     if not args.noMinKNOW and args.ip is None:
@@ -573,11 +424,6 @@ def main():
                 "When monitoring read data MinoTour requires a default name to assign the data to if it cannot determine flowcell and sample name. Please set this using the -n option."
             )
             os._exit(0)
-        #if args.watchdir is None:
-        #    parser.error(
-        #        "When monitoring read data MinoTour needs to know where to look! Please specify a watch directory with the -w flag."
-        #    )
-        #    os._exit(0)
 
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:
@@ -586,110 +432,69 @@ def main():
         os._exit(0)
 
     args.read_count = 0
-
     minotourapi = MinotourAPI(args.host_name, args.port_number, header)
-
     version = minotourapi.get_server_version()
-
     log.info(version)
-
     shall_exit = False
 
     if not version:
-
         log.error(
             "Server does not support this client. Please change the client to a previous version or upgrade server."
         )
-
         shall_exit = True
-
     clients = version["clients"]
-    print(clients)
 
     if CLIENT_VERSION not in clients:
         print(CLIENT_VERSION)
         log.error(
             "Server does not support this client. Please change the client to a previous version or upgrade server."
         )
-
         shall_exit = True
 
     if not shall_exit:
-
-        rundict = dict()
-
+        rundict = {}
         if not args.noFastQ:
-            log.info("Setting up FastQ monitoring.")
-
+            log.info("Setting clear_lines FastQ monitoring.")
             # This block handles the fastq
             # Add our watchdir to our WATCHLIST
             args.WATCHLIST.append(args.watchdir)
-
-
-
+        # if we are connecting to minKNOW
         if not args.noMinKNOW:
+            # this block is going to handle the running of minknow monitoring by the client.
+            minknow_connection = MinionManager(args=args, header=header)
+            log.info("MinKNOW RPC Monitoring Working.")
 
-            if RPC_SUPPORT:
-
-                # this block is going to handle the running of minControl.
-                # log.info("Configuring MinKNOW Monitoring.")
-                minwsip = "ws://" + args.ip + ":9500/"
-
-                MinKNOWConnectionRPC = MinknowConnectRPC(minwsip, args, header)
-                log.info("MinKNOW RPC Monitoring Working.")
-
-            else:
-
-                print(
-                    "There is no support for MinKnow monitoring on this computer."
-                )
-
+        # GET away you horrible code
         sys.stdout.write("To stop minFQ use CTRL-C.\n")
-
         event_handler = FastqHandler(args, header, rundict)
-
         observer = Observer()
         observer.start()
-
         try:
-
-
-                #observer.start()
-
             while 1:
-                #### This code is constantly running - so this might be where we can change the minFQ watchfolders?
-                linecounter = 0
-                if not args.noFastQ:
-
-                    if len(args.WATCHLIST) > 0:
+                line_counter = 0
+                if not args.noFastQ and args.WATCHLIST:
+                    for folder in args.WATCHLIST:
+                        if folder and folder not in WATCHDICT:
+                            # We have a new folder that hasn't been added.
+                            # We need to add this to our list to schedule and catalogue the files.
+                            args.update = True
+                            WATCHDICT[folder] = {}
+                            event_handler.addfolder(folder)
+                            log.info("FastQ Monitoring added for {}".format(folder))
+                    if args.update:
+                        observer.unschedule_all()
                         for folder in args.WATCHLIST:
-                            if folder:
-                                if folder not in WATCHDICT.keys():
-                                    # We have a new folder that hasn't been added.
-                                    # We need to add this to our list to schedule and catalogue the files.
-                                    args.update = True
-                                    WATCHDICT[folder] = dict()
-                                    event_handler.addfolder(folder)
-                                    log.info("FastQ Monitoring added for {}".format(folder))
-                        if args.update:
-                            observer.unschedule_all()
-                            for folder in args.WATCHLIST:
-                                if folder:
-                                    if os.path.exists(folder):
-                                        observer.schedule(
-                                            event_handler, path=folder, recursive=True
-                                        )
-                            args.update=False
-
-
+                            if folder and os.path.exists(folder):
+                                observer.schedule(
+                                    event_handler, path=folder, recursive=True
+                                )
+                        args.update = False
 
                     sys.stdout.write("{}\n".format(args.fastqmessage))
                     sys.stdout.write("FastQ Upload Status:\n")
                     sys.stdout.write(
-                        "Files queued/processed/skipped/time/elapsed:{}/{}/{}/{}/{}\n".format(
-                            args.files_seen
-                            - args.files_processed
-                            - args.files_skipped,
+                        "Files queued/processed/skipped/time/per file:{}/{}/{}/{}/{}\n".format(
+                            args.files_seen - args.files_processed - args.files_skipped,
                             args.files_processed,
                             args.files_skipped,
                             args.read_up_time,
@@ -698,50 +503,40 @@ def main():
                     )
                     sys.stdout.write(
                         "New reads seen/uploaded/skipped:{}/{}/{}\n".format(
-                            args.reads_seen
-                            - args.reads_uploaded
-                            - args.reads_skipped,
+                            args.reads_seen - args.reads_uploaded - args.reads_skipped,
                             args.reads_uploaded,
                             args.reads_skipped,
                         )
                     )
-
-                    linecounter += 5
+                    sys.stdout.write(", ".join(args.WATCHLIST) + "\n")
+                    line_counter += 5
 
                 if not args.noMinKNOW:
-
                     sys.stdout.write("MinKNOW Monitoring Status:\n")
                     sys.stdout.write(
                         "Connected minIONs: {}\n".format(
-                            MinKNOWConnectionRPC.minIONnumber()
+                            minknow_connection.count
                         )
                     )
-
-                    linecounter += 2
+                    line_counter += 2
 
                 sys.stdout.flush()
-                print (args.WATCHLIST)
-
                 time.sleep(5)
                 if not args.verbose:
-                    up(linecounter)
+                    clear_lines(line_counter)
 
         except KeyboardInterrupt:
-
-            log.info("Exiting - Will take a few seconds to clean up!")
-
+            log.info("Exiting - Will take a few seconds to clean clear_lines!")
             if not args.noMinKNOW:
-                MinKNOWConnectionRPC.disconnect_nicely()
-
+                minknow_connection.stop_monitoring()
             if not args.noFastQ:
                 observer.stop()
                 observer.join()
-
-
-
-            os._exit(0)
+            event_handler.stopt()
+            sys.exit(0)
+        except Exception as e:
+            log.error(e)
 
 
 if __name__ == "__main__":
-
     main()

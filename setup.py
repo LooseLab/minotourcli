@@ -1,76 +1,59 @@
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 # To use a consistent encoding
-from codecs import open
 from os import path
-import shutil
-
-
-# Custom Lines
-# To make sure we do not accidently distribute ONT rpc first delete the rpc.
-
-mydir = "minFQ/rpc"
-
-try:
-    shutil.rmtree(mydir)
-except OSError as e:
-    print ("Error: %s - %s." % (e.filename, e.strerror))
 
 here = path.abspath(path.dirname(__file__))
-
-
-exec(open('minFQ/version.py').read())
-
-
+# Get version
+version = {}
+with open("minFQ/version.py") as fp:
+    exec(fp.read(), version)
 setup(
-    name='minFQ',
-    version=__version__,
-    description='Command line interface for uploading fastq files and monitoring minKNOW in minotour.',
+    name="minFQ",
+    version=version["__version__"],
+    description="Command line interface for uploading fastq files and monitoring minKNOW for minotour.",
     long_description=open(path.join(here, "README.rst")).read(),
-    url='https://github.com/LooseLab/minotourcli',
-    author='Matt Loose',
-    author_email='matt.loose@nottingham.ac.uk',
-    license='MIT',
+    url="https://github.com/LooseLab/minotourcli",
+    author="Matt Loose",
+    author_email="matt.loose@nottingham.ac.uk",
+    license="MIT",
     classifiers=[
-        'Intended Audience :: Science/Research',
-        'Topic :: Scientific/Engineering :: Bio-Informatics',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
-    keywords='nanopore quality control analysis',
-    #packages=find_packages("minFQ"),
-    #packages=find_packages("minFQ", exclude=["rpc"]),
+    keywords="nanopore quality control analysis",
     packages=find_packages(),
-    python_requires='>=3.5',
-    setup_requires=['numpy'],
-    install_requires=['tqdm',
-                      'python-dateutil',
-                      'requests',
-                      'BioPython',
-                      'numpy==1.17',
-                      'watchdog',
-                      'ws4py',
-                      'configargparse',
-                      'grpcio==1.22',
-                      'google',
-                      'protobuf',
-                      'pandas==0.24.0',
-                      'ont-fast5-api',
-                      'validators',
-                      'grpcio-tools==1.22',
-                      'toml'
-                     ],
-    package_data={'minFQ': []},
-    package_dir={'minFQ': 'minFQ'},
+    python_requires=">=3.5",
+    setup_requires=["numpy"],
+    install_requires=[
+        "tqdm",
+        "python-dateutil",
+        "requests",
+        "numpy==1.17",
+        "watchdog",
+        "configargparse",
+        "grpcio==1.25",
+        "google",
+        "protobuf",
+        "pandas",
+        "ont-fast5-api",
+        "minknow-api",
+        "validators",
+        "grpcio-tools==1.22",
+        "toml",
+    ],
+    package_data={"minFQ": []},
+    package_dir={"minFQ": "minFQ"},
     include_package_data=True,
     entry_points={
-        'console_scripts': [
-            'minFQ=minFQ.minFQ:main',
-            'minFlow=minFQ.flowcellmaker:main',
-            'minConnect=minFQ.minknowconnection:main',
+        "console_scripts": [
+            "minFQ=minFQ.minFQ:main",
+            "minFlow=minFQ.flowcellmaker:main",
         ],
     },
 )
