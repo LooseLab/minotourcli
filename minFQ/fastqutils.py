@@ -352,7 +352,6 @@ def parse_fastq_record(
     if counter <= 1:
         ## This is the first read we have seen from this file - so we are going to check for updates in the unblocked read file.
         if rundict[fastq_read["runid"]].unblocked_file is not None:
-            # print ("reading in the unblocks")
             with OpenLine(
                 rundict[fastq_read["runid"]].unblocked_file,
                 rundict[fastq_read["runid"]].unblocked_line_start,
@@ -723,9 +722,16 @@ class FastqHandler(FileSystemEventHandler):
         self.running = True
 
         self.t = threading.Thread(target=self.processfiles)
+        try:
+            self.t.start()
+        except Exception as e:
+            self.running = False
+            self.args.errored = True
+            self.args.error_message = "Flowcell name is required. This may be old FASTQ data, please provide a name with -n."
+            log.error("Flowcell name is required. This may be old FASTQ data, please provide a name with -n.")
+            # raise BaseException()
         self.grouprun = None
 
-        self.t.start()
 
 
     def addfolder(self, folder):

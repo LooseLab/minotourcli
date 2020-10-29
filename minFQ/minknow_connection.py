@@ -703,7 +703,6 @@ class DeviceMonitor:
                 }
             )
         if self.acquisition_data:
-            print("hello")
             payload[
                 "basecalled_bases"
             ] = int(self.acquisition_data.yield_summary.basecalled_pass_bases) + int(self.acquisition_data.yield_summary.basecalled_fail_bases)

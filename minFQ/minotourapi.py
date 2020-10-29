@@ -1,6 +1,8 @@
 import datetime
 import json as jsonlibrary
 import logging
+import sys
+
 import requests
 import gzip
 import time
@@ -370,7 +372,19 @@ class MinotourAPI:
             return barcode
 
     def get_flowcell_by_name(self, name):
+        """
 
+        Parameters
+        ----------
+        name
+
+        Returns
+        -------
+
+        """
+        if not name:
+            sys.exit("Name has not been provided. This can happen if the fastq data you are uploading"
+                     " is too old. Please provide a name using the -n flag.")
         url = "/flowcells/{}/".format(name)
 
         req = self.get(url, "search_criteria=name")

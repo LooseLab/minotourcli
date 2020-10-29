@@ -163,7 +163,6 @@ def main():
         "-n",
         "--name",
         type=str,
-        # required=True,
         default=None,
         help="This provides a backup name for a flowcell. MinoTour will use the run names and flowcell ids it finds in reads if available.",
         dest="run_name",
@@ -320,6 +319,8 @@ def main():
     args.update = False
     args.read_up_time = time.time()
     args.elapsed = 0
+    args.errored = False
+    args.error_message = ""
 
     if args.toml is not None:
         if not os.path.exists(args.toml):
@@ -417,13 +418,6 @@ def main():
         parser.error(
             "To monitor MinKNOW in real time you must specify the IP address of your local machine.\nUsually:\n-ip 127.0.0.1"
         )
-
-    if not args.noFastQ:
-        if args.run_name is None:
-            parser.error(
-                "When monitoring read data MinoTour requires a default name to assign the data to if it cannot determine flowcell and sample name. Please set this using the -n option."
-            )
-            os._exit(0)
 
     # Makes no sense to run if both no minKNOW and no FastQ is set:
     if args.noFastQ and args.noMinKNOW:
@@ -524,6 +518,16 @@ def main():
                 time.sleep(5)
                 if not args.verbose:
                     clear_lines(line_counter)
+                if args.errored:
+                    log.info("Errored - Will take a few seconds to clean clear_lines!")
+                    log.error(args.error_message)
+                    if not args.noMinKNOW:
+                        minknow_connection.stop_monitoring()
+                    if not args.noFastQ:
+                        observer.stop()
+                        observer.join()
+                    event_handler.stopt()
+                    sys.exit(0)
 
         except KeyboardInterrupt:
             log.info("Exiting - Will take a few seconds to clean clear_lines!")
@@ -534,8 +538,7 @@ def main():
                 observer.join()
             event_handler.stopt()
             sys.exit(0)
-        except Exception as e:
-            log.error(e)
+
 
 
 if __name__ == "__main__":
