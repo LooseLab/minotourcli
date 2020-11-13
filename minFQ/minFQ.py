@@ -451,7 +451,8 @@ def main():
             log.info("Setting clear_lines FastQ monitoring.")
             # This block handles the fastq
             # Add our watchdir to our WATCHLIST
-            args.WATCHLIST.append(args.watchdir)
+            if args.watchdir is not None:
+                args.WATCHLIST.append(args.watchdir)
         # if we are connecting to minKNOW
         if not args.noMinKNOW:
             # this block is going to handle the running of minknow monitoring by the client.
@@ -503,6 +504,7 @@ def main():
                         )
                     )
                     sys.stdout.write(", ".join(args.WATCHLIST) + "\n")
+
                     line_counter += 5
 
                 if not args.noMinKNOW:
