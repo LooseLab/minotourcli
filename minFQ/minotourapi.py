@@ -319,21 +319,23 @@ class MinotourAPI:
         None
         """
 
-        payload = reads
+        if len(reads)>0:
 
-        req = self.post("/read/", json=payload)
+            payload = reads
 
-        if req.status_code != 201:
+            req = self.post("/read/", json=payload)
 
-            log.error("Reads batch {} could not be created.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
+            if req.status_code != 201:
 
-        else:
+                log.error("Reads batch {} could not be created.")
+                log.error("Status-code {}".format(req.status_code))
+                log.error("Text {}".format(req.text))
+                return None
 
-            grouprun = jsonlibrary.loads(req.text)
-            return grouprun
+            else:
+
+                grouprun = jsonlibrary.loads(req.text)
+                return grouprun
 
     def get_read_type_list(self):
 
