@@ -448,14 +448,9 @@ class DeviceMonitor:
                 self.basecalling = (
                     self.run_information.config_summary.basecalling_enabled
                 )
-                if self.basecalling:
-                    rltype = 2
-                else:
-                    rltype = 1
+                rltype = 2 if self.basecalling else 1
                 try:
                     histogram_stream = self.api_connection.statistics.stream_read_length_histogram(
-                        # poll_time=60,
-                        # wait_for_processing=True,
                         read_length_type=rltype,
                         bucket_value_type=1,
                         acquisition_run_id=self.run_information.run_id,
@@ -488,10 +483,9 @@ class DeviceMonitor:
                 ).startswith("ACQUISITION_STARTING"):
                     break
             except:
-                # print ("error")
+                print(channel_states)
                 pass
             time.sleep(self.interval)
-            pass
 
     def dutytimemonitor(self):
         while self.run_bool:
