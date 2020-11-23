@@ -205,7 +205,7 @@ def get_runid(fastq):
     return runid
 
 
-def unseen_files_dict_of_watch_folder(path, ignore_existing, minotour_api, fastq_dict, sequencing_statistics):
+def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq_dict, sequencing_statistics):
     """
     Iterate fastq files in watch directory and see if we have seen them before by checking against server.
     Parameters
@@ -223,6 +223,8 @@ def unseen_files_dict_of_watch_folder(path, ignore_existing, minotour_api, fastq
 
     Returns
     -------
+    dict
+        Dictionary of fastq files that we haven't seen before. Key filepath, value created time for fastq file
 
     """
     # Dictionary for tracking files
