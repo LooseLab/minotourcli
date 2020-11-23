@@ -441,6 +441,8 @@ class DeviceMonitor:
             if str(self.status).startswith("ACQUISITION_RUNNING") or str(
                 self.status
             ).startswith("ACQUISITION_STARTING"):
+                log.debug("here we go again?")
+                # todo does the thread leave the loop below? If not that might be why we have the problem
                 ###We need to test if we are doing basecalling or not.
                 self.run_information = (
                     self.api_connection.acquisition.get_current_acquisition_run()
@@ -452,6 +454,8 @@ class DeviceMonitor:
                     rltype = 2
                 else:
                     rltype = 1
+                log.debug(rltype)
+                log.debug(self.basecalling)
                 try:
                     histogram_stream = self.api_connection.statistics.stream_read_length_histogram(
                         # poll_time=60,
@@ -469,6 +473,7 @@ class DeviceMonitor:
                             break
                 except Exception as e:
                     # print ("Histogram Problem: {}".format(e))
+                    rltype = 1 if rltype == 2 else 2
                     log.error("histogram problem: {}".format(e))
                     continue
             time.sleep(self.interval)
@@ -476,22 +481,24 @@ class DeviceMonitor:
 
     def new_channel_state_monitor(self):
         while self.run_bool:
-            channel_states = self.api_connection.data.get_channel_states(
-                wait_for_processing=True, first_channel=1, last_channel=512
-            )
-            try:
-                for state in channel_states:
-                    for channel in state.channel_states:  # print (state)
-                        self.channel_states[int(channel.channel)] = channel.state_name
-                if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(
+            if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(
                     self.status
-                ).startswith("ACQUISITION_STARTING"):
-                    break
-            except:
-                # print ("error")
-                pass
+            ).startswith("ACQUISITION_STARTING"):
+                channel_states = self.api_connection.data.get_channel_states(
+                    wait_for_processing=True, first_channel=1, last_channel=512
+                )
+                try:
+                    for state in channel_states:
+                        for channel in state.channel_states:  # print (state)
+                            self.channel_states[int(channel.channel)] = channel.state_name
+                    if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(
+                        self.status
+                    ).startswith("ACQUISITION_STARTING"):
+                        break
+                except Exception as e:
+                    # print ("error")
+                    print(e)
             time.sleep(self.interval)
-            pass
 
     def dutytimemonitor(self):
         while self.run_bool:
