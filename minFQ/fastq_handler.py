@@ -164,7 +164,7 @@ def parse_fastq_record(
         fastq_read["is_pass"] = check_is_pass(fastq_file_path, fastq_read["quality_average"])
         # use 'No barcode' for non-barcoded reads
         barcode_name = description_dict.get("barcode", None)
-        fastq_read["barcode_name"] = barcode_name if barcode_name else fastq_read["barcode_name"] = "No barcode"
+        fastq_read["barcode_name"] = barcode_name if barcode_name else "No barcode"
 
         # Parse the channel out of the description and lookup it's corresponding condition
         # set it to the reads barcode
