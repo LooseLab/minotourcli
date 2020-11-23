@@ -183,10 +183,8 @@ class DeviceMonitor:
             FolderPath = (
                 self.api_connection.protocol.get_current_protocol_run().output_path
             )
-            # print ("New Run Seen {}".format(FolderPath))
             if not self.args.noFastQ:
-                if FolderPath not in self.args.WATCHLIST:
-                    # print (FolderPath)
+                if str(os.path.normpath(FolderPath)) not in self.args.WATCHLIST:
                     self.args.WATCHLIST.append(str(os.path.normpath(FolderPath)))
                     # self.args.WATCHLIST.append(str(os.path.normpath("/Library/MinKNOW/data/./TestingRunDetection/Testing/20200227_1334_MS00000_FAG12345_73228e51")))
 
@@ -442,62 +440,62 @@ class DeviceMonitor:
                 self.status
             ).startswith("ACQUISITION_STARTING"):
                 log.debug("here we go again?")
-                # todo does the thread leave the loop below? If not that might be why we have the problem
-                ###We need to test if we are doing basecalling or not.
-                self.run_information = (
-                    self.api_connection.acquisition.get_current_acquisition_run()
-                )
-                self.basecalling = (
-                    self.run_information.config_summary.basecalling_enabled
-                )
-                if self.basecalling:
-                    rltype = 2
-                else:
-                    rltype = 1
-                log.debug(rltype)
-                log.debug(self.basecalling)
-                try:
-                    histogram_stream = self.api_connection.statistics.stream_read_length_histogram(
-                        # poll_time=60,
-                        # wait_for_processing=True,
-                        read_length_type=rltype,
-                        bucket_value_type=1,
-                        acquisition_run_id=self.run_information.run_id,
+                purpose = self.api_connection.protocol.get_protocol_purpose().purpose
+                if purpose == "sequencing_run":
+                    ###We need to test if we are doing basecalling or not.
+                    self.run_information = (
+                        self.api_connection.acquisition.get_current_acquisition_run()
                     )
-                    for histogram_event in histogram_stream:
-                        log.debug(histogram_event)
-                        self.histogram_data = histogram_event
-                        if not str(self.status).startswith(
-                            "ACQUISITION_RUNNING"
-                        ) or not str(self.status).startswith("ACQUISITION_STARTING"):
-                            break
-                except Exception as e:
-                    # print ("Histogram Problem: {}".format(e))
-                    rltype = 1 if rltype == 2 else 2
-                    log.error("histogram problem: {}".format(e))
-                    continue
+                    self.basecalling = (
+                        self.run_information.config_summary.basecalling_enabled
+                    )
+                    if self.basecalling:
+                        rltype = 2
+                    else:
+                        rltype = 1
+                    log.debug(rltype)
+                    log.debug(self.basecalling)
+                    try:
+                        histogram_stream = self.api_connection.statistics.stream_read_length_histogram(
+                            # poll_time=60,
+                            # wait_for_processing=True,
+                            read_length_type=rltype,
+                            bucket_value_type=1,
+                            acquisition_run_id=self.run_information.run_id,
+                        )
+                        for histogram_event in histogram_stream:
+                            log.debug(histogram_event)
+                            self.histogram_data = histogram_event
+                            if not str(self.status).startswith(
+                                "ACQUISITION_RUNNING"
+                            ) or not str(self.status).startswith("ACQUISITION_STARTING"):
+                                break
+                    except Exception as e:
+                        log.error("histogram problem: {}".format(e))
+                        continue
             time.sleep(self.interval)
             pass
 
     def new_channel_state_monitor(self):
         while self.run_bool:
-            if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(
+            if str(self.status).startswith("ACQUISITION_RUNNING") or str(
                     self.status
             ).startswith("ACQUISITION_STARTING"):
-                channel_states = self.api_connection.data.get_channel_states(
-                    wait_for_processing=True, first_channel=1, last_channel=512
-                )
-                try:
-                    for state in channel_states:
-                        for channel in state.channel_states:  # print (state)
-                            self.channel_states[int(channel.channel)] = channel.state_name
-                    if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(
-                        self.status
-                    ).startswith("ACQUISITION_STARTING"):
-                        break
-                except Exception as e:
-                    # print ("error")
-                    print(e)
+                purpose = self.api_connection.protocol.get_protocol_purpose().purpose
+                if purpose == "sequencing_run":
+                    channel_states = self.api_connection.data.get_channel_states(
+                        wait_for_processing=True, first_channel=1, last_channel=512
+                    )
+                    try:
+                        for state in channel_states:
+                            for channel in state.channel_states:
+                                self.channel_states[int(channel.channel)] = channel.state_name
+                        if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(
+                            self.status
+                        ).startswith("ACQUISITION_STARTING"):
+                            break
+                    except Exception as e:
+                        log.error("Chan state error: {}".format(e))
             time.sleep(self.interval)
 
     def dutytimemonitor(self):
@@ -603,7 +601,6 @@ class DeviceMonitor:
                 0
             ]
         except:
-            # print ("!!!!!! big error")
             pass
         if hasattr(self, "sampleid"):
             log.debug(self.sampleid)
@@ -661,13 +658,10 @@ class DeviceMonitor:
         channel_dict["pore"] = 0
         try:
             channelpandastates = channel_panda.groupby([0,]).size()
-            # print (channelpandastates)
             log.debug(channelpandastates)
             for state, value in channelpandastates.iteritems():
                 log.debug("{} {}".format(state, value))
-                #    print (state,value)
                 channel_dict[state] = value
-            # print ("\n\n\n\n\n\n")
             instrand = 0  # channeldict["strand"]+channeldict["adapter"]
             openpore = 0  # channeldict["good_single"]+channeldict["pore"]
             meanratio = 0  # todo work out if we can still do this
@@ -679,7 +673,6 @@ class DeviceMonitor:
             pass
 
         # Capturing the histogram data from MinKNOW
-        # print (self.runinformation)
 
         payload = {
             "minion": str(self.minion["url"]),
@@ -854,7 +847,6 @@ class MinionManager(Manager):
         """
         while self.monitor:
             for position in self.flow_cell_positions():
-                # print (position)
                 device_id = position.name
                 if device_id not in self.connected_positions and position.running:
                     # TODO note that we cannot connect to a remote instance without an ip websocket
