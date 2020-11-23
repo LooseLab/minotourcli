@@ -39,8 +39,12 @@ class MinotourAPI:
             self.base_url = "http://{}:{}/".format(self.base_url, self.port_number)
 
     def test(self):
+        """
+        Connect to the server and check everything is cool
+        Returns
+        -------
 
-        return "OK"
+        """
 
     def get(self, partial_url, parameters=None):
         if not parameters:
