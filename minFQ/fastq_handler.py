@@ -2,37 +2,29 @@
 File Routines for handling fastq files and monitoring locations. Built on watchdog.
 """
 import logging
-import os
-import subprocess
 import sys
 import threading
 import time
-import gzip
-import pyfastx
-import numpy as np
 import toml as toml_manager
 
 from minFQ.fastq_handler_utils import (
-    split_all,
     parse_fastq_description,
     get_file_size,
     get_runid,
     check_fastq_path,
-    unseen_files_dict_of_watch_folder,
+    unseen_files_in_watch_folder_dict,
     _prepare_toml,
     OpenLine,
     create_run_collection, average_quality, check_is_pass,
 )
-from minFQ.run_data_tracker import RunDataTracker
 from minFQ.minotourapi import MinotourAPI
 from watchdog.events import FileSystemEventHandler
 
 log = logging.getLogger(__name__)
 
 
-###Function modified from https://raw.githubusercontent.com/lh3/readfq/master/readfq.py
+# ##Function modified from https://raw.githubusercontent.com/lh3/readfq/master/readfq.py
 
-# Todo replace with pyfastx
 def readfq(fp):  # this is a generator function
     last = None  # this is a buffer keeping the last unprocessed line
     while True:  # mimic closure; is it a bad idea?
@@ -172,32 +164,15 @@ def parse_fastq_record(
             fastq_read["barcode_name"] = run_dict[fastq_read["runid"]].toml[
                 int(fastq_read["channel"])
             ]
-        if (
-            run_dict[fastq_read["runid"]].unblocked_dict
-            and fastq_read["read_id"] in run_dict[fastq_read["runid"]].unblocked_dict
-        ):
-            fastq_read["rejected_barcode_name"] = "Unblocked"
-        else:
-            fastq_read["rejected_barcode_name"] = "Sequenced"
-
+        is_unblocked = fastq_read["read_id"] in run_dict[fastq_read["runid"]].unblocked_dict
+        fastq_read["rejected_barcode_name"] = "Unblocked" if is_unblocked else "Sequenced"
         # add control-treatment if passed as argument
         if args.treatment_control:
-
-            if int(fastq_read["channel"]) % args.treatment_control == 0:
-
-                fastq_read["barcode_name"] = fastq_read["barcode_name"] + " - control"
-
-            else:
-
-                fastq_read["barcode_name"] = fastq_read["barcode_name"] + " - treatment"
-
-        # check if sequence is sent or not
-
-        # For speed lets throw away t12he quality
-        # fastq_read["quality"] = ""
+            is_control = int(fastq_read["channel"]) % args.treatment_control == 0
+            suffix = " - control" if is_control else " - treatment"
+            fastq_read["barcode_name"] = fastq_read["barcode_name"] + suffix
         # Add the read to the class dictionary to be uploaded, pretty important
         run_dict[fastq_read["runid"]].add_read(fastq_read)
-
     else:
         sequencing_statistic.reads_skipped += 1
 
@@ -337,11 +312,10 @@ class FastqHandler(FileSystemEventHandler):
             log.error(
                 "Flowcell name is required. This may be old FASTQ data, please provide a name with -n."
             )
-            # raise BaseException()
 
     def addfolder(self, folder):
         self.fastq_files_to_create.update(
-            unseen_files_dict_of_watch_folder(
+            unseen_files_in_watch_folder_dict(
                 folder,
                 self.args.ignore_existing,
                 self.minotour_api,
@@ -349,14 +323,6 @@ class FastqHandler(FileSystemEventHandler):
                 self.sequencing_statistic,
             )
         )
-
-    def addrunmonitor(self, runpath):
-        """
-        Add a new folder for checking reads in.
-        :param runpath: the final part of the folder structure - effectively the sample name
-        :return:
-        """
-        pass
 
     def stopt(self):
         self.running = False
