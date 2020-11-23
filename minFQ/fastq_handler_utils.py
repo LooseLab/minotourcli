@@ -3,7 +3,7 @@ import logging
 import os
 import numpy as np
 
-from minFQ.run_collection import Runcollection
+from minFQ.run_data_tracker import RunDataTracker
 
 log = logging.getLogger("fastq_handler")
 class OpenLine:
@@ -330,6 +330,6 @@ def create_run_collection(run_id, run_dict, args, header, description_dict, fast
     -------
 
     """
-    run_dict[run_id] = Runcollection(args, header, sequencing_statistics)
+    run_dict[run_id] = RunDataTracker(args, header, sequencing_statistics)
     run_dict[run_id].add_run(description_dict, args)
     run_dict[run_id].get_readnames_by_run(fastq_file_id)

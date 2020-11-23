@@ -11,6 +11,8 @@ import sys, time
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from minFQ.minotourapi import MinotourAPI
+
 from urllib.parse import urlparse
 from threading import Thread
 import toml as toml_manager
@@ -35,6 +37,7 @@ def requests_retry_session(
     session.mount("https://", adapter)
     return session
 
+
 def _prepare_toml(toml_dict):
     """
     Prepares the dictionary of the toml, places the channel number as key and conditon name as value
@@ -51,10 +54,7 @@ def _prepare_toml(toml_dict):
     return _d
 
 
-from minFQ.minotourapi import MinotourAPI
-
-
-class Runcollection:
+class RunDataTracker:
     def __init__(self, args, header, sequencing_statistics):
         log.debug("Initialising Runcollection")
         self.base_url = args.host_name
@@ -63,16 +63,15 @@ class Runcollection:
         self.args = args
         self.header = header
         self.read_names = []
-        self.readcount = 0
-        self.basecount = 0
-        self.trackedbasecount = 0
+        self.read_count = 0
+        self.base_count = 0
+        self.tracked_base_count = 0
         self.read_type_dict = {}
         if self.args.skip_sequence:
             self.batchsize = 5000
         else:
             self.batchsize = 4000
         self.run = None
-        self.grouprun = None
         self.barcode_dict = {}
         self.read_list = []
         self.file_monitor = {}
@@ -84,7 +83,7 @@ class Runcollection:
         self.unblocked_dict = {}
         self.unblocked_file = None
         self.unblocked_line_start = 0
-        self.runfolder = None
+        self.run_folder = None
         self.toml = None
         self.sequencing_statistics = sequencing_statistics
 
@@ -103,8 +102,8 @@ class Runcollection:
         -------
 
         """
-        self.runfolder = folder
-        self.check_for_toml_file()
+        self.run_folder = folder
+        self.check_for_read_until_files()
 
     def add_unblocked_reads_file(self, unblocked_file_path):
         self.unblocked_file = unblocked_file_path
@@ -347,8 +346,8 @@ class Runcollection:
             else:
                 fastq_read_payload["type"] = self.read_type_dict["T"]
             self.read_names.append(read_id)
-            self.basecount += fastq_read_payload["sequence_length"]
-            self.trackedbasecount += fastq_read_payload["sequence_length"]
+            self.base_count += fastq_read_payload["sequence_length"]
+            self.tracked_base_count += fastq_read_payload["sequence_length"]
             self.read_list.append(fastq_read_payload)
             log.debug(
                 "Checking read_list size {} - {}".format(
@@ -361,28 +360,32 @@ class Runcollection:
                 log.debug("Commit reads")
                 if not self.args.skip_sequence:
                     self.batchsize = int(
-                        1000000 / (int(self.basecount) / self.readcount)
+                        1000000 / (int(self.base_count) / self.read_count)
                     )
                 self.commit_reads()
-            elif self.trackedbasecount >= 1000000:
+            elif self.tracked_base_count >= 1000000:
                 self.commit_reads()
-                self.trackedbasecount = 0
-            self.readcount += 1
+                self.tracked_base_count = 0
+            self.read_count += 1
         else:
             print("Skipping read")
             self.args.reads_skipped += 1
 
-    def check_for_toml_file(self):
+    def check_for_read_until_files(self):
         """
-        Check run folder for a channels.toml file when it is set in the run collection
+        Check run folder for a channels.toml and an unblocked read_ids file when a run folder is set in the run collection
         Returns
         -------
 
         """
         log.debug("Checking for Toml")
-        if self.toml is None:
-            for path, dirs, files in os.walk(self.runfolder):
+        if self.toml is None or self.unblocked_file:
+            for path, dirs, files in os.walk(self.run_folder):
                 for file in files:
                     if file.endswith("channels.toml"):
-                        toml_dict = toml_manager.load(os.path.join(path, file))
-                        self.toml = _prepare_toml(toml_dict)
+                        if self.toml is None:
+                            toml_dict = toml_manager.load(os.path.join(path, file))
+                            self.toml = _prepare_toml(toml_dict)
+                    if file == "unblocked_read_ids.txt":
+                        if self.unblocked_file is None:
+                            self.add_unblocked_reads_file(os.path.join(path, file))
