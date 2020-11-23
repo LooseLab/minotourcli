@@ -43,15 +43,10 @@ class MinotourAPI:
         return "OK"
 
     def get(self, partial_url, parameters=None):
-
         if not parameters:
-
             url = "{}api/v1{}".format(self.base_url, partial_url)
-
         else:
-
             url = "{}api/v1{}".format(self.base_url, partial_url)
-
         return requests.get(url, headers=self.request_headers, params=parameters)
 
     def post(self, partial_url, json, parameters=None):
