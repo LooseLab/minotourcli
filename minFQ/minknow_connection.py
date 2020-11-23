@@ -14,7 +14,8 @@ from minknow_api.acquisition_pb2 import AcquisitionState, MinknowStatus
 from minknow_api.protocol_pb2 import ProtocolState, ProtocolRunUserInfo
 from minknow_api.device import get_device_type
 
-from minFQ.minotourapi import MinotourAPI as MinotourAPINew
+from minFQ.minotourapi import MinotourAPI
+from minFQ.minknow_connection_utils import check_warnings
 
 log = logging.getLogger(__name__)
 
@@ -34,52 +35,32 @@ class DeviceMonitor:
         api_connection: minknow_api.Connection
             Connection to the flowcell position
         header: dict
-            The header to set on the request
+            The header to set on the request to the server
         position_id: str
             The name of the position, like MS0000 or X1
         """
         self.args = args
-        # Set a status to hold what we are currently doing.
+        # Set a status to hold what we are currently doing for this device.
         self.device_active = False
         self.api_connection = api_connection
-        # Here we need to check if we are good to run against this version.
-
-        self.version = self.api_connection.instance.get_version_info().minknow.full
-
+        self.minknow_version = self.api_connection.instance.get_version_info().minknow.full
         self.device_type = get_device_type(self.api_connection).name
-        # log.error(self.device_type)
-        if str(self.device_type).startswith("PROMETHION"):
-            log.warning(self.device_type)
-            log.warning("This version of minFQ may not be compatible with PromethION.")
-            # sys.exit()
-        # if str(self.version) != "3.3.13":
-        if not str(self.version).startswith("3.3"):
-            log.warning(self.version)
-            log.warning(
-                "This version of minFQ may not be compatible with the MinKNOW version you are running."
-            )
-            log.warning("As a consequence, live monitoring MAY NOT WORK.")
-            log.warning("If you experience problems, let us know.")
-            # sys.exit()
+        # Here we need to check if we are good to run against this version.
+        check_warnings(self.device_type, self.minknow_version)
         self.header = header
-        self.channels = (
+        self.channel_count = (
             self.api_connection.device.get_flow_cell_info().channel_count
         )  # this is ok
-        self.channel_states = {i: None for i in range(1, self.channels + 1)}
+        self.channel_states_dict = {i: None for i in range(1, self.channel_count + 1)}
         # self.status = AcquisitionState.ACQUISITION_COMPLETED
-        self.status = ""
+        self.acquisition_status = ""
         self.interval = 30  # we will poll for updates every 30 seconds.
         self.long_interval = 30  # we have a short loop and a long loop
         self.position_id = position_id  # This has been remanme from self.minIONid
-
         self.computer_name = (
             self.api_connection.instance.get_machine_id().machine_id
         )  # This isn't what we want - it reports Macbook-Pro for my computer but should report "DestroyerofWorlds" or similar.
-        self.minknow_version = (
-            self.api_connection.instance.get_version_info().minknow.full
-        )
-        self.minknow_status = self.api_connection.instance.get_version_info().protocols
-        self.minotour_api = MinotourAPINew(
+        self.minotour_api = MinotourAPI(
             self.args.host_name, self.args.port_number, self.header
         )
         self.minotour_api.test()
@@ -94,7 +75,7 @@ class DeviceMonitor:
         self.minotour_run_url = ""
         self.run_bool = True
         if (
-            self.api_connection.acquisition.current_status().status
+            self.api_connection.acquisition.current_status().acquisition_status
             != MinknowStatus.READY
         ):
             self.acquisition_data = (
@@ -153,8 +134,8 @@ class DeviceMonitor:
         self.minotour_api.update_minion_event(self.minion, self.computer_name, "active")
         # if self.status==AcquisitionState.ACQUISITION_RUNNING:
 
-        if str(self.status).startswith("ACQUISITION_RUNNING") or str(
-            self.status
+        if str(self.acquisition_status).startswith("ACQUISITION_RUNNING") or str(
+            self.acquisition_status
         ).startswith("ACQUISITION_STARTING"):
             self.device_active = True
             # self.run_start()
@@ -168,11 +149,10 @@ class DeviceMonitor:
         self.minotour_api.update_minion_event(
             self.minion, self.computer_name, "sequencing"
         )
-
         log.debug("run start observed")
         log.debug("MINION:", self.minion)
         # We wait for 10 seconds to allow the run to start
-        time.sleep(self.interval)
+        time.sleep(10)
         try:
             self.run_information = (
                 self.api_connection.acquisition.get_current_acquisition_run()
@@ -438,8 +418,8 @@ class DeviceMonitor:
 
         """
         while self.run_bool:
-            if str(self.status).startswith("ACQUISITION_RUNNING") or str(
-                self.status
+            if str(self.acquisition_status).startswith("ACQUISITION_RUNNING") or str(
+                self.acquisition_status
             ).startswith("ACQUISITION_STARTING"):
                 ###We need to test if we are doing basecalling or not.
                 self.run_information = (
@@ -458,9 +438,9 @@ class DeviceMonitor:
                     for histogram_event in histogram_stream:
                         log.debug(histogram_event)
                         self.histogram_data = histogram_event
-                        if not str(self.status).startswith(
+                        if not str(self.acquisition_status).startswith(
                             "ACQUISITION_RUNNING"
-                        ) or not str(self.status).startswith("ACQUISITION_STARTING"):
+                        ) or not str(self.acquisition_status).startswith("ACQUISITION_STARTING"):
                             break
                 except Exception as e:
                     # print ("Histogram Problem: {}".format(e))
@@ -476,10 +456,10 @@ class DeviceMonitor:
             )
             try:
                 for state in channel_states:
-                    for channel in state.channel_states:  # print (state)
-                        self.channel_states[int(channel.channel)] = channel.state_name
-                if not str(self.status).startswith("ACQUISITION_RUNNING") or not str(
-                    self.status
+                    for channel in state.channel_states_dict:  # print (state)
+                        self.channel_states_dict[int(channel.channel)] = channel.state_name
+                if not str(self.acquisition_status).startswith("ACQUISITION_RUNNING") or not str(
+                    self.acquisition_status
                 ).startswith("ACQUISITION_STARTING"):
                     break
             except:
@@ -489,10 +469,10 @@ class DeviceMonitor:
 
     def dutytimemonitor(self):
         while self.run_bool:
-            log.debug("Duty Time Monitor Running: {}".format(self.status))
-            log.debug(str(self.status))
-            while str(self.status).startswith("ACQUISITION_RUNNING") or str(
-                self.status
+            log.debug("Duty Time Monitor Running: {}".format(self.acquisition_status))
+            log.debug(str(self.acquisition_status))
+            while str(self.acquisition_status).startswith("ACQUISITION_RUNNING") or str(
+                self.acquisition_status
             ).startswith("ACQUISITION_STARTING"):
                 log.debug("fetching duty time")
                 dutytime = self.api_connection.statistics.stream_duty_time(
@@ -515,25 +495,25 @@ class DeviceMonitor:
             for (
                 acquisition_status
             ) in self.api_connection.acquisition.watch_current_acquisition_run():
-                self.status = AcquisitionState.Name(acquisition_status.state)
-                if str(self.status).startswith("ACQUISITION_RUNNING") or str(
-                    self.status
+                self.acquisition_status = AcquisitionState.Name(acquisition_status.state)
+                if str(self.acquisition_status).startswith("ACQUISITION_RUNNING") or str(
+                    self.acquisition_status
                 ).startswith("ACQUISITION_STARTING"):
                     self.device_active = True
                     self.run_start()
 
-                if not self.device_active and str(self.status).startswith(
+                if not self.device_active and str(self.acquisition_status).startswith(
                     "ACQUISITION_FINISHING"
                 ):
                     self.device_active = True
                     self.run_start()
                 ###So - a run which is still basecalling will report as finishing - so we may need to spot this...
-                if self.device_active and str(self.status).startswith(
+                if self.device_active and str(self.acquisition_status).startswith(
                     "ACQUISITION_COMPLETED"
                 ):
                     self.device_active = False
                     self.run_stop()
-                log.debug(self.status)
+                log.debug(self.acquisition_status)
 
     def update_minion_info(self):
         """
@@ -639,7 +619,7 @@ class DeviceMonitor:
         yield_val = self.acquisition_data.yield_summary.selected_events
         read_count = self.acquisition_data.yield_summary.read_count
         channel_panda = pd.DataFrame.from_dict(
-            self.channel_states, orient="index", dtype=None
+            self.channel_states_dict, orient="index", dtype=None
         )
         channel_dict = {}
         channel_dict["strand"] = 0
@@ -760,8 +740,8 @@ class DeviceMonitor:
             log.debug("running update minion status")
             self.update_minion_info()
 
-            if str(self.status).startswith("ACQUISITION_RUNNING") or str(
-                self.status
+            if str(self.acquisition_status).startswith("ACQUISITION_RUNNING") or str(
+                self.acquisition_status
             ).startswith("ACQUISITION_STARTING"):
                 self.run_information = (
                     self.api_connection.acquisition.get_current_acquisition_run()
