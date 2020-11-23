@@ -5,6 +5,7 @@ from fastq files and upload to minotour.
 import datetime
 import json
 import logging
+import os
 import sys, time
 
 import requests
@@ -12,7 +13,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from urllib.parse import urlparse
 from threading import Thread
-
+import toml as toml_manager
 
 log = logging.getLogger(__name__)
 
@@ -34,25 +35,38 @@ def requests_retry_session(
     session.mount("https://", adapter)
     return session
 
+def _prepare_toml(toml_dict):
+    """
+    Prepares the dictionary of the toml, places the channel number as key and conditon name as value
+    Returns
+    -------
+    dict
+    """
+    _d = {}
+    # Reverse the dict so we can lookup name by channel
+    for key in toml_dict["conditions"].keys():
+        channels = toml_dict["conditions"][key]["channels"]
+        name = toml_dict["conditions"][key]["name"]
+        _d.update({channel: name for channel in channels})
+    return _d
+
 
 from minFQ.minotourapi import MinotourAPI
 
 
 class Runcollection:
-    def __init__(self, args, header):
-
+    def __init__(self, args, header, sequencing_statistics):
         log.debug("Initialising Runcollection")
-
         self.base_url = args.host_name
         self.port_number = args.port_number
         self.check_url()
         self.args = args
         self.header = header
-        self.readnames = list()
+        self.read_names = []
         self.readcount = 0
         self.basecount = 0
         self.trackedbasecount = 0
-        self.read_type_list = dict()
+        self.read_type_dict = {}
         if self.args.skip_sequence:
             self.batchsize = 5000
         else:
@@ -61,26 +75,39 @@ class Runcollection:
         self.grouprun = None
         self.barcode_dict = {}
         self.read_list = []
-        self.filemonitor = dict()
-        self.fastqfileid = None
-        self.minotourapi = MinotourAPI(
+        self.file_monitor = {}
+        self.fastq_file_id = None
+        self.minotour_api = MinotourAPI(
             self.args.host_name, self.args.port_number, self.header
         )
         self.get_readtype_list()
-        self.unblocked_dict = dict()
+        self.unblocked_dict = {}
         self.unblocked_file = None
         self.unblocked_line_start = 0
         self.runfolder = None
         self.toml = None
+        self.sequencing_statistics = sequencing_statistics
 
     def add_toml_file(self, toml_file):
         self.toml = toml_file
 
     def add_run_folder(self, folder):
-        self.runfolder = folder
+        """
+        Adds the folder directory for this run.
+        Parameters
+        ----------
+        folder: str
+            Path to folder that run is being written into
 
-    def add_unblocked_reads_file(self):
-        pass
+        Returns
+        -------
+
+        """
+        self.runfolder = folder
+        self.check_for_toml_file()
+
+    def add_unblocked_reads_file(self, unblocked_file_path):
+        self.unblocked_file = unblocked_file_path
 
     def create_jobs(self, flowcell, args):
         """
@@ -91,20 +118,19 @@ class Runcollection:
         """
         # If there is a target set
         if args.targets is not None:
-            self.minotourapi.create_job(
+            self.minotour_api.create_job(
                 flowcell["id"], int(args.job_id), None, args.targets
             )
         # If there is a reference and not a target set
         elif args.reference and not args.targets:
-            self.minotourapi.create_job(
+            self.minotour_api.create_job(
                 flowcell["id"], int(args.job_id), args.reference, None
             )
         # If there is neither
         else:
-            self.minotourapi.create_job(
+            self.minotour_api.create_job(
                 flowcell["id"], int(args.job_id), None, None
             )
-
 
     def check_url(self):
         if self.base_url.startswith("http://"):
@@ -122,151 +148,127 @@ class Runcollection:
             self.base_url = "http://{}:{}/".format(self.base_url, self.port_number)
 
     def get_readtype_list(self):
-
-        read_type_list = self.minotourapi.get_read_type_list()
-
+        """
+        Get a list of possible read types from minotour server
+        Returns
+        -------
+        """
+        # fix me manual get
+        read_type_list = self.minotour_api.get_read_type_list()
         read_type_dict = {}
-
         for read_type in read_type_list:
-
             read_type_dict[read_type["name"]] = read_type["id"]
+        self.read_type_dict = read_type_dict
 
-        self.read_type_list = read_type_dict
+    def get_readnames_by_run(self, fastq_file_id):
+        """
+        Get read ids for the last uncomplete file we have in a run
+        Parameters
+        ----------
+        fastq_file_id: int
+            The id of the fastq file
 
-    def get_readnames_by_run(self, fastqfileid):
+        Returns
+        -------
 
-        if fastqfileid != self.fastqfileid:
-            self.fastqfileid = fastqfileid
+        """
+        if fastq_file_id != self.fastq_file_id:
+            self.fastq_file_id = fastq_file_id
             # TODO move this function to MinotourAPI class.
 
             # url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
-            url = "{}api/v1/runs/{}/readnames/".format(self.base_url, fastqfileid)
-
+            url = "{}api/v1/runs/{}/readnames/".format(self.base_url, fastq_file_id)
             req = requests.get(url, headers=self.header)
-
-            readname_list = json.loads(req.text)
-
-            number_pages = readname_list["number_pages"]
+            read_name_list = json.loads(req.text)
+            number_pages = read_name_list["number_pages"]
 
             log.debug("Fetching reads to check if we've uploaded these before.")
             log.debug("Wiping previous reads seen.")
-            self.readnames = list()
-            # for page in tqdm(range(number_pages)):
+            self.read_names = []
             for page in range(number_pages):
-
-                self.args.fastqmessage = "Fetching {} of {} pages.".format(
+                self.sequencing_statistics.fastq_message = "Fetching {} of {} pages.".format(
                     page, number_pages
                 )
-
                 new_url = url + "?page={}".format(page)
-
                 content = requests.get(new_url, headers=self.header)
-
                 log.debug("Requesting {}".format(new_url))
-
                 # We have to recover the data component and loop through that to get the read names.
                 for read in json.loads(content.text)["data"]:
-
-                    self.readnames.append(read)
-
+                    self.read_names.append(read)
             log.debug(
                 "{} reads already processed and included into readnames list for run {}".format(
-                    len(self.readnames), self.run["id"]
+                    len(self.read_names), self.run["id"]
                 )
             )
 
-    def add_run(self, descriptiondict, args):
+    def add_run(self, description_dict, args):
+        """
+        Add run to the minoTOur server
+        Parameters
+        ----------
+        description_dict: dict
+            Dictionary of a fastq read description
+        args: argparse.NameSpace
+            The namespace of the arguments on the CLI
 
-        self.args.fastqmessage = "Adding run."
-        runid = descriptiondict["runid"]
-        run = self.minotourapi.get_run_by_runid(runid)
-        if "flow_cell_id" in descriptiondict:
-            flowcellname = descriptiondict["flow_cell_id"]
-        elif "sample_id" in descriptiondict:
-            flowcellname = descriptiondict["sample_id"]
-        elif "sampleid" in descriptiondict:
-            flowcellname = descriptiondict["sampleid"]
+        Returns
+        -------
+
+        """
+        self.sequencing_statistics.fastq_message = "Adding run."
+        run_id = description_dict["runid"]
+        run = self.minotour_api.get_run_by_runid(run_id)
+        if "flow_cell_id" in description_dict:
+            flowcell_name = description_dict["flow_cell_id"]
+        elif "sample_id" in description_dict:
+            flowcell_name = description_dict["sample_id"]
+        elif "sampleid" in description_dict:
+            flowcell_name = description_dict["sampleid"]
         else:
-            flowcellname = self.args.run_name
-
+            flowcell_name = self.args.run_name
         if args.force_unique:
-            if "flow_cell_id" in descriptiondict and "sample_id" in descriptiondict:
-                flowcellname = "{}_{}".format(
-                    descriptiondict["flow_cell_id"], descriptiondict["sample_id"]
+            if "flow_cell_id" in description_dict and "sample_id" in description_dict:
+                flowcell_name = "{}_{}".format(
+                    description_dict["flow_cell_id"], description_dict["sample_id"]
                 )
-
-        if not flowcellname:
-            self.args.errored = True
-            self.args.error_message = "Flowcell name is required. This may be old FASTQ data, please provide a name with -n."
+        if not flowcell_name:
+            self.sequencing_statistics.errored = True
+            self.sequencing_statistics.error_message = "Flowcell name is required. This may be old FASTQ data, please provide a name with -n."
             sys.exit("Flowcell name is required. This may be old FASTQ data, please provide a name with -n.")
-        flowcell = self.minotourapi.get_flowcell_by_name(flowcellname)["data"]
+        # fixme manual get
+        flowcell = self.minotour_api.get_flowcell_by_name(flowcell_name)["data"]
 
         if not run:
-            ## We want to add a force unique name - therefore we are going to use an extra argument in minFQ - forceunique?
-            #
             # get or create a flowcell
-            #
-            log.info("Looking for flowcell {}".format(flowcellname))
+            log.info("Looking for flowcell {}".format(flowcell_name))
             log.debug(flowcell)
             if not flowcell:
-
-                log.debug("Trying to create flowcell {}".format(flowcellname))
-
-                flowcell = self.minotourapi.create_flowcell(flowcellname)
-                # print(dir(args))
+                log.debug("Trying to create flowcell {}".format(flowcell_name))
+                # fixme manual post
+                flowcell = self.minotour_api.create_flowcell(flowcell_name)
                 # If we have a job as an option
-
-                log.debug("Created flowcell {}".format(flowcellname))
-
-            #
-            # create a run
-            #
-            if "barcode" in descriptiondict.keys():
-
-                is_barcoded = True
-
-            else:
-
-                is_barcoded = False
-
-            if self.args.skip_sequence:
-
-                has_fastq = False
-
-            else:
-
-                has_fastq = True
-
-            if "sample_id" in descriptiondict:
-                runname = descriptiondict["sample_id"]
-            else:
-                runname = self.args.run_name
-
-            createrun = self.minotourapi.create_run(
-                runname, runid, is_barcoded, has_fastq, flowcell
+                log.debug("Created flowcell {}".format(flowcell_name))
+            is_barcoded = True if "barcode" in description_dict.keys() else False
+            has_fastq = False if self.args.skip_sequence else True
+            key = "sample_id" if "sample_id" in description_dict else "sampleid"
+            run_name = description_dict[key] if key in description_dict  else self.args.run_name
+            # fixme manual post
+            created_run = self.minotour_api.create_run(
+                run_name, run_id, is_barcoded, has_fastq, flowcell
             )
-
-            if not createrun:
-
+            if not created_run:
                 log.critical("There is a problem creating run")
                 sys.exit()
-
             else:
                 log.debug("run created")
+            run = created_run
 
-            run = createrun
         if args.job:
             self.create_jobs(flowcell, args)
-
         if not self.run:
-
             self.run = run
-
         for item in run["barcodes"]:
-
             self.barcode_dict.update({item["name"]: item["id"]})
-
-        # self.get_readnames_by_run()
 
     def commit_reads(self):
         """
@@ -275,13 +277,13 @@ class Runcollection:
         -------
         None
         """
-
-        self.minotourapi.create_reads(self.read_list)
+        # print(self.read_list)
+        self.minotour_api.create_reads(self.read_list)
         # Throttle to limit rate of upload.
         time.sleep(0.5)
-        self.args.reads_uploaded += len(self.read_list)
+        self.sequencing_statistics.reads_uploaded += len(self.read_list)
         # Refresh the read list
-        self.read_list = list()
+        self.read_list = []
 
     def update_read_type(self, read_id, type):
         payload = {"type": type}
@@ -313,25 +315,17 @@ class Runcollection:
         -------
         None
         """
-
         barcode_name = fastq_read_payload["barcode_name"]
         rejected_barcode_name = fastq_read_payload["rejected_barcode_name"]
-        runid = fastq_read_payload["runid"]
+        run_id = fastq_read_payload["runid"]
         read_id = fastq_read_payload["read_id"]
         fastq_read_payload["run"] = self.run["id"]
-
         # Here we are going to create the sequenced/unblocked barcodes and read barcode
         for barcode_name in [barcode_name, rejected_barcode_name]:
             if barcode_name not in self.barcode_dict:
-
-                # print(">>> Found new barcode {} for run {}.".format(barcode_name, runid))
-
-                barcode = self.minotourapi.create_barcode(barcode_name, self.run["url"])
-
+                barcode = self.minotour_api.create_barcode(barcode_name, self.run["url"])
                 if barcode:
-
                     self.barcode_dict.update({barcode["name"]: barcode["id"]})
-
                 else:
                     log.critical("Problem finding barcodes.")
                     sys.exit()
@@ -342,57 +336,53 @@ class Runcollection:
         fastq_read_payload["rejected_barcode"] = self.barcode_dict[
             fastq_read_payload["rejected_barcode_name"]
         ]
-        if read_id not in self.readnames:
-
+        if read_id not in self.read_names:
             if self.check_1d2(read_id):
-
                 firstread, secondread = (
                     read_id[: len(read_id) // 2],
                     read_id[len(read_id) // 2 :],
                 )
-
-                self.update_read_type(secondread, self.read_type_list["C"])
-
-                fastq_read_payload["type"] = self.read_type_list["1D^2"]
-
+                self.update_read_type(secondread, self.read_type_dict["C"])
+                fastq_read_payload["type"] = self.read_type_dict["1D^2"]
             else:
-
-                fastq_read_payload["type"] = self.read_type_list["T"]
-
-            self.readnames.append(read_id)
-
-            if self.args.GUI:
-                self.args.readcount += 1
-                self.args.basecount += fastq_read_payload["sequence_length"]
-
+                fastq_read_payload["type"] = self.read_type_dict["T"]
+            self.read_names.append(read_id)
             self.basecount += fastq_read_payload["sequence_length"]
             self.trackedbasecount += fastq_read_payload["sequence_length"]
-
-            if self.args.GUI:
-                self.args.qualitysum += fastq_read_payload["quality_average"]
-
             self.read_list.append(fastq_read_payload)
-
             log.debug(
                 "Checking read_list size {} - {}".format(
                     len(self.read_list), self.batchsize
                 )
             )
-
+            # if we have a number of reads more than our batch size
             if len(self.read_list) >= self.batchsize:
+                # aiming for yield of 100 Mb in number of reads
+                log.debug("Commit reads")
                 if not self.args.skip_sequence:
                     self.batchsize = int(
                         1000000 / (int(self.basecount) / self.readcount)
                     )
-                    # self.batchsize = self.batchsize
-                    # log.info("Batchsize is now {}".format(self.batchsize))
                 self.commit_reads()
             elif self.trackedbasecount >= 1000000:
                 self.commit_reads()
                 self.trackedbasecount = 0
-
             self.readcount += 1
-
         else:
             print("Skipping read")
             self.args.reads_skipped += 1
+
+    def check_for_toml_file(self):
+        """
+        Check run folder for a channels.toml file when it is set in the run collection
+        Returns
+        -------
+
+        """
+        log.debug("Checking for Toml")
+        if self.toml is None:
+            for path, dirs, files in os.walk(self.runfolder):
+                for file in files:
+                    if file.endswith("channels.toml"):
+                        toml_dict = toml_manager.load(os.path.join(path, file))
+                        self.toml = _prepare_toml(toml_dict)
