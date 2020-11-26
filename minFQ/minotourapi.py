@@ -1,16 +1,14 @@
 import datetime
-import json as jsonlibrary
+import json as json_library
 import logging
 import sys
 
 import requests
-import gzip
-import time
-
-# import threading
 
 from urllib.parse import urlparse
 
+from minFQ.Errors import MTConnectionError
+from minFQ.endpoints import EndPoint
 
 log = logging.getLogger(__name__)
 
@@ -19,11 +17,18 @@ class MinotourAPI:
     def __init__(self, base_url, port_number, request_headers):
         self.base_url = base_url
         self.port_number = port_number
-        self.check_url()
         self.request_headers = request_headers
-        self.minion_event_types = self.get_minion_event_types()
+        self.check_url()
+        self.test()
+        self.minion_event_types = self.get_json(EndPoint.MINION_EVENT_TYPES)
 
     def check_url(self):
+        """
+        Check URL to see if we have a https connection or a http connection.
+        Returns
+        -------
+        None
+        """
         if self.base_url.startswith("http://"):
             self.base_url = self.base_url[7:]
         if self.base_url.startswith(("https://")):
@@ -45,265 +50,219 @@ class MinotourAPI:
         -------
 
         """
+        data = self.get(EndPoint.TEST)
+        log.info("Successfully tested connection -> {}".format(data))
 
-    def get(self, partial_url, parameters=None):
-        if not parameters:
-            url = "{}api/v1{}".format(self.base_url, partial_url)
-        else:
-            url = "{}api/v1{}".format(self.base_url, partial_url)
-        return requests.get(url, headers=self.request_headers, params=parameters)
+    def _get(self, endpoint, params=None, **kwargs):
+        """
+        Get the response to a request to the minoTour server
+        Parameters
+        ----------
+        endpoint:  <enum 'EndPoint'>
+            The Enum for the endpoint we wish to get from
+        params: dict
+            The get request params to include
+        base_id: str
+            The base id for the url ex. /minion/*1*/
+        append_id: str
+            The appended id after the base id ex. /minion/1/jobs/*2*
+        no_id: bool
+            Strip the id space from the url
 
-    def post(self, partial_url, json, parameters=None):
+        Returns
+        -------
+        requests.models.Response
+            The requests object from the request
 
-        if not parameters:
+        """
 
-            url = "{}api/v1{}".format(self.base_url, partial_url)
+        url = "{}api/v1{}".format(self.base_url, endpoint.resolve_url(**kwargs))
+        resp = requests.get(url, headers=self.request_headers, params=params)
+        # handle resp fail ...
+        self.handle_response(resp)
+        return resp
 
-        else:
+    def get(self, *args, **kwargs):
+        """
+        Perform get AJAX requests to minoTour server
+        Parameters
+        ----------
+        args
+            Expanded function arguments
+        kwargs
+            Expanded keyword arguments
+        Returns
+        -------
+        str
+            The string data response to the request
 
-            url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
+        """
+        return self._get(*args, **kwargs).text
 
-        # print (url)
+    def get_json(self, *args, **kwargs):
+        """
+        Get Json from minoTour
+        Parameters
+        ----------
+        args
+        kwargs
 
-        return requests.post(url, headers=self.request_headers, json=json)
+        Returns
+        -------
+        dict or list
+            Json parsed data string
 
-    def put(self, partial_url, json, parameters=None):
+        """
+        # TODO careful as this may not tells us we have errors
+        try:
+            return json_library.loads(self.get(*args, **kwargs))
+        except json_library.JSONDecodeError:
+            return ""
 
-        if not parameters:
+    def _post(self, endpoint, json, params=None, **kwargs):
+        """
+        Perform post AJAX requests to minoTour server
+        Parameters
+        ----------
+        endpoint: str or  <enum 'EndPoint'>
+            The partial Url to append the the server address.
+        json: dict
+            Json str to send containing any data to post.
+        params: dict
+            Post request parameters
+        base_id: str
+            The base id for the url ex. /minion/*1*/
+        append_id: str
+            The appended id after the base id ex. /minion/1/jobs/*2*
+        no_id: bool
+            If the url has no slug id in it
+        Returns
+        -------
+        requests.models.Response
 
-            url = "{}api/v1{}".format(self.base_url, partial_url)
+        """
+        url = "{}api/v1{}".format(self.base_url, endpoint.resolve_url(**kwargs))
+        resp = requests.post(url, headers=self.request_headers, json=json, params=params)
+        self.handle_response(resp)
+        return resp
 
-        else:
+    def post(self, *args, **kwargs):
+        """
 
-            url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
+        Parameters
+        ----------
+        args
+            Expanded arguments
+        kwargs
+            Expanded Keyword args
+        Returns
+        -------
+        dict or list or str
+            Parsed JSON str response, or string response if returned text is not JSON
+        """
+        resp = self._post(*args, **kwargs)
+        try:
+            return resp.json()
+        except json_library.JSONDecodeError:
+            return resp.text
 
-        return requests.put(url, headers=self.request_headers, json=json)
+    def _put(self, endpoint, json, params=None, **kwargs):
+        """
+        perform a put AJAX request to the server.
+        Parameters
+        ----------
+        endpoint: minFQ.endpoints.EndPoint
+            Enum containing the url ending
+        json: dict
+            Dictionary of data to put
+        params: str or dict
+            Request query string parameters and body parameters
+        base_id: str
+            The base id for the url ex. /minion/*1*/
+        append_id: str
+            The appended id after the base id ex. /minion/1/jobs/*2*
+        no_id: bool
+            Strip the slug format from the enum value string
+
+        Returns
+        -------
+        requests.models.Response
+        """
+        url = "{}api/v1{}".format(self.base_url, endpoint.resolve_url(**kwargs))
+        resp = requests.put(url, headers=self.request_headers, json=json, params=params)
+        self.handle_response(resp)
+        return resp
+
+    def put(self, *args, **kwargs):
+        """
+        Perform put AJAX requests to minoTour server
+        Parameters
+        ----------
+        args
+        kwargs
+        Returns
+        -------
+        str or dict
+            Dict if response is JSON parseable else empty string
+        """
+        try:
+            return self._put(*args, **kwargs).json()
+        except json_library.JSONDecodeError:
+            return ""
 
     def delete(self, partial_url, json, parameters=None):
-
-        if not parameters:
-
-            url = "{}api/v1{}".format(self.base_url, partial_url)
-
-        else:
-
-            url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
-
-        return requests.delete(url, headers=self.request_headers, json=json)
-
-    def get_target_sets(self, api_key=""):
         """
-        Get a list of the target sets, to show during the listing
-        :return:
+        Perform delete AJAX requests to minoTour server
+        Parameters
+        ----------
+        partial_url: str
+            The partial Url to append the the server address.
+        json: dict
+            The JSON string to send to the server
+        parameters: dict
+            Put request parameters
+        Returns
+        -------
+        requests.models.Response
+
         """
-        url = "/metagenomics/targetsets"
-        if api_key == "":
-            payload = {}
-        else:
-            payload = {"api_key": api_key, "cli": True}
+        url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
+        return requests.delete(url, headers=self.request_headers, json=json, params=parameters)
 
-        req = self.get(url, parameters=payload)
-
-        if req.status_code != 200:
-            log.error("Couldn't find target sets to run.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-            return jsonlibrary.loads(req.text)
-
-    def get_job_options(self):
+    def handle_response(self, response):
         """
-        Get a list of the jobs available to be started from the client
-        :return:
+        Handle responses as provided by the minFQ client
+        Returns
+        -------
+        None
         """
-        url = "/tasktypes/"
+        if response.status_code not in {200, 201, 204, 400, 404}:
+            log.debug("{} responded with status {}".format(response.url, response.status_code))
+            log.debug("Text {}".format(response.text))
+            raise MTConnectionError(response)
+        return True
 
-        payload = {"cli": True}
-
-        req = self.get(url, parameters=payload)
-
-        if req.status_code != 200:
-            log.error("Couldn't find tasks to run.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-            return jsonlibrary.loads(req.text)
-
-    def get_references(self):
-
-        url = "/reference/"
-
-        req = self.get(url)
-
-        if req.status_code != 200:
-            log.error("Couldn't find references.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def get_file_info_by_runid(self, runid):
-
-        url = "/runs/{}/files/".format(runid)
-
-        req = self.get(url)
-
-        if req.status_code != 200:
-            log.error("Did not find files for {}.".format(runid))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def create_file_info(self, filename, runid, md5check, run):
+    def get_or_create(self, *args, **kwargs):
         """
-        Create file info in the database in minoTour
-        :param filename: fastq filename
-        :param runid: the run id of this run
-        :param md5check: an MD5 checksum
-        :param run: The run
-        :return:
+        Get an object from the minoTour server or create it if we receive a 404
+        Parameters
+        ----------
+        args
+        kwargs
+
+        Returns
+        -------
+
         """
-        payload = {"name": filename, "runid": runid, "md5": md5check, "run": run}
-
-        url = "/runs/{}/files/".format(runid)
-
-        req = self.post(url, json=payload)
-
-        if req.status_code != 201:
-
-            log.error("File info {} could not be created.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
+        payload = kwargs.pop("json")
+        resp = self._get(*args, **kwargs)
+        print(resp)
+        if not resp:
+            kwargs["params"] = None
+            kwargs["json"] = payload
+            return self.post(*args, **kwargs)
         else:
-            fileinfo = jsonlibrary.loads(req.text)
-            return fileinfo
-
-    def get_run_by_runid(self, runid):
-
-        url = "/runs/{}/".format(runid)
-
-        req = self.get(url, "search_criteria=runid")
-
-        if req.status_code != 200:
-
-            log.info("Did not find run {}.".format(runid))
-            log.info("Creating run {}.".format(runid))
-            log.debug("Status-code {}".format(req.status_code))
-            log.debug("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def get_grouprun_by_name(self, name):
-
-        url = "/grouprun/{}/".format(name)
-
-        req = self.get(url, "search_criteria=name")
-
-        if req.status_code != 200:
-
-            log.error("Did not find grouprun {}.".format(name))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            grouprun = jsonlibrary.loads(req.text)
-            return grouprun
-
-    def create_run(
-        self,
-        name,
-        runid,
-        is_barcoded,
-        has_fastq,
-        flowcell,
-        minion=None,
-        start_time=None,
-    ):
-        # runid=""
-        if len(name) < 1:
-            name = "mux scan"
-        payload = {
-            "name": name,
-            "sample_name": name,
-            "runid": runid,
-            "is_barcoded": is_barcoded,
-            "has_fastq": has_fastq,
-            "flowcell": flowcell["url"],
-        }
-
-        if minion:
-            payload["minion"] = minion["url"]
-
-        if start_time:
-            payload["start_time"] = start_time
-
-        req = self.post("/runs/", json=payload)
-
-        if req.status_code != 201:
-
-            log.error("Run {} could not be created.".format(name))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            run = jsonlibrary.loads(req.text)
-            return run
-
-    def create_grouprun(self, name):
-
-        payload = {"name": name}
-
-        req = self.post("/grouprun/", json=payload)
-
-        if req.status_code != 201:
-
-            log.error("GroupRun {} could not be created.".format(name))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            grouprun = jsonlibrary.loads(req.text)
-            return grouprun
-
-    def create_grouprun_membership(self, grouprun, run):
-
-        payload = {"grouprun_id": grouprun, "run_id": run}
-
-        req = self.post("/grouprun-membership/", json=payload)
-
-        if req.status_code != 201:
-
-            log.error("GroupRun membership {} could not be created.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            grouprun = jsonlibrary.loads(req.text)
-            return grouprun
+            return resp.json()
 
     def create_reads(self, reads):
         """
@@ -333,26 +292,8 @@ class MinotourAPI:
 
             else:
 
-                grouprun = jsonlibrary.loads(req.text)
+                grouprun = json_library.loads(req.text)
                 return grouprun
-
-    def get_read_type_list(self):
-
-        url = "/readtypes/"
-
-        req = self.get(url)
-
-        if req.status_code != 200:
-
-            log.error("FastqReadType list could not be retrieved.")
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            read_type_list = jsonlibrary.loads(req.text)
-            return read_type_list
 
     def create_barcode(self, barcode_name, run_url):
 
@@ -369,42 +310,8 @@ class MinotourAPI:
 
         else:
 
-            barcode = jsonlibrary.loads(req.text)
+            barcode = json_library.loads(req.text)
             return barcode
-
-    def get_flowcell_by_name(self, name):
-        """
-
-        Parameters
-        ----------
-        name
-
-        Returns
-        -------
-
-        """
-        if not name:
-            sys.exit("Name has not been provided. This can happen if the fastq data you are uploading"
-                     " is too old. Please provide a name using the -n flag.")
-        url = "/flowcells/{}/".format(name)
-
-        req = self.get(url, "search_criteria=name")
-
-        if req.status_code == 200:
-
-            return jsonlibrary.loads(req.text)
-
-        elif req.status_code == 404:
-
-            return {"data": {}}
-
-        else:
-
-            log.error("Did not find flowcell {}.".format(name))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Unrecognised response fetching Flowcell from minoTour")
-            log.error("Text {}".format(req.text))
-            return None
 
     def create_flowcell(self, name):
 
@@ -423,7 +330,7 @@ class MinotourAPI:
 
         else:
 
-            return jsonlibrary.loads(req.text)
+            return json_library.loads(req.text)
 
     def create_job(self, flowcell, job, reference=None, targets=None):
         """
@@ -460,90 +367,6 @@ class MinotourAPI:
             log.info(req.status_code)
             log.info(req.text)
 
-    def get_minion_by_name(self, name):
-        """
-        Get the hyper linked minion object we have created in minoTour, so we can edit it, and use
-         it to post information to minoTour, so it can be stored  under the correct minIon.
-        Parameters
-        ----------
-        name: str
-            The name of the minIon.
-
-        Returns
-        -------
-        req.text: dict
-            The response of the GET request. IS parsed from JSON into a dict.
-
-        """
-
-        url = "/minions/{}/".format(name)
-
-        req = self.get(url, "search_criteria=name")
-
-        if req.status_code != 200:
-
-            log.debug("Did not find minion {}.".format(name))
-            log.debug("Status-code {}".format(req.status_code))
-            log.debug("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def create_minion(self, name):
-
-        payload = {
-            "minION_name": name,
-            "name": name,
-        }
-
-        req = self.post("/minions/", json=payload)
-
-        if req.status_code != 201:
-
-            log.error("Minion {} could not be created.".format(name))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def get_server_version(self):
-
-        url = "/version"
-
-        req = self.get(url)
-
-        if req.status_code != 200:
-
-            log.error("Did not find version for server {}.".format(self.base_url))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def get_minion_event_types(self):
-
-        url = "/minioneventtypes/"
-
-        req = self.get(url)
-
-        if req.status_code != 200:
-
-            log.error("Did not find version for server {}.".format(self.base_url))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
 
     def fetch_minion_scripts(self, minion):
 
@@ -561,7 +384,7 @@ class MinotourAPI:
             return None
 
         else:
-            minIONscripts = jsonlibrary.loads(req.text)
+            minIONscripts = json_library.loads(req.text)
             scriptidlist = list()
             for script in minIONscripts:
                 scriptidlist.append(script["identifier"])
@@ -569,7 +392,7 @@ class MinotourAPI:
                 scriptidlist  # TODO we should move this code to minknowconnection
             )
             # print (self.minIONscripts)
-            return jsonlibrary.loads(req.text)
+            return json_library.loads(req.text)
 
     def update_minion_script(self, minion, scriptdictionary):
         """
@@ -603,266 +426,6 @@ class MinotourAPI:
 
             else:
 
-                return jsonlibrary.loads(req.text)
-
-            pass
-
-        # else:
-        # print ("not updating")
-        # print (scriptdictionary)
-
-    def update_minion_event(self, minion, computer, status):
-        """
-
-        :param minION: minION
-        :param computer: computer_name
-        :param status: event
-        :return:
-        """
-
-        url = "/minions/{}/events/".format(minion["id"])
-        for info in self.minion_event_types:
-            for item in info:
-
-                if item == "name":
-                    if info[item] == status:
-                        statusidlink = info["url"]
-
-        payload = {
-            "computer_name": computer,
-            "datetime": str(datetime.datetime.now()),
-            "event": str(urlparse(statusidlink).path),
-            "minION": str(minion["url"]),
-        }
-
-        req = self.post(url, json=payload)
-
-        if req.status_code != 201:
-
-            log.debug("event {} could not be updated.".format(status))
-            log.debug("Status-code {}".format(req.status_code))
-            log.debug("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-        pass
-
-    def update_minion_run_info(self, payload, runid):
-
-        payload = payload
-
-        url = "/runs/{}/rundetails/".format(runid)
-
-        req = self.post(url, json=payload)
-
-        if req.status_code != 201:
-            # print (req.text)
-            log.debug("runid {} could not be updated.".format(runid))
-            log.debug("Status-code {}".format(req.status_code))
-            log.debug("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-        pass
-
-    def get_minion_status(self, minion):
-        """
-        Get the status of a current Minion, as stored in MinoTour
-        Parameters
-        ----------
-        minion: dict
-            A dictionary of values that minoTour holds about the given minions
-
-        Returns
-        -------
-
-        """
-
-        url = "/minions/{}/status/".format(minion["id"])
-
-        req = self.get(url)
-
-        if req.status_code != 200:
-            extra_msg = ""
-            if req.status_code == 404:
-                extra_msg = (
-                    "Could not be found. Attempting to create new Minion Status."
-                )
-            else:
-                log.error("Status-code {}".format(req.status_code))
-                log.error("Text {}".format(req.text))
-
-            log.error(
-                "minion ID {} status could not be checked in Minotour. {}".format(
-                    minion["id"], extra_msg
-                )
-            )
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def create_minion_info_mt(self, payload, minion):
-        """
-        Create a minion info entry in MinoTour.
-        Parameters
-        ----------
-        payload: dict
-            payload of information
-        minion: dict
-            Minion information dictionary.
-
-        Returns
-        -------
-
-        """
-        payload = payload
-
-        url = "/minions/{}/status/".format(minion["id"])
-
-        req = self.post(url, json=payload)
-
-        if req.status_code != 201:
-            if req.status_code == 400:
-                return None
-
-            log.error("minion status {} could not be created.".format(minion["id"]))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def update_minion_info_mt(self, payload, minion):
-        """
-        Put minion status information to MinoTour.
-        Parameters
-        ----------
-        payload: dict
-            The information that we have received from minKNOW.
-        minion: dict
-            Information about the minION that we have stored in MinoTour.
-
-        Returns
-        -------
-        req.text: dict
-            Response of the post request.
-
-        """
-
-        payload = payload
-
-        url = "/minions/{}/status/".format(minion["id"])
-
-        req = self.put(url, json=payload)
-
-        if req.status_code != 200:
-            # Trying to duplicate an already created status
-            if req.status_code == 400:
-                return None
-            else:
-                log.error("minion status {} could not be updated.".format(minion["id"]))
-                log.error("Status-code {}".format(req.status_code))
-                log.error("Text {}".format(req.text))
-                return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def create_minion_statistic(self, payload, runid):
-        """
-        Post data to the minoTour end point that we receive minion_statistics too.
-        Parameters
-        ----------
-        payload: dict
-            A dictionary of values of minion statistics to be sent.
-        runid: int
-            Primary key of the run as stored in MinoTour.
-
-        Returns
-        -------
-        req.text
-            The resulting text of the post request, if successful.
-
-        """
-        url = "/runs/{}/runstats/".format(runid)
-
-        req = self.post(url, json=payload)
-
-        if req.status_code != 201:
-
-            log.error("minion statistic {} could not be updated.".format(runid))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-        pass
-
-    def create_message(self, payload, minion):
-
-        payload = payload
-
-        url = "/minions/{}/messages/".format(minion["id"])
-
-        req = self.post(url, json=payload)
-
-        if req.status_code not in (200, 201):
-
-            log.debug("minion message {} could not be updated.".format(minion["id"]))
-            log.debug("Status-code {}".format(req.status_code))
-            log.debug("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-        pass
-
-    def get_minion_jobs(self, minion):
-
-        url = "/minions/{}/control/".format(minion["id"])
-
-        req = self.get(url)
-
-        if req.status_code != 200:
-
-            log.error("Did not find jobs for minion {}.".format(self.minion["id"]))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
-
-            return jsonlibrary.loads(req.text)
-
-    def complete_minion_job(self, minion, job):
-
-        url = "/minions/{}/control/{}/".format(minion["id"], job["id"])
-
-        req = self.post(url, json=None)
-
-        if req.status_code != 204:
-
-            log.error("Could not complete job for minion {}.".format(minion["id"]))
-            log.error("Status-code {}".format(req.status_code))
-            log.error("Text {}".format(req.text))
-            return None
-
-        else:
+                return json_library.loads(req.text)
 
             pass

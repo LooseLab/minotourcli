@@ -24,8 +24,6 @@ In the example commands below example parameters are:
 
     - port_for_your_server: Probably 8000
 
-    -
-
 To monitor both live and fastq data.
 
 .. code-block:: python

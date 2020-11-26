@@ -7,6 +7,7 @@ import threading
 import time
 import toml as toml_manager
 
+from minFQ.endpoints import EndPoint
 from minFQ.fastq_handler_utils import (
     parse_fastq_description,
     get_file_size,
@@ -192,9 +193,9 @@ def parse_fastq_file(
         The namespace of the parsed command line args
     header: dict
         The authentication header to make requests to the server
-    minotour_api: MinotourAPI
+    minotour_api: minFQ.minotourapi.MinotourAPI
         The minotour API class instance for convenience request to the server
-    sequencing_stats: SequencingStatistics
+    sequencing_stats: minFQ.utils.SequencingStatistics
         The class to track the sequencing upload metrics and files
 
     Returns
@@ -207,8 +208,14 @@ def parse_fastq_file(
     # Get runId from the path
     run_id = get_runid(fastq_path)
     # fixme manual post request
-    fastq_file = minotour_api.create_file_info(
-        str(check_fastq_path(fastq_path)), run_id, "0", None
+    payload = {
+        "filename": str(check_fastq_path(fastq_path)),
+        "runid": run_id,
+        "md5": "0",
+        "run": None
+    }
+    fastq_file = minotour_api.post(
+        EndPoint.FASTQ_FILE, json=payload, base_id=run_id
     )
     counter = 0
     # fq = pyfastx.Fastq(fastq_path)
@@ -260,15 +267,16 @@ def parse_fastq_file(
     try:
         # Update the fastq file entry on the server that says we provides file size to database record
         # fixme manual post
-        fastq_file = minotour_api.create_file_info(
-            str(check_fastq_path(fastq_path)),
-            run_id,
-            get_file_size(fastq_path),
-            run_dict[run_id].run,
-        )
+        payload = {
+            "filename": str(check_fastq_path(fastq_path)),
+            "runid": run_id,
+            "md5": get_file_size(fastq_path),
+            "run": run_dict[run_id].run,
+        }
+        fastq_file = minotour_api.put(EndPoint.FASTQ_FILE, json=payload, base_id=run_id)
     except Exception as err:
         log.error("Problem with uploading file {}".format(err))
-
+    sequencing_stats.time_per_file = time.time()
     return counter
 
 
@@ -284,9 +292,9 @@ class FastqHandler(FileSystemEventHandler):
             The authentication header for the requests
         rundict: dict
             The dictionary for tracking the runs
-        sequencing_statistic: SequencingStatistics
+        sequencing_statistic: minFQ.utils.SequencingStatistics
             The class for tracking files and metrics about the upload
-        minotour_api: MinotourAPI
+        minotour_api: minFQ.minotourapi.MinotourAPI
             The API class for convenience connecting to MinoTour server
         """
         self.sequencing_statistic = sequencing_statistic

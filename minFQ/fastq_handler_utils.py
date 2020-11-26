@@ -3,6 +3,7 @@ import logging
 import os
 import numpy as np
 
+from minFQ.endpoints import EndPoint
 from minFQ.run_data_tracker import RunDataTracker
 
 log = logging.getLogger("fastq_handler")
@@ -171,6 +172,16 @@ def _prepare_toml(toml_dict):
 
 
 def average_quality(quality):
+    """
+    Return the average quality of a read from it's quality string
+    Parameters
+    ----------
+    quality: str
+
+    Returns
+    -------
+    float
+    """
     return -10 * np.log10(
         np.mean(
             10
@@ -214,11 +225,11 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
         File path to watch directory
     ignore_existing: bool
         Ignore existing fastq folders in the direcotur
-    minotour_api: MinotourAPI
+    minotour_api: minFQ.minotourapi.MinotourAPI
         The minotour api
     fastq_dict: dict
         Dictionary containing all the fastq files that we have seen.
-    sequencing_statistics: SequencingStatistics
+    sequencing_statistics: minFQ.utils.SequencingStatistics
         Tracker for files in watch list and uplaod metrics
 
     Returns
@@ -258,7 +269,7 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
                             and run_id not in seen_file_tracker.keys()
                         ):
                             # get all files for this run
-                            result = minotour_api.get_file_info_by_runid(run_id)
+                            result = minotour_api.get_json(EndPoint.FASTQ_FILE, base_id=run_id)
                             #### Here we want to parse through the results and store them in some kind of dictionary in order that we can check what is happening
                             # We are parsing through the fastq files we have seen for this run so we don't reprocess them
                             if result is not None:
@@ -335,3 +346,54 @@ def create_run_collection(run_id, run_dict, args, header, description_dict, fast
     run_dict[run_id] = RunDataTracker(args, header, sequencing_statistics)
     run_dict[run_id].add_run(description_dict, args)
     run_dict[run_id].get_readnames_by_run(fastq_file_id)
+
+
+def get_flowcell_name_from_desc(description_dict, user_run_name):
+    """
+    Get the flowcell name from the description
+    Parameters
+    ----------
+    description_dict: dict
+        A parsed dictionary created from the description from the fastq record
+    user_run_name: str
+        The user run name that we have been given on the command line
+
+    Returns
+    -------
+    flowcell_name: str
+        The flowcell name that we are gonna be using
+    """
+    if "flow_cell_id" in description_dict:
+        flowcell_name = description_dict["flow_cell_id"]
+    elif "sample_id" in description_dict:
+        flowcell_name = description_dict["sample_id"]
+    elif "sampleid" in description_dict:
+        flowcell_name = description_dict["sampleid"]
+    else:
+        flowcell_name = user_run_name
+    return flowcell_name
+
+
+def get_unique_name(description_dict, user_run_name):
+    """
+
+    Parameters
+    ----------
+    description_dict: dict
+        A parsed dictionary created from the description from the fastq record
+    user_run_name: str
+        The user run name that we have been given on the command line
+    Returns
+    -------
+
+    """
+    flowcell_name = user_run_name
+    if "flow_cell_id" in description_dict and "sample_id" in description_dict:
+        flowcell_name = "{}_{}".format(
+            description_dict["flow_cell_id"], description_dict["sample_id"]
+        )
+    elif "flow_cell_id" in description_dict and "sampleid" in description_dict:
+        flowcell_name = "{}_{}".format(
+            description_dict["flow_cell_id"], description_dict["sampleid"]
+        )
+    return flowcell_name

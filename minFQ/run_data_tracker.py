@@ -2,7 +2,6 @@
 A class to handle the collection of run statistics and information 
 from fastq files and upload to minotour.
 """
-import datetime
 import json
 import logging
 import os
@@ -11,6 +10,9 @@ import sys, time
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+
+from minFQ.endpoints import EndPoint
+from minFQ.fastq_handler_utils import get_flowcell_name_from_desc, get_unique_name
 from minFQ.minotourapi import MinotourAPI
 
 from urllib.parse import urlparse
@@ -57,9 +59,6 @@ def _prepare_toml(toml_dict):
 class RunDataTracker:
     def __init__(self, args, header, sequencing_statistics):
         log.debug("Initialising Runcollection")
-        self.base_url = args.host_name
-        self.port_number = args.port_number
-        self.check_url()
         self.args = args
         self.header = header
         self.read_names = []
@@ -131,33 +130,17 @@ class RunDataTracker:
                 flowcell["id"], int(args.job_id), None, None
             )
 
-    def check_url(self):
-        if self.base_url.startswith("http://"):
-            self.base_url = self.base_url[7:]
-        if self.base_url.startswith(("https://")):
-            self.base_url = self.base_url[8:]
-        if int(self.port_number) != 80:
-            r = requests.get("http://{}:{}/".format(self.base_url, self.port_number))
-        else:
-            r = requests.get("http://{}/".format(self.base_url))
-        # print (r.url)
-        if r.url.startswith("https"):
-            self.base_url = "https://{}/".format(self.base_url)
-        else:
-            self.base_url = "http://{}:{}/".format(self.base_url, self.port_number)
-
     def get_readtype_list(self):
         """
         Get a list of possible read types from minotour server
         Returns
         -------
+        None
         """
         # fix me manual get
-        read_type_list = self.minotour_api.get_read_type_list()
-        read_type_dict = {}
-        for read_type in read_type_list:
-            read_type_dict[read_type["name"]] = read_type["id"]
-        self.read_type_dict = read_type_dict
+        read_type_list = self.minotour_api.get_json(EndPoint.READ_TYPES)
+        self.read_type_dict = {read_type["name"]: read_type["id"] for read_type in read_type_list}
+
 
     def get_readnames_by_run(self, fastq_file_id):
         """
@@ -175,9 +158,8 @@ class RunDataTracker:
             self.fastq_file_id = fastq_file_id
             # TODO move this function to MinotourAPI class.
 
-            # url = "{}api/v1/runs/{}/readnames/".format(self.base_url, self.run['id'])
-            url = "{}api/v1/runs/{}/readnames/".format(self.base_url, fastq_file_id)
-            req = requests.get(url, headers=self.header)
+            url = "api/v1/runs/{}/readnames/".format(fastq_file_id)
+            req = self.minotour_api.get(url)
             read_name_list = json.loads(req.text)
             number_pages = read_name_list["number_pages"]
 
@@ -216,44 +198,40 @@ class RunDataTracker:
         """
         self.sequencing_statistics.fastq_message = "Adding run."
         run_id = description_dict["runid"]
-        run = self.minotour_api.get_run_by_runid(run_id)
-        if "flow_cell_id" in description_dict:
-            flowcell_name = description_dict["flow_cell_id"]
-        elif "sample_id" in description_dict:
-            flowcell_name = description_dict["sample_id"]
-        elif "sampleid" in description_dict:
-            flowcell_name = description_dict["sampleid"]
-        else:
-            flowcell_name = self.args.run_name
+        run = self.minotour_api.get_json(EndPoint.RUNS, base_id=run_id, params="search_criteria=runid")
+        flowcell_name = get_flowcell_name_from_desc(description_dict, self.args.run_name)
         if args.force_unique:
-            if "flow_cell_id" in description_dict and "sample_id" in description_dict:
-                flowcell_name = "{}_{}".format(
-                    description_dict["flow_cell_id"], description_dict["sample_id"]
-                )
+            get_unique_name(description_dict, self.args.run_name)
         if not flowcell_name:
             self.sequencing_statistics.errored = True
             self.sequencing_statistics.error_message = "Flowcell name is required. This may be old FASTQ data, please provide a name with -n."
             sys.exit("Flowcell name is required. This may be old FASTQ data, please provide a name with -n.")
         # fixme manual get
-        flowcell = self.minotour_api.get_flowcell_by_name(flowcell_name)["data"]
+        flowcell = self.minotour_api.get_json(EndPoint.FLOWCELL, base_id=flowcell_name,
+                                              params="search_criteria=name")["data"]
+        if not flowcell:
+            self.minotour_api.post(EndPoint.FLOWCELL, no_id=True, json={"name": flowcell_name})
 
         if not run:
             # get or create a flowcell
             log.info("Looking for flowcell {}".format(flowcell_name))
             log.debug(flowcell)
-            if not flowcell:
-                log.debug("Trying to create flowcell {}".format(flowcell_name))
-                # fixme manual post
-                flowcell = self.minotour_api.create_flowcell(flowcell_name)
-                # If we have a job as an option
-                log.debug("Created flowcell {}".format(flowcell_name))
             is_barcoded = True if "barcode" in description_dict.keys() else False
             has_fastq = False if self.args.skip_sequence else True
             key = "sample_id" if "sample_id" in description_dict else "sampleid"
-            run_name = description_dict[key] if key in description_dict  else self.args.run_name
+            run_name = description_dict[key] if key in description_dict else self.args.run_name
             # fixme manual post
-            created_run = self.minotour_api.create_run(
-                run_name, run_id, is_barcoded, has_fastq, flowcell
+            payload = {
+                "name": run_name,
+                "sample_name": run_name,
+                "runid": run_id,
+                # TODO is this okay??
+                "is_barcoded": is_barcoded,
+                "has_fastq": has_fastq,
+                "flowcell": flowcell["url"],
+            }
+            created_run = self.minotour_api.post(
+                EndPoint.RUNS, no_id=True, json=payload
             )
             if not created_run:
                 log.critical("There is a problem creating run")
@@ -322,7 +300,7 @@ class RunDataTracker:
         # Here we are going to create the sequenced/unblocked barcodes and read barcode
         for barcode_name in [barcode_name, rejected_barcode_name]:
             if barcode_name not in self.barcode_dict:
-                barcode = self.minotour_api.create_barcode(barcode_name, self.run["url"])
+                barcode = self.minotour_api.post(barcode_name, self.run["url"])
                 if barcode:
                     self.barcode_dict.update({barcode["name"]: barcode["id"]})
                 else:

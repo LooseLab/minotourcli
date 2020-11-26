@@ -4,6 +4,7 @@ import sys
 import time
 
 from minFQ.minFQ import CLIENT_VERSION
+from minFQ.endpoints import EndPoint
 from .version import __version__
 
 
@@ -48,6 +49,17 @@ class SequencingStatistics:
         min, sec = divmod(seconds, 60)
         hour, min = divmod(min, 60)
         return "%d:%02d:%02d" % (hour, min, sec)
+
+    @property
+    def per_file(self):
+        """
+        Time to upload the current file
+        Returns
+        -------
+        str
+            Hours:Minutes:Seconds format generated from given second amount since this file upload began
+        """
+        return self.convert(time.time() - self.time_per_file)
 
 
 def clear_lines(lines=1):
@@ -174,7 +186,7 @@ def add_arguments_to_parser(parser):
         type=str,
         dest="ip",
         required=False,
-        default=None,
+        default="127.0.0.1",
         help="The IP address of the minKNOW machine - Typically 127.0.0.1.",
     )
 
@@ -317,15 +329,16 @@ def write_out_fastq_stats(upload_stats, line_counter):
     sys.stdout.write("{}\n".format(upload_stats.fastq_message))
     sys.stdout.write("FastQ Upload Status:\n")
     sys.stdout.write(
-        "Files queued/processed/skipped/up_time/per_file:{}/{}/{}/{}/{}\n".format(
+        "Files queued/Processed/Skipped/Up time/This file:{}/{}/{}/{}/{}\n".format(
             upload_stats.files_seen - upload_stats.files_processed - upload_stats.files_skipped,
             upload_stats.files_processed,
             upload_stats.files_skipped,
             upload_stats.elapsed,
+            upload_stats.per_file
         )
     )
     sys.stdout.write(
-        "New reads seen/uploaded/skipped:{}/{}/{}\n".format(
+        "New reads seen/Uploaded/Skipped:{}/{}/{}\n".format(
             upload_stats.reads_seen - upload_stats.reads_uploaded - upload_stats.reads_skipped,
             upload_stats.reads_uploaded,
             upload_stats.reads_skipped,
@@ -417,12 +430,7 @@ def check_server_compatibility(minotour_api, log):
     -------
     None
     """
-    version = minotour_api.get_server_version()
-    if not version:
-        log.error(
-            "Cannot fetch supported client versions from the server."
-        )
-        sys.exit()
+    version = minotour_api.get_json(EndPoint.VERSION)
     clients = version["clients"]
     if CLIENT_VERSION not in clients:
         log.error(
@@ -448,10 +456,10 @@ def list_minotour_options(log, args, minotour_api):
     """
     log.info("Checking available jobs.")
     # TODO combine below into new single API end point
-    jobs = minotour_api.get("/reads/tasktypes/", parameters={"cli": True}).json()
-    references = minotour_api.get("/reference/").json()
+    jobs = minotour_api.get_json("/reads/tasktypes/", parameters={"cli": True})
+    references = minotour_api.get_json("/reference/")
     params = {"api_key": args.api_key, "cli": True}
-    targets = minotour_api.get("/metagenomics/targetsets", parameters=params).json()
+    targets = minotour_api.get_json("/metagenomics/targetsets", parameters=params).json()
     log.info("The following jobs are available on this minoTour installation:")
     for job_info in jobs["data"]:
         if not job_info["name"].startswith("Delete"):
@@ -473,7 +481,7 @@ def list_minotour_options(log, args, minotour_api):
 
 def check_job_from_client(args, log, minotour_api, parser):
     """
-    Start a job from the minFQ client if specified by user.
+    Check that we can start the specified job on the server.
     Parameters
     ----------
     args: argparse.Namespace
@@ -489,7 +497,7 @@ def check_job_from_client(args, log, minotour_api, parser):
     """
     args.job = int(args.job)
     # Get availaible jobs
-    response, jobs = minotour_api.get("/reads/tasktypes/", parameters={"cli": True})
+    response, jobs = minotour_api.get(EndPoint.TASKS, parameters={"cli": True})
     if args.job not in jobs:
         parser.error("Can't find the job type chosen. Please double check that it is the same ID shown by --list.")
 
@@ -497,22 +505,16 @@ def check_job_from_client(args, log, minotour_api, parser):
         if args.reference == None:
             log.warning("You need to specify a reference for a Minimap2 task.")
             sys.exit(0)
-        response, references = minotour_api.get("/reference/", {"cli": True})
+        response, references = minotour_api.get(EndPoint.REFERENCES, {"cli": True})
         if args.reference not in references["data"]:
             log.error("Reference not found. Please recheck.")
             sys.exit(0)
     if args.job == "metagenomics" or args.job == 10:
         if args.targets:
             params = {"api_key": args.api_key, "cli": True}
-            response, targets = minotour_api.get("/metagenomics/targetsets", parameters=params)
+            response, targets = minotour_api.get(EndPoint.TARGET_SETS, parameters=params)
             if args.targets not in targets:
                 log.info(
                     "Target set not found. Please check spelling and try again."
                 )
                 sys.exit(0)
-
-    if (
-            args.job == 16
-            or args.job == "track_artic_coverage"
-    ):
-        log.info("Starting the Artic task.")

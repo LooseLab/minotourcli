@@ -27,7 +27,7 @@ def start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, he
     Start the minKnow monitoring and basecalled data monitoring in accordance with arguments passed by user
     Parameters
     ----------
-    sequencing_statistics: SequencingStatistics
+    sequencing_statistics: minFQ.utils.SequencingStatistics
         Tracker class for files being monitored, and the metrics about upload
     args: argparse.NameSpace
         The command line arguments that were passed to the script
@@ -35,7 +35,7 @@ def start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, he
         The logger for this cript
     header: dict
         The dictionary with headers for the requests, including authentiction
-    minotour_api: MinotourAPI
+    minotour_api: minFQ.minotourapi.MinotourAPI
         The minotourAPI class
 
     Returns
@@ -54,7 +54,7 @@ def start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, he
         # if we are connecting to minKNOW
         if not args.no_minknow:
             # this block is going to handle the running of minknow monitoring by the client.
-            minknow_connection = MinionManager(args=args, header=header)
+            minknow_connection = MinionManager(args=args, header=header, sequencing_statistics=sequencing_statistics)
             log.info("MinKNOW RPC Monitoring Working.")
         sys.stdout.write("To stop minFQ use CTRL-C.\n")
         event_handler = FastqHandler(args, header, runs_being_monitored_dict, sequencing_statistics, minotour_api)
