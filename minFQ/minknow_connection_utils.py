@@ -247,7 +247,7 @@ class LiveMonitoringActions(RpcSafeConnection):
             Device activity state.
         """
         log.debug("First connection observed")
-        print(self.acquisition_status)
+        log.debug("Current acquistion status: {}").format(self.acquisition_status)
         self.update_minion_event()
         # set the device to active as it is currently sequencing
         if str(self.acquisition_status) in {"ACQUISITION_RUNNING", "ACQUISITION_STARTING"}:

@@ -8,15 +8,16 @@ class EndPoint(Enum):
 
     """
     # Get
-    REFERENCES = "/references/"
+    REFERENCES = "/reference/"
     VERSION = "/version/"
     GET_MINION = "/reads/minions/{}/"
-    TASKS = "/reads/task-types/"
-    TARGET_SETS = "/metagenomics/target-sets/"
+    TASK_TYPES = "/reads/task-types/"
+    TARGET_SETS = "/metagenomics/target-sets"
     # todo if we get the api right, we can just combine the base minion with the status or events etc.
     MINION_STATUS = "/reads/minions/{}/status/"
-    TEST = "/test-connect/"
+    TEST = "/reads/test-connect/"
     READ_TYPES = "/reads/read-types/"
+    READ_NAMES = "/reads/runs/{}/read-names/"
 
     MINION_CONTROL = "/reads/minions/{}/control/"
 
@@ -29,6 +30,9 @@ class EndPoint(Enum):
     RUNS = "/reads/runs/{}/"
     FLOWCELL = "/reads/flowcells/{}/"
     FASTQ_FILE = "/reads/runs/{}/files/"
+    BARCODE = "/reads/barcode/"
+    JOBS = "/reads/tasks/"
+    READS = "/reads/read/"
 
     def __str__(self):
         return "{}".format(self.value)

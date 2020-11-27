@@ -195,7 +195,7 @@ def add_arguments_to_parser(parser):
         "--name",
         type=str,
         default=None,
-        help="This provides a backup name for a flowcell. MinoTour will use the run names and flowcell ids it finds in reads if available.",
+        help="This provides a backup name for a flowcell. MinoTour will use the run names and flowcell ids it finds in reads or from minKNOW if available.",
         dest="run_name_manual",
     )
 
@@ -228,20 +228,20 @@ def add_arguments_to_parser(parser):
     parser.add_argument(
         "-j",
         "--job",
-        type=str,
+        type=int,
         # required=True,
         default=None,
-        help="An optional minotour job to run on your server. Please enter the ID shown on the side when running --list, or the name separated by _.",
+        help="An optional minotour job to run on your server. Please enter the ID shown on the side when running --list.",
         dest="job",
     )
 
     parser.add_argument(
         "-r",
         "--reference",
-        type=str,
+        type=int,
         # required=True,
         default=None,
-        help="An optional minotour reference to map against.",
+        help="An optional minotour reference to map against. please enter the numerical id shown when running --list",
         dest="reference",
     )
 
@@ -256,9 +256,9 @@ def add_arguments_to_parser(parser):
     parser.add_argument(
         "-ts",
         "--targets",
-        type=str,
+        type=int,
         default=None,
-        help="Set the target set for the metagenomics",
+        help="Set the target set for the metagenomics, if desired. Please enter the numerical id shown when running --list",
         dest="targets",
     )
 
@@ -266,7 +266,7 @@ def add_arguments_to_parser(parser):
         "-v",
         "--verbose",
         action="store_true",
-        help="Display debugging information.",
+        help="Don't clear the screen. Helps when debugging.",
         default=False,
         dest="verbose",
     )
@@ -299,7 +299,7 @@ def add_arguments_to_parser(parser):
         "--toml",
         default=None,
         required=False,
-        help="Path to the configuration file for an experiment",
+        help="Path to the channels configuration file for a read until experiment.",
         dest="toml",
     )
     parser.add_argument(
@@ -307,7 +307,7 @@ def add_arguments_to_parser(parser):
         "--unblocks",
         default=None,
         required=False,
-        help="Path to an unblocked read_ids text file.",
+        help="Absolute path to an unblocked read_ids text file. Not necessary, should be picked up automatically.",
         dest="unblocks",
     )
     return parser
@@ -456,12 +456,12 @@ def list_minotour_options(log, args, minotour_api):
     """
     log.info("Checking available jobs.")
     # TODO combine below into new single API end point
-    jobs = minotour_api.get_json("/reads/tasktypes/", parameters={"cli": True})
-    references = minotour_api.get_json("/reference/")
+    jobs = minotour_api.get_json(EndPoint.TASK_TYPES, params={"cli": True})["data"]
+    references = minotour_api.get_json(EndPoint.REFERENCES)["data"]
     params = {"api_key": args.api_key, "cli": True}
-    targets = minotour_api.get_json("/metagenomics/targetsets", parameters=params).json()
+    targets = minotour_api.get_json(EndPoint.TARGET_SETS, params=params)
     log.info("The following jobs are available on this minoTour installation:")
-    for job_info in jobs["data"]:
+    for job_info in jobs:
         if not job_info["name"].startswith("Delete"):
             log.info(
                 "\t{}:{}".format(job_info["id"], job_info["name"].lower().replace(" ", "_"))
@@ -469,13 +469,15 @@ def list_minotour_options(log, args, minotour_api):
     log.info(
         "If you wish to run an alignment, the following references are available:"
     )
-    for reference in references["data"]:
+    for reference in references:
         log.info("\t{}:{}".format(reference["id"], reference["name"]))
     log.info(
         "If you wish to add a target set to the metagenomics task, the following sets are available to you:"
     )
+    index = 1
     for target in targets:
-        log.info("\t:{}".format(target))
+        log.info("\t{}:{}".format(index, target))
+        index += 1
     sys.exit(0)
 
 
@@ -497,24 +499,26 @@ def check_job_from_client(args, log, minotour_api, parser):
     """
     args.job = int(args.job)
     # Get availaible jobs
-    response, jobs = minotour_api.get(EndPoint.TASKS, parameters={"cli": True})
+    jobs = minotour_api.get_json(EndPoint.TASK_TYPES, params={"cli": True})
     if args.job not in jobs:
         parser.error("Can't find the job type chosen. Please double check that it is the same ID shown by --list.")
 
     if args.job == "minimap2" or args.job == 4:
         if args.reference == None:
-            log.warning("You need to specify a reference for a Minimap2 task.")
+            log.error("You need to specify a reference for a Minimap2 task.")
             sys.exit(0)
-        response, references = minotour_api.get(EndPoint.REFERENCES, {"cli": True})
+        references = minotour_api.get_json(EndPoint.REFERENCES, params={"cli": True})
         if args.reference not in references["data"]:
             log.error("Reference not found. Please recheck.")
             sys.exit(0)
     if args.job == "metagenomics" or args.job == 10:
         if args.targets:
+            if not isinstance(args.targets, int):
+                sys.exit("Please use the numerical identifier for the target set.")
             params = {"api_key": args.api_key, "cli": True}
-            response, targets = minotour_api.get(EndPoint.TARGET_SETS, parameters=params)
+            targets = minotour_api.get_json(EndPoint.TARGET_SETS, params=params)
             if args.targets not in targets:
-                log.info(
+                log.error(
                     "Target set not found. Please check spelling and try again."
                 )
                 sys.exit(0)

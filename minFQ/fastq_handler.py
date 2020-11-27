@@ -18,7 +18,6 @@ from minFQ.fastq_handler_utils import (
     OpenLine,
     create_run_collection, average_quality, check_is_pass,
 )
-from minFQ.minotourapi import MinotourAPI
 from watchdog.events import FileSystemEventHandler
 
 log = logging.getLogger(__name__)

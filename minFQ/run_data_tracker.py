@@ -2,42 +2,67 @@
 A class to handle the collection of run statistics and information 
 from fastq files and upload to minotour.
 """
-import json
 import logging
 import os
-import sys, time
-
-import requests
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+import sys
 
 from minFQ.endpoints import EndPoint
-from minFQ.fastq_handler_utils import get_flowcell_name_from_desc, get_unique_name
 from minFQ.minotourapi import MinotourAPI
 
-from urllib.parse import urlparse
-from threading import Thread
 import toml as toml_manager
 
 log = logging.getLogger(__name__)
 
-# https://www.peterbe.com/plog/best-practice-with-retries-with-requests
-def requests_retry_session(
-    retries=3, backoff_factor=0.3, status_forcelist=(500, 502, 504), session=None,
-):
 
-    session = session or requests.Session()
-    retry = Retry(
-        total=retries,
-        read=retries,
-        connect=retries,
-        backoff_factor=backoff_factor,
-        status_forcelist=status_forcelist,
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return session
+def get_flowcell_name_from_desc(description_dict, user_run_name):
+    """
+    Get the flowcell name from the description
+    Parameters
+    ----------
+    description_dict: dict
+        A parsed dictionary created from the description from the fastq record
+    user_run_name: str
+        The user run name that we have been given on the command line
+
+    Returns
+    -------
+    flowcell_name: str
+        The flowcell name that we are gonna be using
+    """
+    if "flow_cell_id" in description_dict:
+        flowcell_name = description_dict["flow_cell_id"]
+    elif "sample_id" in description_dict:
+        flowcell_name = description_dict["sample_id"]
+    elif "sampleid" in description_dict:
+        flowcell_name = description_dict["sampleid"]
+    else:
+        flowcell_name = user_run_name
+    return flowcell_name
+
+
+def get_unique_name(description_dict, user_run_name):
+    """
+
+    Parameters
+    ----------
+    description_dict: dict
+        A parsed dictionary created from the description from the fastq record
+    user_run_name: str
+        The user run name that we have been given on the command line
+    Returns
+    -------
+
+    """
+    flowcell_name = user_run_name
+    if "flow_cell_id" in description_dict and "sample_id" in description_dict:
+        flowcell_name = "{}_{}".format(
+            description_dict["flow_cell_id"], description_dict["sample_id"]
+        )
+    elif "flow_cell_id" in description_dict and "sampleid" in description_dict:
+        flowcell_name = "{}_{}".format(
+            description_dict["flow_cell_id"], description_dict["sampleid"]
+        )
+    return flowcell_name
 
 
 def _prepare_toml(toml_dict):
@@ -114,21 +139,18 @@ class RunDataTracker:
         -------
 
         """
-        # If there is a target set
-        if args.targets is not None:
-            self.minotour_api.create_job(
-                flowcell["id"], int(args.job_id), None, args.targets
-            )
-        # If there is a reference and not a target set
-        elif args.reference and not args.targets:
-            self.minotour_api.create_job(
-                flowcell["id"], int(args.job_id), args.reference, None
-            )
-        # If there is neither
-        else:
-            self.minotour_api.create_job(
-                flowcell["id"], int(args.job_id), None, None
-            )
+        payload = {
+            "flowcell": flowcell["id"],
+            "job_type": args.job,
+            "reference": args.reference,
+            "target_set": args.targets,
+            "cli": True,
+            "api_key": args.api_key
+        }
+        self.minotour_api.post(
+            EndPoint.JOBS,
+            json=payload
+        )
 
     def get_readtype_list(self):
         """
@@ -140,7 +162,6 @@ class RunDataTracker:
         # fix me manual get
         read_type_list = self.minotour_api.get_json(EndPoint.READ_TYPES)
         self.read_type_dict = {read_type["name"]: read_type["id"] for read_type in read_type_list}
-
 
     def get_readnames_by_run(self, fastq_file_id):
         """
@@ -158,9 +179,7 @@ class RunDataTracker:
             self.fastq_file_id = fastq_file_id
             # TODO move this function to MinotourAPI class.
 
-            url = "api/v1/runs/{}/readnames/".format(fastq_file_id)
-            req = self.minotour_api.get(url)
-            read_name_list = json.loads(req.text)
+            read_name_list = self.minotour_api.get_json(EndPoint.READ_NAMES, base_id=fastq_file_id)
             number_pages = read_name_list["number_pages"]
 
             log.debug("Fetching reads to check if we've uploaded these before.")
@@ -170,11 +189,10 @@ class RunDataTracker:
                 self.sequencing_statistics.fastq_message = "Fetching {} of {} pages.".format(
                     page, number_pages
                 )
-                new_url = url + "?page={}".format(page)
-                content = requests.get(new_url, headers=self.header)
-                log.debug("Requesting {}".format(new_url))
+                page_query = "?page={}".format(page)
+                partial_file_content = self.minotour_api.get_json(EndPoint.READ_NAMES, base_id=fastq_file_id, params=page_query)
                 # We have to recover the data component and loop through that to get the read names.
-                for read in json.loads(content.text)["data"]:
+                for read in partial_file_content["data"]:
                     self.read_names.append(read)
             log.debug(
                 "{} reads already processed and included into readnames list for run {}".format(
@@ -254,30 +272,56 @@ class RunDataTracker:
         -------
         None
         """
-        # print(self.read_list)
-        self.minotour_api.create_reads(self.read_list)
-        # Throttle to limit rate of upload.
-        time.sleep(0.5)
+        if self.read_list:
+            self.minotour_api.post(EndPoint.READS, json=self.read_list)
         self.sequencing_statistics.reads_uploaded += len(self.read_list)
         # Refresh the read list
         self.read_list = []
 
     def update_read_type(self, read_id, type):
-        payload = {"type": type}
-        updateread = requests.patch(
-            self.args.full_host
-            + "api/v1/runs/"
-            + str(self.runid)
-            + "/reads/"
-            + str(read_id)
-            + "/",
-            headers=self.header,
-            json=payload,
-        )
+        """
+        Update read type for complement read from default of template if we have a 1d^2 run
+        Parameters
+        ----------
+        read_id: str
+            UUid read id for this complement read
+        type: str
+            Complement read type (default "C")
 
-    def check_1d2(self, readid):
-        if len(readid) > 64:
+        Returns
+        -------
+
+        """
+        # payload = {"type": type}
+        # # TODO check request usage
+        # updateread = requests.patch(
+        #     self.args.full_host
+        #     + "api/v1/runs/"
+        #     + str(self.runid)
+        #     + "/reads/"
+        #     + str(read_id)
+        #     + "/",
+        #     headers=self.header,
+        #     json=payload,
+        # )
+        for _ in range(5):
+            log.error("HELP - 1D^2 not supported, contact @mattloose on twitter")
+
+    def check_1d2(self, read_id):
+        """
+        Check if the read is 1d&2 by checking the length of the read_id uuid
+        Parameters
+        ----------
+        read_id: str
+            The read id to update
+        Returns
+        -------
+        bool
+            True if read is 1d^2
+        """
+        if len(read_id) > 64:
             return True
+        return False
 
     def add_read(self, fastq_read_payload):
         """
@@ -300,7 +344,7 @@ class RunDataTracker:
         # Here we are going to create the sequenced/unblocked barcodes and read barcode
         for barcode_name in [barcode_name, rejected_barcode_name]:
             if barcode_name not in self.barcode_dict:
-                barcode = self.minotour_api.post(barcode_name, self.run["url"])
+                barcode = self.minotour_api.post(EndPoint, json={"name": barcode_name, "run": self.run["url"]})
                 if barcode:
                     self.barcode_dict.update({barcode["name"]: barcode["id"]})
                 else:

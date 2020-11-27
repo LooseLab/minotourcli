@@ -1,11 +1,9 @@
 import os
 import sys
-import fnmatch, shutil, platform
-import fileinput
+import platform
 import logging
 import logging.handlers
 import time
-from pathlib import Path
 
 CLIENT_VERSION = "1.2"
 from minFQ.minknow_connection import MinionManager
