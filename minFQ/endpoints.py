@@ -11,7 +11,7 @@ class EndPoint(Enum):
     REFERENCES = "/reference/"
     VERSION = "/minknow/version/"
     GET_MINION = "/minknow/minions/{}/"
-    TASK_TYPES = "/minknow/task-types/"
+    TASK_TYPES = "/reads/task-types/"
     TARGET_SETS = "/metagenomics/target-sets"
     # todo if we get the api right, we can just combine the base minion with the status or events etc.
     MINION_STATUS = "/minknow/minions/{}/status/"
