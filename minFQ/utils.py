@@ -502,7 +502,8 @@ def check_job_from_client(args, log, minotour_api, parser):
     """
     args.job = int(args.job)
     # Get availaible jobs
-    jobs = minotour_api.get_json(EndPoint.TASK_TYPES, params={"cli": True})
+    jobs = minotour_api.get_json(EndPoint.TASK_TYPES, params={"cli": True})["data"]
+    jobs = [job["id"] for job in jobs]
     if args.job not in jobs:
         parser.error("Can't find the job type chosen. Please double check that it is the same ID shown by --list.")
 
