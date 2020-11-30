@@ -96,6 +96,7 @@ class RunDataTracker:
         else:
             self.batchsize = 4000
         self.run = None
+        self.flowcell = None
         self.barcode_dict = {}
         self.read_list = []
         self.file_monitor = {}
@@ -177,11 +178,8 @@ class RunDataTracker:
         """
         if fastq_file_id != self.fastq_file_id:
             self.fastq_file_id = fastq_file_id
-            # TODO move this function to MinotourAPI class.
-
             read_name_list = self.minotour_api.get_json(EndPoint.READ_NAMES, base_id=fastq_file_id)
             number_pages = read_name_list["number_pages"]
-
             log.debug("Fetching reads to check if we've uploaded these before.")
             log.debug("Wiping previous reads seen.")
             self.read_names = []
@@ -217,9 +215,9 @@ class RunDataTracker:
         self.sequencing_statistics.fastq_message = "Adding run."
         run_id = description_dict["runid"]
         run = self.minotour_api.get_json(EndPoint.RUNS, base_id=run_id, params="search_criteria=runid")
-        flowcell_name = get_flowcell_name_from_desc(description_dict, self.args.run_name)
+        flowcell_name = get_flowcell_name_from_desc(description_dict, self.args.run_name_manual)
         if args.force_unique:
-            get_unique_name(description_dict, self.args.run_name)
+            get_unique_name(description_dict, self.args.run_name_manual)
         if not flowcell_name:
             self.sequencing_statistics.errored = True
             self.sequencing_statistics.error_message = "Flowcell name is required. This may be old FASTQ data, please provide a name with -n."
@@ -228,7 +226,8 @@ class RunDataTracker:
         flowcell = self.minotour_api.get_json(EndPoint.FLOWCELL, base_id=flowcell_name,
                                               params="search_criteria=name")["data"]
         if not flowcell:
-            self.minotour_api.post(EndPoint.FLOWCELL, no_id=True, json={"name": flowcell_name})
+            flowcell = self.minotour_api.post(EndPoint.FLOWCELL, no_id=True, json={"name": flowcell_name})
+        self.flowcell = flowcell
 
         if not run:
             # get or create a flowcell
@@ -237,7 +236,7 @@ class RunDataTracker:
             is_barcoded = True if "barcode" in description_dict.keys() else False
             has_fastq = False if self.args.skip_sequence else True
             key = "sample_id" if "sample_id" in description_dict else "sampleid"
-            run_name = description_dict[key] if key in description_dict else self.args.run_name
+            run_name = description_dict[key] if key in description_dict else self.args.run_name_manual
             # fixme manual post
             payload = {
                 "name": run_name,
@@ -344,7 +343,7 @@ class RunDataTracker:
         # Here we are going to create the sequenced/unblocked barcodes and read barcode
         for barcode_name in [barcode_name, rejected_barcode_name]:
             if barcode_name not in self.barcode_dict:
-                barcode = self.minotour_api.post(EndPoint, json={"name": barcode_name, "run": self.run["url"]})
+                barcode = self.minotour_api.post(EndPoint.BARCODE, json={"name": barcode_name, "run": self.run["url"]})
                 if barcode:
                     self.barcode_dict.update({barcode["name"]: barcode["id"]})
                 else:

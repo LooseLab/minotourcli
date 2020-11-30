@@ -1,6 +1,8 @@
 import gzip
 import logging
 import os
+from pathlib import Path
+
 import numpy as np
 
 from minFQ.endpoints import EndPoint
@@ -250,11 +252,12 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
             ## ToDo Consider moving these to top level
             novel_run_set = set()
             seen_file_tracker = {}
+            file_endings = {".fq", ".fastq", ".fq.gz", ".fastq.gz"}
             # have s rummage around the watch directory
             for path, dirs, files in os.walk(path):
                 # iterate fastq files in the watchdir
                 for f in files:
-                    if f.endswith(".fastq") or f.endswith(".fastq.gz"):
+                    if "".join(Path(f).suffixes) in file_endings:
                         log.debug("Processing File {}\r".format(f))
                         counter += 1
                         sequencing_statistics.files_seen += 1
@@ -279,8 +282,6 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
                                     seen_file_tracker[entry["runid"]][
                                         entry["name"]
                                     ] = entry["md5"]
-                        else:
-                            result = None
                         # add the file path
                         filepath = os.path.join(path, f)
                         check_file_path = check_fastq_path(filepath)
@@ -305,7 +306,7 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
                                 novel_run_set.add(run_id)
 
                         if not seen_file:
-                            # never seen this run before
+                            # never seen this file before
                             new_fastq_file_dict[filepath] = os.stat(filepath).st_mtime
                             novel_run_set.add(run_id)
         log.info("processed {} files".format(counter))
@@ -320,7 +321,7 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
     return new_fastq_file_dict
 
 
-def create_run_collection(run_id, run_dict, args, header, description_dict, fastq_file_id, sequencing_statistics):
+def create_run_collection(run_id, run_dict, args, header, description_dict, sequencing_statistics):
     """
     Create run collection for this run id if we don't already have one, store in run_dict
     Parameters
@@ -335,8 +336,6 @@ def create_run_collection(run_id, run_dict, args, header, description_dict, fast
         Authenticator for request
     description_dict: dict
         The description dict
-    fastq_file_id: str
-        Fastq file primary key.
     sequencing_statistics: SequencingStatistics
         Class to communicate sequencing statistics
     Returns
@@ -345,5 +344,4 @@ def create_run_collection(run_id, run_dict, args, header, description_dict, fast
     """
     run_dict[run_id] = RunDataTracker(args, header, sequencing_statistics)
     run_dict[run_id].add_run(description_dict, args)
-    run_dict[run_id].get_readnames_by_run(fastq_file_id)
 

@@ -344,6 +344,9 @@ def write_out_fastq_stats(upload_stats, line_counter):
             upload_stats.reads_skipped,
         )
     )
+    sys.stdout.write(
+        "Monitoring the following directories: {}\n".format(upload_stats.directory_watch_list)
+    )
     return line_counter + 5
 
 

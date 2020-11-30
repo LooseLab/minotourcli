@@ -205,9 +205,11 @@ class DeviceMonitor(LiveMonitoringActions):
                     self.run_information = (
                         self.get_current_acquisition_run()
                     )
-                    self.base_calling_enabled = (
-                        self.run_information.config_summary.basecalling_enabled
-                    )
+                    self.base_calling_enabled = False
+                    if self.run_information:
+                        self.base_calling_enabled = (
+                            self.run_information.config_summary.basecalling_enabled
+                        )
                     rltype = 2 if self.base_calling_enabled else 1
                     try:
                         histogram_stream = self.api_connection.statistics.stream_read_length_histogram(
@@ -414,7 +416,6 @@ class MinionManager(Manager):
         -------
 
         """
-        print(dir(self))
         while self.monitor:
             for position in self.flow_cell_positions():
                 # print (position)

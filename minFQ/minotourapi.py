@@ -256,7 +256,6 @@ class MinotourAPI:
         """
         payload = kwargs.pop("json")
         resp = self._get(*args, **kwargs)
-        print(resp)
         if not resp:
             kwargs["params"] = None
             kwargs["json"] = payload

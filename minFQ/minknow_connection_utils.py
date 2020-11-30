@@ -3,7 +3,7 @@ import os
 import time
 import datetime
 from collections import Counter
-
+from google.protobuf.json_format import MessageToJson
 import pytz
 from grpc import RpcError
 from urllib.parse import urlparse
@@ -171,9 +171,12 @@ class LiveMonitoringActions(RpcSafeConnection):
         self.update_minion_event()
         # We wait for 10 seconds to allow the run to start
         time.sleep(10)
-        print(dir(self))
         try:
-            self.run_information = self.api_connection.acquisition.get_current_acquisition_run()
+            self.run_information = self.get_current_acquisition_run()
+            # we need this information
+            while not self.run_information:
+                self.run_information = self.get_current_acquisition_run()
+                time.sleep(1)
             self.create_run()
             log.debug("RUn created")
             # Grab the folder and if we are allowed, add it to the watchlist
@@ -223,7 +226,7 @@ class LiveMonitoringActions(RpcSafeConnection):
                 "has_fastq": True,
                 "flowcell": flowcell["url"],
                 "minion": self.minion["url"],
-                "start_time": str(self.run_information.start_time.ToDatetime().replace(pytz.UTC))
+                "start_time": str(self.run_information.start_time.ToDatetime().replace(tzinfo=pytz.UTC))
             }
 
             created_run = self.minotour_api.post(EndPoint.RUNS, json=payload, no_id=True)
@@ -247,7 +250,7 @@ class LiveMonitoringActions(RpcSafeConnection):
             Device activity state.
         """
         log.debug("First connection observed")
-        log.debug("Current acquistion status: {}").format(self.acquisition_status)
+        log.debug("Current acquistion status: {}".format(self.acquisition_status))
         self.update_minion_event()
         # set the device to active as it is currently sequencing
         if str(self.acquisition_status) in {"ACQUISITION_RUNNING", "ACQUISITION_STARTING"}:
@@ -340,7 +343,11 @@ class LiveMonitoringActions(RpcSafeConnection):
 
         """
         current_script = self.api_connection.protocol.get_run_info().protocol_id if self.acquisition_data else "No Run"
-        file_system_disk_space = self.api_connection.instance.get_disk_space_info().filesystem_disk_space_info[0]
+        try:
+            self.file_system_disk_space = self.api_connection.instance.get_disk_space_info().filesystem_disk_space_info[0]
+        except RpcError as e:
+            log.debug(e)
+        file_system_disk_space = self.file_system_disk_space
         payload = {"minion": self.minion["url"], "minKNOW_status": self.acquisition_status,
                    "minKNOW_current_script": current_script,
                    "minKNOW_exp_script_purpose": self.api_connection.protocol.get_protocol_purpose().purpose,
@@ -419,7 +426,10 @@ class LiveMonitoringActions(RpcSafeConnection):
             "minKNOW_start_time": self.run_information.start_time.ToDatetime().strftime(
                 "%Y-%m-%d %H:%M:%S"
             ),
-            "minKNOW_colours_string": str(self.api_connection.analysis_configuration.get_channel_states_desc()),
+            "minKNOW_colours_string": MessageToJson(str(self.api_connection.analysis_configuration.get_channel_states_desc()),
+                                                    preserving_proto_field_name=True,
+                                                    including_default_value_fields=True,
+                                                    ),
             "minKNOW_computer": self.computer_name,
             "target_temp": self.temperature_data.target_temperature,
             "flowcell_type": self.flowcell_data.user_specified_product_code,

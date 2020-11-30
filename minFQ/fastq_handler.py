@@ -1,6 +1,7 @@
 """
 File Routines for handling fastq files and monitoring locations. Built on watchdog.
 """
+import gzip
 import logging
 import sys
 import threading
@@ -208,19 +209,21 @@ def parse_fastq_file(
     run_id = get_runid(fastq_path)
     # fixme manual post request
     payload = {
-        "filename": str(check_fastq_path(fastq_path)),
-        "runid": run_id,
+        "file_name": str(check_fastq_path(fastq_path)),
+        "run_id": run_id,
         "md5": "0",
         "run": None
     }
-    fastq_file = minotour_api.post(
-        EndPoint.FASTQ_FILE, json=payload, base_id=run_id
-    )
+    if run_id in run_dict:
+        fastq_file = minotour_api.post(
+            EndPoint.FASTQ_FILE, json=payload, base_id=run_id
+        )
     counter = 0
     # fq = pyfastx.Fastq(fastq_path)
     # gen = (read for read in fq)
     # for read in gen:
-    with open(fastq_path, "r") as fh:
+    handle = gzip.open if fastq_path.endswith(".gz") else open
+    with handle(fastq_path, "rt") as fh:
         for desc, name, seq, qual in readfq(fh):
             description_dict = parse_fastq_description(desc)
             counter += 1
@@ -236,9 +239,12 @@ def parse_fastq_file(
                         args,
                         header,
                         description_dict,
-                        fastq_file["id"],
                         sequencing_stats,
                     )
+                    fastq_file = minotour_api.post(
+                        EndPoint.FASTQ_FILE, json=payload, base_id=run_id
+                    )
+                    run_dict[run_id].get_readnames_by_run(fastq_file["id"])
                 parse_fastq_record(
                     name,
                     seq,
@@ -267,8 +273,8 @@ def parse_fastq_file(
         # Update the fastq file entry on the server that says we provides file size to database record
         # fixme manual post
         payload = {
-            "filename": str(check_fastq_path(fastq_path)),
-            "runid": run_id,
+            "file_name": str(check_fastq_path(fastq_path)),
+            "run_id": run_id,
             "md5": get_file_size(fastq_path),
             "run": run_dict[run_id].run,
         }
@@ -365,7 +371,7 @@ class FastqHandler(FileSystemEventHandler):
                     break
             if current_time + 5 > time.time():
                 time.sleep(5)
-            log.info("still ticking")
+            log.debug("still ticking")
 
     def on_created(self, event):
         """Watchdog counts a new file in a folder it is watching as a new file"""
