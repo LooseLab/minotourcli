@@ -317,8 +317,8 @@ class DeviceMonitor(LiveMonitoringActions):
             except RpcError:
                 c = ProtocolRunUserInfo()
                 # TODO watch out here as this is fixing any unknown run as Platform QC
-                c.sample_id.value = "Mux Scan"
-                c.protocol_group_id.value = "Platform QC"
+                c.sample_id.value = "Mux_scan"
+                c.protocol_group_id.value = "Platform_QC"
                 self.sample_id = c
                 log.debug("Sample ID not yet known.")
 
