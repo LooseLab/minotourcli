@@ -51,7 +51,7 @@ class MinotourAPI:
 
         """
         data = self.get(EndPoint.TEST)
-        log.info("Successfully tested connection -> {}".format(data))
+        log.debug("Successfully tested connection -> {}".format(data))
 
     def _get(self, endpoint, params=None, **kwargs):
         """

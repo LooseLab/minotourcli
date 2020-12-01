@@ -233,7 +233,6 @@ class LiveMonitoringActions(RpcSafeConnection):
             if not created_run:
                 log.error("Run not created!")
             else:
-                log.info(created_run)
                 self.minotour_run_url = created_run["url"]
                 self.run_primary_key = created_run["id"]  # I
 
