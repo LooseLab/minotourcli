@@ -109,7 +109,6 @@ def start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, he
             if not args.no_minknow:
                 minknow_connection.stop_monitoring()
             if not args.no_fastq:
-                print("STOPPIN")
                 observer.stop()
                 observer.join()
                 event_handler.stopt()

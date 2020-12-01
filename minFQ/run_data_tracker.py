@@ -217,7 +217,7 @@ class RunDataTracker:
         run = self.minotour_api.get_json(EndPoint.RUNS, base_id=run_id, params="search_criteria=runid")
         flowcell_name = get_flowcell_name_from_desc(description_dict, self.args.run_name_manual)
         if args.force_unique:
-            get_unique_name(description_dict, self.args.run_name_manual)
+            flowcell_name = get_unique_name(description_dict, self.args.run_name_manual)
         if not flowcell_name:
             self.sequencing_statistics.errored = True
             self.sequencing_statistics.error_message = "Flowcell name is required. This may be old FASTQ data, please provide a name with -n."
