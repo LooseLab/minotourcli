@@ -426,7 +426,7 @@ class LiveMonitoringActions(RpcSafeConnection):
             "minKNOW_start_time": self.run_information.start_time.ToDatetime().strftime(
                 "%Y-%m-%d %H:%M:%S"
             ),
-            "minKNOW_colours_string": MessageToJson(str(self.api_connection.analysis_configuration.get_channel_states_desc()),
+            "minKNOW_colours_string": MessageToJson(self.api_connection.analysis_configuration.get_channel_states_desc(),
                                                     preserving_proto_field_name=True,
                                                     including_default_value_fields=True,
                                                     ),
