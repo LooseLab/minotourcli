@@ -521,7 +521,7 @@ def check_job_from_client(args, log, minotour_api, parser):
                 sys.exit("Please use the numerical identifier for the target set.")
             params = {"api_key": args.api_key, "cli": True}
             targets = minotour_api.get_json(EndPoint.TARGET_SETS, params=params)
-            if args.targets not in targets:
+            if args.targets > len(targets):
                 log.error(
                     "Target set not found. Please check spelling and try again."
                 )
