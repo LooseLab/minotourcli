@@ -397,7 +397,7 @@ def validate_args(args, parser):
     if args.watch_dir:
         if not os.path.exists(args.watch_dir):
             parser.error(
-                f"The watch directory specified {args.watch_dir} does not exists. Please check specified path."
+                "The watch directory specified {} does not exists. Please check specified path.".format(args.watch_dir)
             )
     if args.toml is not None:
         if not os.path.exists(args.toml):
