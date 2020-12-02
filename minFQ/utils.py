@@ -512,7 +512,7 @@ def check_job_from_client(args, log, minotour_api, parser):
             log.error("You need to specify a reference for a Minimap2 task.")
             sys.exit(0)
         references = minotour_api.get_json(EndPoint.REFERENCES, params={"cli": True})
-        if args.reference not in references["data"]:
+        if args.reference not in [reference["id"] for reference in references["data"]]:
             log.error("Reference not found. Please recheck.")
             sys.exit(0)
     if args.job == "metagenomics" or args.job == 10:
