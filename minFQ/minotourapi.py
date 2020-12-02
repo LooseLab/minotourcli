@@ -236,11 +236,14 @@ class MinotourAPI:
         -------
         None
         """
-        if response.status_code not in {200, 201, 204, 400, 404}:
+        if response.status_code not in {200, 201, 204, 400, 404, 502}:
             log.debug("{} responded with status {}".format(response.url, response.status_code))
             log.debug("Text {}".format(response.text))
+            log.error(MTConnectionError(response))
             raise MTConnectionError(response)
-        return True
+        if response.status_code == 502:
+            log.info("Received bad gateway 502 on request {}. Trying to continue....".format(response.url))
+        return None
 
     def get_or_create(self, *args, **kwargs):
         """

@@ -2,7 +2,10 @@ class MTConnectionError(Exception):
     """
     Exception raised when we get an unexpected status code from a connection to the minoTour sever
     """
-    def __init__(self, response, message="Unexpected status code (not in expected values)"):
+
+    def __init__(
+        self, response, message="Unexpected status code (not in expected values)"
+    ):
         """
 
         Parameters
@@ -23,10 +26,14 @@ class MTConnectionError(Exception):
         -------
         str
         """
-        lookup_message = {401: "New phone hu dis",
-                          500: "Computer says no"}
-        return "{} -> {} -> {}".format(self.response.status_code, lookup_message.get(self.response.status_code, ""),
-                                       self.message)
+        lookup_message = {401: "Nuh uh - unauthorised", 500: "Computer says no"}
+        return "{} -> {} -> {} -> {}".format(
+            self.response.status_code,
+            lookup_message.get(self.response.status_code, ""),
+            self.message,
+            self.response.text,
+        )
+
 
 def except_rpc(wrapped_function):
     def _wrapper(*args, **kwargs):
@@ -39,4 +46,5 @@ def except_rpc(wrapped_function):
         except IndexError:
             print("IndexError")
         # return result
+
     return _wrapper
