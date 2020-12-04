@@ -8,6 +8,8 @@ import pytz
 from grpc import RpcError
 from urllib.parse import urlparse
 
+from minknow_api.protocol_pb2 import ProtocolRunUserInfo
+
 from minFQ.endpoints import EndPoint
 
 log = logging.getLogger("minknow_connection")
@@ -110,6 +112,25 @@ class RpcSafeConnection:
             log.debug(e)
             return None
 
+    def get_run_info_sample_name(self):
+        """
+        Get the run info sample name. or set it to Mux_scan or platform qc
+        Returns
+        -------
+
+        """
+        try:
+            sample_id = self.api_connection.protocol.get_run_info().user_info
+        except RpcError:
+            c = ProtocolRunUserInfo()
+            # TODO watch out here as this is fixing any unknown run as Platform QC
+            c.sample_id.value = "Mux_scan"
+            c.protocol_group_id.value = "Platform_QC"
+            sample_id = c
+            log.debug("Sample ID not yet known.")
+        return sample_id
+
+
 class LiveMonitoringActions(RpcSafeConnection):
     """
     Actions that we need to take when certain events are triggered in the course of sequencing. Also communicates with
@@ -207,6 +228,7 @@ class LiveMonitoringActions(RpcSafeConnection):
             self.run_primary_key = run["id"]
         else:
             # get or create a flowcell
+            self.sample_id = self.get_run_info_sample_name()
             flowcell_name = "{}_{}".format(
                 self.get_flowcell_id(), self.sample_id.sample_id.value
             ) if self.args.force_unique else self.get_flowcell_id()

@@ -312,18 +312,8 @@ class DeviceMonitor(LiveMonitoringActions):
                 self.api_connection.device.get_bias_voltage().bias_voltage
             )
             self.run_info_api = self.get_run_info()
-            try:
-                self.sample_id = self.api_connection.protocol.get_run_info().user_info
-            except RpcError:
-                c = ProtocolRunUserInfo()
-                # TODO watch out here as this is fixing any unknown run as Platform QC
-                c.sample_id.value = "Mux_scan"
-                c.protocol_group_id.value = "Platform_QC"
-                self.sample_id = c
-                log.debug("Sample ID not yet known.")
-
+            self.sample_id = self.get_run_info_sample_name()
             self.update_minion_info()
-
             if str(self.acquisition_status) in {"ACQUISITION_RUNNING", "ACQUISITION_STARTING"}:
                 self.run_information = (
                     self.api_connection.acquisition.get_current_acquisition_run()
