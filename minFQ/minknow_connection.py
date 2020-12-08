@@ -83,7 +83,6 @@ class DeviceMonitor(LiveMonitoringActions):
         self.minotour_run_url = ""
         self.run_primary_key = ""
         self.run_bool = True
-        # todo eek out these weird acquisition status catches
         self.acquisition_data = self.get_acquisition_data()
         # initialise histogram data
         self.histogram_data = None
@@ -279,7 +278,6 @@ class DeviceMonitor(LiveMonitoringActions):
                 self.acquisition_status = AcquisitionState.Name(
                     acquisition_status.state
                 )
-                # todo check this correct
                 if not self.device_active and str(self.acquisition_status) in {
                     "ACQUISITION_RUNNING",
                     "ACQUISITION_STARTING",

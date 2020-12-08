@@ -238,12 +238,10 @@ class LiveMonitoringActions(RpcSafeConnection):
             if not flowcell:
                 log.debug("Manually creating flowcell")
                 flowcell = self.minotour_api.post(EndPoint.FLOWCELL, no_id=True, json={"name": flowcell_name})
-            # fixme manual post
             payload = {
                 "name": self.sample_id.sample_id.value,
                 "sample_name": self.sample_id.sample_id.value,
                 "runid": run_id,
-                # TODO is this okay??
                 "is_barcoded": False,
                 "has_fastq": True,
                 "flowcell": flowcell["url"],
@@ -400,7 +398,6 @@ class LiveMonitoringActions(RpcSafeConnection):
             if hasattr(self.run_information, "run_id"):
                 payload["minKNOW_hash_run_id"] = str(self.run_information.run_id)
 
-        # fixme me new requests
         method_handle = self.minotour_api.put if self.minion_status else self.minotour_api.post
         self.minion_status = method_handle(EndPoint.MINION_STATUS, base_id=self.minion["id"], json=payload)
 

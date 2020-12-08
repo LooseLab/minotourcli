@@ -207,7 +207,6 @@ def parse_fastq_file(
     log.debug("Parsing fastq file {}".format(fastq_path))
     # Get runId from the path
     run_id = get_runid(fastq_path)
-    # fixme manual post request
     payload = {
         "file_name": str(check_fastq_path(fastq_path)),
         "run_id": run_id,
@@ -271,7 +270,6 @@ def parse_fastq_file(
         run_dict[runs].commit_reads()
     try:
         # Update the fastq file entry on the server that says we provides file size to database record
-        # fixme manual post
         payload = {
             "file_name": str(check_fastq_path(fastq_path)),
             "run_id": run_id,

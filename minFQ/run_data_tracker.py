@@ -222,7 +222,6 @@ class RunDataTracker:
             self.sequencing_statistics.errored = True
             self.sequencing_statistics.error_message = "Flowcell name is required. This may be old FASTQ data, please provide a name with -n."
             sys.exit("Flowcell name is required. This may be old FASTQ data, please provide a name with -n.")
-        # fixme manual get
         flowcell = self.minotour_api.get_json(EndPoint.FLOWCELL, base_id=flowcell_name,
                                               params="search_criteria=name")["data"]
         if not flowcell:
@@ -237,7 +236,6 @@ class RunDataTracker:
             has_fastq = False if self.args.skip_sequence else True
             key = "sample_id" if "sample_id" in description_dict else "sampleid"
             run_name = description_dict[key] if key in description_dict else self.args.run_name_manual
-            # fixme manual post
             payload = {
                 "name": run_name,
                 "sample_name": run_name,
@@ -303,7 +301,7 @@ class RunDataTracker:
         #     headers=self.header,
         #     json=payload,
         # )
-        for _ in range(5):
+        for _ in range(3):
             log.error("HELP - 1D^2 not supported, contact @mattloose on twitter")
 
     def check_1d2(self, read_id):

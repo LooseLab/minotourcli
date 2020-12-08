@@ -247,7 +247,6 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
         # if directory
         if os.path.isdir(path):
             log.info("caching existing fastq files in: {}".format(path))
-            # fixme swap in with sequencing statistics
             sequencing_statistics.fastq_message = "caching existing fastq files in: {}".format(path)
             ## ToDo Consider moving these to top level
             novel_run_set = set()
