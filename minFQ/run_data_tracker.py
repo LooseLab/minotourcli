@@ -335,7 +335,7 @@ class RunDataTracker:
         """
         barcode_name = fastq_read_payload["barcode_name"]
         rejected_barcode_name = fastq_read_payload["rejected_barcode_name"]
-        run_id = fastq_read_payload["runid"]
+        run_id = fastq_read_payload["run_id"]
         read_id = fastq_read_payload["read_id"]
         fastq_read_payload["run"] = self.run["id"]
         # Here we are going to create the sequenced/unblocked barcodes and read barcode
