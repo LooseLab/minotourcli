@@ -7,12 +7,14 @@ from google.protobuf.json_format import MessageToJson
 import pytz
 from grpc import RpcError
 from urllib.parse import urlparse
+from pprint import pformat
 
 from minknow_api.protocol_pb2 import ProtocolRunUserInfo
 
 from minFQ.endpoints import EndPoint
 
-log = logging.getLogger("minknow_connection")
+log = logging.getLogger(__name__)
+logger = logging.getLogger("special_times")
 
 
 def check_warnings(device_type, minknow_version):
@@ -487,6 +489,7 @@ class LiveMonitoringActions(RpcSafeConnection):
             "estimated_selected_bases": self.acquisition_data.yield_summary.estimated_selected_bases,
         }
         payload.update(counted)
+        logger.info("Payload is \n{}".format(pformat(payload)))
         if self.histogram_data:
             try:
                 payload.update(
@@ -503,16 +506,17 @@ class LiveMonitoringActions(RpcSafeConnection):
                     }
                 )
             except IndexError as e:
-                log.error(e)
+                logger.warning("Problem accessing the histogram data")
+                logger.error(e)
         if self.acquisition_data:
             payload.update(
                 {"basecalled_bases": int(self.acquisition_data.yield_summary.basecalled_pass_bases) + int(self.acquisition_data.yield_summary.basecalled_fail_bases),
                  "basecalled_fail_read_count": self.acquisition_data.yield_summary.basecalled_fail_read_count,
                  "basecalled_pass_read_count": self.acquisition_data.yield_summary.basecalled_pass_read_count}
             )
-
+        logger.info("Payload before sending is {}".format(pformat(payload)))
         result = self.minotour_api.post(
             EndPoint.MINION_RUN_STATS,
             json=payload, base_id=self.run_primary_key
         )
-        log.debug("This is our result: {}".format(result))
+        logger.info("This is our result: {}".format(pformat(result)))

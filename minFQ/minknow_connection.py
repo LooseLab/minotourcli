@@ -6,8 +6,7 @@ import time
 from grpc import RpcError
 import minknow_api
 from minknow_api.manager import Manager
-from minknow_api.acquisition_pb2 import AcquisitionState, MinknowStatus
-from minknow_api.protocol_pb2 import ProtocolState, ProtocolRunUserInfo
+from minknow_api.acquisition_pb2 import AcquisitionState
 from minknow_api.device import get_device_type
 
 from minFQ.endpoints import EndPoint
@@ -18,6 +17,7 @@ from minFQ.minknow_connection_utils import (
 )
 
 log = logging.getLogger(__name__)
+logger = logging.getLogger("special_times")
 
 
 class DeviceMonitor(LiveMonitoringActions):
@@ -302,7 +302,7 @@ class DeviceMonitor(LiveMonitoringActions):
 
         """
         while self.run_bool:
-            log.debug("Checking run info")
+            logger.info("Checking run info - still alive")
             self.acquisition_data = self.get_acquisition_data()
             self.temperature_data = self.api_connection.device.get_temperature()
             # ToDo: Check this code on a promethION.
@@ -316,7 +316,7 @@ class DeviceMonitor(LiveMonitoringActions):
                 self.run_information = (
                     self.api_connection.acquisition.get_current_acquisition_run()
                 )
-                log.debug("running update minion stats")
+                logger.info("running update minion stats - run primary key is {}".format(self.run_primary_key))
                 if self.run_primary_key:
                     self.update_minion_stats()
             time.sleep(self.interval)
