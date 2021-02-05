@@ -30,7 +30,7 @@ def start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, he
     args: argparse.NameSpace
         The command line arguments that were passed to the script
     log: logging.Logger
-        The logger for this cript
+        The logger for this script
     header: dict
         The dictionary with headers for the requests, including authentiction
     minotour_api: minFQ.minotourapi.MinotourAPI
@@ -138,6 +138,12 @@ def main():
     # Get the arguments namespace
     args = parser.parse_args()
     log = configure_logging(getattr(logging, args.loglevel))
+    logger = logging.getLogger("special_times")
+    fh = logging.FileHandler('min_con_qc_tests.log')
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
     log.info("Initialising minFQ.")
     header = {
         "Authorization": "Token {}".format(args.api_key),
