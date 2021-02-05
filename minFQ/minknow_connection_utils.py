@@ -13,7 +13,7 @@ from minknow_api.protocol_pb2 import ProtocolRunUserInfo
 
 from minFQ.endpoints import EndPoint
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("minFQ")
 logger = logging.getLogger("special_times")
 
 

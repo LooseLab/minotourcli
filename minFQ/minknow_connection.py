@@ -16,7 +16,7 @@ from minFQ.minknow_connection_utils import (
     LiveMonitoringActions,
 )
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("minFQ")
 logger = logging.getLogger("special_times")
 
 

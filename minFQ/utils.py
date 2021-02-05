@@ -372,13 +372,14 @@ def configure_logging(log_level):
     # define a Handler which writes INFO messages or higher to the sys.stderr
     console = logging.StreamHandler()
     console.setLevel(log_level)
-    # set a format which is simpler for console use
+    # # set a format which is simpler for console use
     formatter = logging.Formatter("%(levelname)-8s %(message)s")
-    # tell the handler to use this format
+    # # tell the handler to use this format
     console.setFormatter(formatter)
-    # add the handler to the root logger
-    logging.getLogger("").addHandler(console)
-    log = logging.getLogger(__name__)
+    # # add the handler to the root logger
+    # logging.getLogger("").addHandler(console)
+    log = logging.getLogger("minFQ")
+    log.addHandler(console)
     return log
 
 

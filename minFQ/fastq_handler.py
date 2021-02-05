@@ -21,7 +21,7 @@ from minFQ.fastq_handler_utils import (
 )
 from watchdog.events import FileSystemEventHandler
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("minFQ")
 
 
 # ##Function modified from https://raw.githubusercontent.com/lh3/readfq/master/readfq.py

@@ -8,7 +8,7 @@ import numpy as np
 from minFQ.endpoints import EndPoint
 from minFQ.run_data_tracker import RunDataTracker
 
-log = logging.getLogger("fastq_handler")
+log = logging.getLogger("minFQ")
 class OpenLine:
     def __init__(self, fp, start=1, number=-1, f=open, f_kwds=None):
         """
