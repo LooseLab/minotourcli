@@ -365,6 +365,7 @@ def configure_logging(log_level):
     logging.basicConfig(
         format="%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s",
         filename="minFQ.log",
+        filemode="w",
         # level=os.environ.get('LOGLEVEL', 'INFO')
         level=log_level,
     )
