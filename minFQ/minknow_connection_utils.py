@@ -276,7 +276,6 @@ class LiveMonitoringActions(RpcSafeConnection):
         # set the device to active as it is currently sequencing
         if str(self.acquisition_status) in {"ACQUISITION_RUNNING", "ACQUISITION_STARTING"}:
             self.device_active = True
-            return self.device_active
 
     def disconnect_nicely(self):
         """
