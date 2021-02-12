@@ -187,7 +187,7 @@ def parse_fastq_file(
     fastq_path: str
         Path to the fastq file to parse
     run_dict: dict
-        Dictionary conating the run 
+        Dictionary containing the run
     args: argparse.NameSpace
         The namespace of the parsed command line args
     header: dict
