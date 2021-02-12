@@ -11,16 +11,27 @@ from minFQ.fastq_handler import FastqHandler
 import configargparse
 from watchdog.observers.polling import PollingObserver as Observer
 from minFQ.minotourapi import MinotourAPI
-from minFQ.utils import clear_lines, add_arguments_to_parser, configure_logging, validate_args, \
-    check_server_compatibility, SequencingStatistics, list_minotour_options, check_job_from_client, \
-    write_out_fastq_stats
+from minFQ.utils import (
+    clear_lines,
+    add_arguments_to_parser,
+    configure_logging,
+    validate_args,
+    check_server_compatibility,
+    SequencingStatistics,
+    list_minotour_options,
+    check_job_from_client,
+    write_out_fastq_stats,
+)
 
-#from minFQ.minknowconnection import MinknowConnectRPC
+# from minFQ.minknowconnection import MinknowConnectRPC
 
 
 root_directory = os.path.dirname(os.path.realpath(__file__))
 
-def start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, header, minotour_api):
+
+def start_minknow_and_basecalled_monitoring(
+    sequencing_statistics, args, log, header, minotour_api
+):
     """
     Start the minKnow monitoring and basecalled data monitoring in accordance with arguments passed by user
     Parameters
@@ -52,10 +63,14 @@ def start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, he
         # if we are connecting to minKNOW
         if not args.no_minknow:
             # this block is going to handle the running of minknow monitoring by the client.
-            minknow_connection = MinionManager(args=args, header=header, sequencing_statistics=sequencing_statistics)
+            minknow_connection = MinionManager(
+                args=args, header=header, sequencing_statistics=sequencing_statistics
+            )
             log.info("MinKNOW RPC Monitoring Working.")
         sys.stdout.write("To stop minFQ use CTRL-C.\n")
-        event_handler = FastqHandler(args, header, runs_being_monitored_dict, sequencing_statistics, minotour_api)
+        event_handler = FastqHandler(
+            args, header, runs_being_monitored_dict, sequencing_statistics, minotour_api
+        )
         observer = Observer()
         observer.start()
         try:
@@ -64,12 +79,20 @@ def start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, he
                 if not args.no_fastq and sequencing_statistics.directory_watch_list:
                     for folder in sequencing_statistics.directory_watch_list:
                         if folder and folder not in already_watching_set:
-                            # We have a new folder that hasn't been added.
-                            # We need to add this to our list to schedule and catalogue the files.
-                            sequencing_statistics.update = True
-                            already_watching_set.add(folder)
-                            event_handler.addfolder(folder)
-                            log.info("FastQ Monitoring added for {}".format(folder))
+                            # check that the folder exists, before adding it to be scheduled
+                            if os.path.exists(folder):
+                                # We have a new folder that hasn't been added.
+                                # We need to add this to our list to schedule and catalogue the files.
+                                sequencing_statistics.update = True
+                                already_watching_set.add(folder)
+                                event_handler.addfolder(folder)
+                                log.info("FastQ Monitoring added for {}".format(folder))
+                            else:
+                                log.warning(
+                                    "Waiting for minKNOW to create folder {} before updating watchdog.".format(
+                                        folder
+                                    )
+                                )
                     if sequencing_statistics.update:
                         observer.unschedule_all()
                         for folder in sequencing_statistics.directory_watch_list:
@@ -77,15 +100,21 @@ def start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, he
                                 observer.schedule(
                                     event_handler, path=folder, recursive=True
                                 )
+                            else:
+                                log.warning(
+                                    "Tried to add {}, but folder most likely does not exist".format(
+                                        folder
+                                    )
+                                )
                         sequencing_statistics.update = False
-                    line_counter = write_out_fastq_stats(sequencing_statistics, line_counter)
+                    line_counter = write_out_fastq_stats(
+                        sequencing_statistics, line_counter
+                    )
 
                 if not args.no_minknow:
                     sys.stdout.write("MinKNOW Monitoring Status:\n")
                     sys.stdout.write(
-                        "Connected minIONs: {}\n".format(
-                            minknow_connection.count
-                        )
+                        "Connected minIONs: {}\n".format(minknow_connection.count)
                     )
                     line_counter += 2
 
@@ -127,7 +156,9 @@ def main():
         config_file = os.path.join(os.path.sep, sys.prefix, "minfq_windows.config")
     else:
         config_file = os.path.join(
-            os.path.sep, os.path.dirname(os.path.realpath("__file__")), "minfq_unix.config",
+            os.path.sep,
+            os.path.dirname(os.path.realpath("__file__")),
+            "minfq_unix.config",
         )
 
     parser = configargparse.ArgParser(
@@ -139,9 +170,11 @@ def main():
     args = parser.parse_args()
     log = configure_logging(getattr(logging, args.loglevel))
     logger = logging.getLogger("special_times")
-    fh = logging.FileHandler('min_con_qc_tests.log')
+    fh = logging.FileHandler("min_con_qc_tests.log")
     fh.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     fh.setFormatter(formatter)
     logger.addHandler(fh)
     log.info("Initialising minFQ.")
@@ -160,7 +193,10 @@ def main():
     # Below we perform checks if we are trying to set a job.
     if args.job is not None:
         check_job_from_client(args, log, minotour_api, parser)
-    start_minknow_and_basecalled_monitoring(sequencing_statistics, args, log, header, minotour_api)
+    start_minknow_and_basecalled_monitoring(
+        sequencing_statistics, args, log, header, minotour_api
+    )
+
 
 if __name__ == "__main__":
     main()
