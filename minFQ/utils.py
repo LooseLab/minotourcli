@@ -235,11 +235,11 @@ def write_out_minknow_info(stdscr, sequencing_statistics):
     )
     cols_y = sequencing_statistics.minknow_y + 4
     sequencing_statistics.update_minknow_cols_x()
+    stdscr.clrtobot()
     stdscr.addstr(cols_y, 0, "Position")
     stdscr.addstr(cols_y, 16, "Running")
     stdscr.addstr(cols_y, 32, "Run Status")
     stdscr.addstr(cols_y, 57, "Sample")
-    stdscr.clrtoeol()
     stdscr.addstr(
         cols_y, sequencing_statistics.minknow_sample_col_x, "Connection up Time"
     )
@@ -249,13 +249,11 @@ def write_out_minknow_info(stdscr, sequencing_statistics):
         stdscr.addstr(cols_y + index + 1, 32, value.get("acquisition_status", ""))
         stdscr.clrtoeol()
         stdscr.addstr(cols_y + index + 1, 57, value["sample_id"])
-        stdscr.clrtoeol()
         stdscr.addstr(
             cols_y + index + 1,
             sequencing_statistics.minknow_sample_col_x,
             str(value["up_time"]),
         )
-    stdscr.clrtobot()
 
     # "Position \t\t Running \t\t Sample \t\t Connection uptime")
 
