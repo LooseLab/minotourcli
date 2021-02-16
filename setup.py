@@ -47,7 +47,6 @@ setup(
         "validators",
         "grpcio-tools",
         "toml",
-        "rich"
     ],
     package_data={"minFQ": []},
     package_dir={"minFQ": "minFQ"},

@@ -6,7 +6,6 @@ import logging.handlers
 import time
 import curses
 
-from rich.console import Console
 
 from minFQ.minknow_connection import MinionManager
 from minFQ.fastq_handler import FastqHandler
@@ -23,7 +22,6 @@ from minFQ.utils import (
     check_job_from_client,
     write_out_minfq_info, write_out_minknow_info, write_out_fastq_info,
 )
-console = Console()
 
 
 def start_minknow_and_basecalled_monitoring(
@@ -151,8 +149,8 @@ def start_minknow_and_basecalled_monitoring(
         stdscr.keypad(False)
         curses.echo()
         curses.endwin()
-        console.log(repr(e))
-        console.log("Exiting - Will take a few seconds to close threads.")
+        print(repr(e))
+        print("Exiting - Will take a few seconds to close threads.")
         sys.exit(0)
 
 
@@ -265,6 +263,6 @@ MMMMMMMMMMMMMMMWXkdddddddxKWMMMMMMMMMXxdddddddkXWMMMMMMMMMMMMMMM\n""", curses.co
         curses.echo()
         curses.curs_set(1)
         curses.endwin()
-        console.log(e)
+        print(e)
         sys.exit(0)
 
