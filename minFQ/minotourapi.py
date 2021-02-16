@@ -19,7 +19,6 @@ class MinotourAPI:
         self.port_number = port_number
         self.request_headers = request_headers
         self.check_url()
-        self.test()
         self.minion_event_types = self.get_json(EndPoint.MINION_EVENT_TYPES)
 
     def check_url(self):
@@ -51,7 +50,7 @@ class MinotourAPI:
 
         """
         data = self.get(EndPoint.TEST)
-        log.debug("Successfully tested connection -> {}".format(data))
+        return "Tested connection -> {}\n".format(data)
 
     def _get(self, endpoint, params=None, **kwargs):
         """

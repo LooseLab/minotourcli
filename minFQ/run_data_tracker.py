@@ -5,6 +5,7 @@ from fastq files and upload to minotour.
 import logging
 import os
 import sys
+from collections import defaultdict
 
 from minFQ.endpoints import EndPoint
 from minFQ.minotourapi import MinotourAPI
@@ -271,6 +272,8 @@ class RunDataTracker:
         """
         if self.read_list:
             self.minotour_api.post(EndPoint.READS, json=self.read_list)
+        for read in self.read_list:
+            self.sequencing_statistics.fastq_info[read["run_id"]]["reads_uploaded"] += 1
         self.sequencing_statistics.reads_uploaded += len(self.read_list)
         # Refresh the read list
         self.read_list = []

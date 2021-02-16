@@ -2,8 +2,8 @@ import logging
 import os
 import sys
 import time
+from collections import defaultdict
 
-from minFQ.minFQ import CLIENT_VERSION
 from minFQ.endpoints import EndPoint
 from .version import __version__
 
@@ -14,6 +14,8 @@ class SequencingStatistics:
     """
 
     def __init__(self):
+        self.screen_num_rows = 0
+        self.screen_num_cols = 0
         self.files_seen = 0
         self.files_processed = 0
         self.files_skipped = 0
@@ -29,6 +31,114 @@ class SequencingStatistics:
         self.errored = False
         self.error_message = ""
         self.time_per_file = time.time()
+        self.minfq_info = {}
+        self.minfq_initialisation_time = time.time()
+        self.fastq_info = defaultdict(lambda: defaultdict(int))
+        self._connected_positions = {}
+        self.minfq_y = 2
+        self.minknow_y = 10
+        self._fastq_y = 16
+        self.minotour_url = ""
+        self.minknow_sample_col_x = 67
+        self.connected_positions_test = {
+            "MS00000": {
+                "device_id": "MS00000",
+                "running": "yes",
+                "sample_id": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "up_time": "01:00:36",
+            },
+            "MS00002": {
+                "device_id": "MS00002",
+                "running": "no",
+                "sample_id": "",
+                "up_time": "01:20:36",
+            },
+            "MS00003": {
+                "device_id": "MS00003",
+                "running": "yes",
+                "sample_id": "Hi_there_friends",
+                "up_time": "00:05:36",
+            },
+        }
+        self.fastq_info_test = {
+            "MS00000": {
+                "run_id": "ae9d6455f89107767ed80917b59f032d3e2037c6",
+                "skipped": 109,
+                "uploaded": 10000000,
+                "directory": "/fun/times/abound",
+            },
+            "MS00001": {
+                "run_id": "ae9d6455f89107767ed80917b59f032d3e2037c6",
+                "skipped": 109,
+                "uploaded": 30000,
+                "directory": "/fun/times/abound/2",
+            },
+            "MS00002": {
+                "run_id": "ae9d6455f89107767ed80917b59f032d3e2037c6",
+                "skipped": 19,
+                "uploaded": 102000000,
+                "directory": "/fun/times/abound/3",
+            },
+        }
+
+    @property
+    def fastq_y(self):
+        """
+        Return te number of ocnnected positions to calulcate where to write the fastq statistics
+        Returns
+        -------
+
+        """
+        return self._fastq_y + len(self._connected_positions)
+
+    @property
+    def connected_positions(self):
+        if self._connected_positions:
+            return {
+                key: {
+                    k: self.convert(time.time() - v) if isinstance(v, float) else v
+                    for k, v in value.items()
+                }
+                for key, value in self._connected_positions.items()
+            }
+        else:
+            return {}
+
+    def update_minknow_cols_x(self, minknow=True):
+        """
+        Update the minknow cols x finding the widest value of each column. If more than 64 chars truncate it.
+        Returns
+        -------
+        None or dict
+            Returns dict of char width if minknow is false
+        """
+        a = self.connected_positions if minknow else self.fastq_info_test
+        char_widths = {}
+        for position_values in a.values():
+            char_widths.update(
+                {
+                    key: len(str(inner_values))
+                    for key, inner_values in position_values.items()
+                    if len(str(inner_values)) > char_widths.get(key, 0)
+                }
+            )
+        if minknow:
+            if char_widths.get("sample_id", 0) > 16:
+                self.minknow_sample_col_x = 67 + char_widths["sample_id"] - 8
+            else:
+                self.minknow_sample_col_x = 67
+        else:
+            return char_widths
+
+    @property
+    def minfq_uptime(self):
+        """
+        How long this minFQ instance has been up
+        Returns
+        -------
+        str
+        """
+        return self.convert(time.time() - self.minfq_initialisation_time)
 
     @property
     def elapsed(self):
@@ -60,6 +170,166 @@ class SequencingStatistics:
             Hours:Minutes:Seconds format generated from given second amount since this file upload began
         """
         return self.convert(time.time() - self.time_per_file)
+
+
+def write_out_minfq_info(stdscr, sequencing_statistics):
+    """
+
+    Parameters
+    ----------
+    stdscr: _curses.window
+        curses window
+    sequencing_statistics: minFQ.utils.SequencingStatistics
+        Class tracking stats about minFQ
+    Returns
+    -------
+
+    """
+    stdscr.addstr(1, 0, "                     ")
+    stdscr.addstr(
+        sequencing_statistics.minfq_y,
+        0,
+        "MinFQ Stats\n------------------------------------------\n"
+        "MinFQ up time: {}\n"
+        "Connected to minoTour at: {}\n"
+        "Total FASTQ files Queued: {} \t\t Total Reads Queued: {}\n"
+        "Total FASTQ files Uploaded: {} \t\t Total Reads Uploaded: {}\n"
+        "Total FASTQ files Skipped: {} \t\t Total Reads Skipped: {}\n"
+        "".format(
+            sequencing_statistics.minfq_uptime,
+            sequencing_statistics.minotour_url,
+            sequencing_statistics.files_seen
+            - sequencing_statistics.files_processed
+            - sequencing_statistics.files_skipped,
+            sequencing_statistics.reads_seen
+            - sequencing_statistics.reads_uploaded
+            - sequencing_statistics.reads_skipped,
+            sequencing_statistics.files_processed,
+            sequencing_statistics.reads_uploaded,
+            sequencing_statistics.files_skipped,
+            sequencing_statistics.reads_skipped,
+        ),
+    )
+
+
+def write_out_minknow_info(stdscr, sequencing_statistics):
+    """
+    Write out information related to this minFQ instances connection to minKNOW
+    Parameters
+    ----------
+    stdscr: _curses.window
+        The window containing the terminal messages
+    sequencing_statistics: minFQ.utils.SequencingStatistics
+        class tracking the sequencing statistics of the run
+
+    Returns
+    -------
+    None
+    """
+    stdscr.addstr(
+        sequencing_statistics.minknow_y,
+        0,
+        "MinKNOW Stats\n---------------------------------------------\nPositions connected: {}\n".format(
+            len(sequencing_statistics.connected_positions)
+        ),
+    )
+    cols_y = sequencing_statistics.minknow_y + 4
+    sequencing_statistics.update_minknow_cols_x()
+    stdscr.addstr(cols_y, 0, "Position")
+    stdscr.addstr(cols_y, 16, "Running")
+    stdscr.addstr(cols_y, 32, "Run Status")
+    stdscr.addstr(cols_y, 57, "Sample")
+    stdscr.clrtoeol()
+    stdscr.addstr(
+        cols_y, sequencing_statistics.minknow_sample_col_x, "Connection up Time"
+    )
+    for index, value in enumerate(sequencing_statistics.connected_positions.values()):
+        stdscr.addstr(cols_y + index + 1, 0, value["device_id"])
+        stdscr.addstr(cols_y + index + 1, 16, value["running"])
+        stdscr.addstr(cols_y + index + 1, 32, value.get("acquisition_status", ""))
+        stdscr.clrtoeol()
+        stdscr.addstr(cols_y + index + 1, 57, value["sample_id"])
+        stdscr.clrtoeol()
+        stdscr.addstr(
+            cols_y + index + 1,
+            sequencing_statistics.minknow_sample_col_x,
+            str(value["up_time"]),
+        )
+    stdscr.clrtobot()
+
+    # "Position \t\t Running \t\t Sample \t\t Connection uptime")
+
+
+def write_out_fastq_info(stdscr, sequencing_statistics):
+    """
+    write out base-called data upload metrics
+    Parameters
+    ----------
+    stdscr: _curses.window
+        The window containing the terminal messages
+    sequencing_statistics: minFQ.utils.SequencingStatistics
+        class tracking the sequencing statistics of the run
+
+    Returns
+    -------
+    None
+
+    """
+    stdscr.addstr(
+        sequencing_statistics.fastq_y,
+        0,
+        "Base-called data upload stats\n------------------------------\nDirectories watched: {}\n".format(
+            len(sequencing_statistics.directory_watch_list)
+        ),
+    )
+    cols_y = sequencing_statistics.fastq_y + 4
+    # char_widths = sequencing_statistics.update_minknow_cols_x(False)
+    # sample_extra_width = char_widths.get("sample", 0)
+    if sequencing_statistics.directory_watch_list:
+        stdscr.addstr(cols_y, 0, "Run id")
+        stdscr.addstr(cols_y, 44, "Queued")
+        stdscr.addstr(cols_y, 59, "Uploaded")
+        stdscr.addstr(cols_y, 74, "Skipped")
+        stdscr.addstr(cols_y, 89, "Directory")
+        stdscr.addstr(cols_y + 1, 44, "Files/Reads")
+        stdscr.addstr(cols_y + 1, 59, "Files/Reads")
+        stdscr.addstr(cols_y + 1, 74, "Files/Reads")
+    else:
+        stdscr.addstr(cols_y, 0, "Run id")
+        stdscr.addstr(cols_y, 15, "Queued")
+        stdscr.addstr(cols_y, 30, "Uploaded")
+        stdscr.addstr(cols_y, 45, "Skipped")
+        stdscr.addstr(cols_y, 60, "Directory")
+        stdscr.addstr(cols_y + 1, 15, "Files/Reads")
+        stdscr.addstr(cols_y + 1, 30, "Files/Reads")
+        stdscr.addstr(cols_y + 1, 45, "Files/Reads")
+
+    for index, value in enumerate(sequencing_statistics.fastq_info.values()):
+        stdscr.addstr(cols_y + index + 2, 0, str(value.get("run_id", "")))
+        files_queued = (
+            value.get("files_seen", 0)
+            - value.get("files_processed", 0)
+            - value.get("files_skipped", 0)
+        )
+        reads_queued = (
+            value.get("reads_seen", 0)
+            - value.get("reads_uploaded", 0)
+            - value.get("reads_skipped", 0)
+        )
+        stdscr.addstr(
+            cols_y + index + 2, 44, "{}/{}".format(str(files_queued), str(reads_queued))
+        )
+        stdscr.addstr(
+            cols_y + index + 2,
+            59,
+            "{}/{}".format(
+                str(value.get("files_processed", 0)), str(value.get("reads_uploaded", 0))
+            ),
+        )
+        stdscr.addstr(cols_y + index + 2, 74, "{}/{}".format(
+            str(value.get("files_skipped", 0)), str(value.get("reads_skipped", 0)))
+        )
+        stdscr.addstr(cols_y + index + 2, 89, str(value.get("directory", 0)))
 
 
 def clear_lines(lines=1):
@@ -330,22 +600,28 @@ def write_out_fastq_stats(upload_stats, line_counter):
     sys.stdout.write("FastQ Upload Status:\n")
     sys.stdout.write(
         "Files queued/Processed/Skipped/Up time/This file:{}/{}/{}/{}/{}\n".format(
-            upload_stats.files_seen - upload_stats.files_processed - upload_stats.files_skipped,
+            upload_stats.files_seen
+            - upload_stats.files_processed
+            - upload_stats.files_skipped,
             upload_stats.files_processed,
             upload_stats.files_skipped,
             upload_stats.elapsed,
-            upload_stats.per_file
+            upload_stats.per_file,
         )
     )
     sys.stdout.write(
         "New reads seen/Uploaded/Skipped:{}/{}/{}\n".format(
-            upload_stats.reads_seen - upload_stats.reads_uploaded - upload_stats.reads_skipped,
+            upload_stats.reads_seen
+            - upload_stats.reads_uploaded
+            - upload_stats.reads_skipped,
             upload_stats.reads_uploaded,
             upload_stats.reads_skipped,
         )
     )
     sys.stdout.write(
-        "Monitoring the following directories: {}\n".format(upload_stats.directory_watch_list)
+        "Monitoring the following directories: {}\n".format(
+            upload_stats.directory_watch_list
+        )
     )
     return line_counter + 5
 
@@ -370,56 +646,55 @@ def configure_logging(log_level):
         level=log_level,
     )
     # define a Handler which writes INFO messages or higher to the sys.stderr
-    console = logging.StreamHandler()
-    console.setLevel(log_level)
-    # # set a format which is simpler for console use
-    formatter = logging.Formatter("%(levelname)-8s %(message)s")
-    # # tell the handler to use this format
-    console.setFormatter(formatter)
-    # # add the handler to the root logger
-    # logging.getLogger("").addHandler(console)
     log = logging.getLogger("minFQ")
-    log.addHandler(console)
     return log
 
 
-def validate_args(args, parser):
+def validate_args(args):
     """
     Check the args before setting up all connections. Error out if any mistakes are found.
     Parameters
     ----------
     args: argparse.Namespace
         Namespace for chosen arguments after parsing
-    parser: configargparse.ArgumentParser
-        command line argument parser
     Returns
     -------
     None
     """
+    error_string = None
     if args.watch_dir:
         if not os.path.exists(args.watch_dir):
-            parser.error(
-                "The watch directory specified {} does not exists. Please check specified path.".format(args.watch_dir)
+            error_string = "The watch directory specified {} does not exists. Please check specified path.".format(
+                args.watch_dir
             )
+
+        if args.no_fastq:
+            error_string = (
+                "If not monitoring FASTQ please do no provide a watch directory."
+            )
+
     if args.toml is not None:
         if not os.path.exists(args.toml):
-            parser.error(
-                "Toml file not found in this location. "
-                "Please check that the specified file path is correct."
-            )
+            error_string = "Toml file not found in this location. Please check that the specified file path is correct."
+
     if args.unblocks is not None:
         if not os.path.exists(args.unblocks):
-            parser.error(
-                "Unblocked read ids file not found in this location. "
-                "Please check that the specified file path is correct."
+            error_string = (
+                "Unblocked read ids file not found in this location."
+                " Please check that the specified file path is correct."
             )
     if args.no_fastq and args.no_minknow:
-        parser.error("You must monitor either FastQ or MinKNOW.\n This program will now exit.")
-    if not args.no_minknow and args.ip is None:
-        parser.error(
-            "To monitor MinKNOW in real time you must specify the IP address of your local machine.\nUsually: -ip 127.0.0.1"
+        error_string = (
+            "You must monitor either FastQ or MinKNOW.\n This program will now exit."
         )
-    return None
+    if not args.no_minknow and args.ip is None:
+        error_string = (
+            "To monitor MinKNOW in real time you must specify the IP address"
+            " of your local machine.\nUsually: -ip 127.0.0.1"
+        )
+
+    if error_string:
+        raise Exception(error_string)
 
 
 def check_server_compatibility(minotour_api, log):
@@ -433,15 +708,20 @@ def check_server_compatibility(minotour_api, log):
         Logger for this script
     Returns
     -------
-    None
+    str
     """
     version = minotour_api.get_json(EndPoint.VERSION)
     clients = version["clients"]
-    if CLIENT_VERSION not in clients:
+    if not any([__version__.startswith(client) for client in clients]):
         log.error(
             "Server does not support this client. Please change the client to a previous version or upgrade server."
         )
-        sys.exit()
+        raise Exception(
+            "Server does not support this client. "
+            "Please change the client to a previous version or upgrade server."
+        )
+    else:
+        return f"minFQ version: {__version__} is compatible with minoTour server specified.\n"
 
 
 def list_minotour_options(log, args, minotour_api):
@@ -469,11 +749,11 @@ def list_minotour_options(log, args, minotour_api):
     for job_info in jobs:
         if not job_info["name"].startswith("Delete"):
             log.info(
-                "\t{}:{}".format(job_info["id"], job_info["name"].lower().replace(" ", "_"))
+                "\t{}:{}".format(
+                    job_info["id"], job_info["name"].lower().replace(" ", "_")
+                )
             )
-    log.info(
-        "If you wish to run an alignment, the following references are available:"
-    )
+    log.info("If you wish to run an alignment, the following references are available:")
     for reference in references:
         log.info("\t{}:{}".format(reference["id"], reference["name"]))
     log.info(
@@ -507,7 +787,9 @@ def check_job_from_client(args, log, minotour_api, parser):
     jobs = minotour_api.get_json(EndPoint.TASK_TYPES, params={"cli": True})["data"]
     jobs = [job["id"] for job in jobs]
     if args.job not in jobs:
-        parser.error("Can't find the job type chosen. Please double check that it is the same ID shown by --list.")
+        parser.error(
+            "Can't find the job type chosen. Please double check that it is the same ID shown by --list."
+        )
 
     if args.job == "minimap2" or args.job == 4:
         if args.reference == None:
@@ -524,7 +806,5 @@ def check_job_from_client(args, log, minotour_api, parser):
             params = {"api_key": args.api_key, "cli": True}
             targets = minotour_api.get_json(EndPoint.TARGET_SETS, params=params)
             if args.targets > len(targets):
-                log.error(
-                    "Target set not found. Please check spelling and try again."
-                )
+                log.error("Target set not found. Please check spelling and try again.")
                 sys.exit(0)

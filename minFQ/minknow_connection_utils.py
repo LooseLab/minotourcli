@@ -179,6 +179,7 @@ class LiveMonitoringActions(RpcSafeConnection):
             if file_path in self.sequencing_statistics.directory_watch_list:
                 time.sleep(self.long_interval)
                 self.sequencing_statistics.directory_watch_list.remove(file_path)
+                self.sequencing_statistics.fastq_info.pop(str(self.run_information.run_id))
                 self.sequencing_statistics.update = True
         log.debug("run stop observed")
 
@@ -209,6 +210,8 @@ class LiveMonitoringActions(RpcSafeConnection):
             if not self.args.no_fastq:
                 if str(os.path.normpath(FolderPath)) not in self.sequencing_statistics.directory_watch_list:
                     self.sequencing_statistics.directory_watch_list.append(str(os.path.normpath(FolderPath)))
+                    self.sequencing_statistics.fastq_info[str(self.run_information.run_id)]["directory"] = str(os.path.normpath(FolderPath))
+                    self.sequencing_statistics.fastq_info[str(self.run_information.run_id)]["run_id"] = str(self.run_information.run_id)
             self.update_minion_run_info()
         except Exception as err:
             log.error("Problem starting run {}", err)
@@ -284,7 +287,6 @@ class LiveMonitoringActions(RpcSafeConnection):
         -------
 
         """
-        log.debug("Trying to disconnect nicely")
         self.run_bool = False
         self.acquisition_status = "unplugged"
         self.update_minion_event()

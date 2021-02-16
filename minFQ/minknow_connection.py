@@ -75,11 +75,16 @@ class DeviceMonitor(LiveMonitoringActions):
         # Updated in Flowcell monitor thread
         self.flowcell_data = self.api_connection.device.get_flow_cell_info()
         # Get minotour minion record or create it if we don't have one
-        self.minion = self.minotour_api.get_or_create(EndPoint.GET_MINION, params="search_criteria=name",
-                                                      base_id=self.position_id,
-                                                      json={"minION_name": self.position_id,
-                                                            "name": self.position_id}, no_id=True)
-        self.minion_status = self.minotour_api.get_json(EndPoint.MINION_STATUS, base_id=self.minion["id"])
+        self.minion = self.minotour_api.get_or_create(
+            EndPoint.GET_MINION,
+            params="search_criteria=name",
+            base_id=self.position_id,
+            json={"minION_name": self.position_id, "name": self.position_id},
+            no_id=True,
+        )
+        self.minion_status = self.minotour_api.get_json(
+            EndPoint.MINION_STATUS, base_id=self.minion["id"]
+        )
         self.minotour_run_url = ""
         self.run_primary_key = ""
         self.run_bool = True
@@ -120,7 +125,9 @@ class DeviceMonitor(LiveMonitoringActions):
 
         """
         while self.run_bool:
-            data = self.minotour_api.get_json(EndPoint.MINION_CONTROL, base_id=self.minion["id"])
+            data = self.minotour_api.get_json(
+                EndPoint.MINION_CONTROL, base_id=self.minion["id"]
+            )
             log.debug(data)
             time.sleep(self.interval)
             for job in data:
@@ -168,7 +175,12 @@ class DeviceMonitor(LiveMonitoringActions):
                         )
                 else:
                     continue
-                self.minotour_api.post(EndPoint.MINION_CONTROL, base_id=self.minion["id"], append_id=job["id"], json={})
+                self.minotour_api.post(
+                    EndPoint.MINION_CONTROL,
+                    base_id=self.minion["id"],
+                    append_id=job["id"],
+                    json={},
+                )
 
     def flowcell_monitor_thread(self):
         """
@@ -201,9 +213,7 @@ class DeviceMonitor(LiveMonitoringActions):
                 purpose = self.api_connection.protocol.get_protocol_purpose().purpose
                 if purpose == "sequencing_run":
                     # We need to test if we are doing basecalling or not.
-                    self.run_information = (
-                        self.get_current_acquisition_run()
-                    )
+                    self.run_information = self.get_current_acquisition_run()
                     self.base_calling_enabled = False
                     if self.run_information:
                         self.base_calling_enabled = (
@@ -219,7 +229,8 @@ class DeviceMonitor(LiveMonitoringActions):
                         for histogram_event in histogram_stream:
                             self.histogram_data = histogram_event
                             if self.acquisition_status not in {
-                                "ACQUISITION_RUNNING", "ACQUISITION_STARTING"
+                                "ACQUISITION_RUNNING",
+                                "ACQUISITION_STARTING",
                             }:
                                 break
                     except Exception as e:
@@ -239,7 +250,7 @@ class DeviceMonitor(LiveMonitoringActions):
         while self.run_bool:
             if str(self.acquisition_status) in {
                 "ACQUISITION_RUNNING",
-                "ACQUISITION_STARTING"
+                "ACQUISITION_STARTING",
             }:
                 purpose = self.api_connection.protocol.get_protocol_purpose().purpose
                 if purpose == "sequencing_run":
@@ -257,7 +268,7 @@ class DeviceMonitor(LiveMonitoringActions):
                                 ] = channel.state_name
                         if str(self.acquisition_status) not in {
                             "ACQUISITION_RUNNING",
-                            "ACQUISITION_STARTING"
+                            "ACQUISITION_STARTING",
                         }:
                             break
                     except Exception as e:
@@ -278,6 +289,7 @@ class DeviceMonitor(LiveMonitoringActions):
                 self.acquisition_status = AcquisitionState.Name(
                     acquisition_status.state
                 )
+                self.sequencing_statistics._connected_positions[self.position_id]["acquisition_status"] = str(self.acquisition_status)
                 if not self.device_active and str(self.acquisition_status) in {
                     "ACQUISITION_RUNNING",
                     "ACQUISITION_STARTING",
@@ -285,12 +297,15 @@ class DeviceMonitor(LiveMonitoringActions):
                 }:
                     self.device_active = True
                     self.run_start()
+                    self.sequencing_statistics._connected_positions[self.position_id]["sample_id"] = str(self.sample_id.sample_id.value)
+                    self.sequencing_statistics._connected_positions[self.position_id]["up_time"] = time.time()
                 if (
                     self.device_active
                     and str(self.acquisition_status) == "ACQUISITION_COMPLETED"
                 ):
                     self.device_active = False
                     self.run_stop()
+                    self.sequencing_statistics._connected_positions[self.position_id]["sample_id"] = ""
                 log.debug(self.acquisition_status)
 
     def run_information_monitor_thread(self):
@@ -312,11 +327,18 @@ class DeviceMonitor(LiveMonitoringActions):
             self.run_info_api = self.get_run_info()
             self.sample_id = self.get_run_info_sample_name()
             self.update_minion_info()
-            if str(self.acquisition_status) in {"ACQUISITION_RUNNING", "ACQUISITION_STARTING"}:
+            if str(self.acquisition_status) in {
+                "ACQUISITION_RUNNING",
+                "ACQUISITION_STARTING",
+            }:
                 self.run_information = (
                     self.api_connection.acquisition.get_current_acquisition_run()
                 )
-                logger.info("running update minion stats - run primary key is {}".format(self.run_primary_key))
+                logger.info(
+                    "running update minion stats - run primary key is {}".format(
+                        self.run_primary_key
+                    )
+                )
                 if self.run_primary_key:
                     self.update_minion_stats()
             time.sleep(self.interval)
@@ -344,9 +366,11 @@ class DeviceMonitor(LiveMonitoringActions):
                     "timestamp": message.time.ToDatetime().strftime(
                         "%Y-%m-%d %H:%M:%S.%f"
                     )[:-3],
-                    "run": self.minotour_run_url
+                    "run": self.minotour_run_url,
                 }
-                self.minotour_api.post(EndPoint.MINION_MESSAGES, base_id=self.minion["id"], json=payload)
+                self.minotour_api.post(
+                    EndPoint.MINION_MESSAGES, base_id=self.minion["id"], json=payload
+                )
 
 
 class MinionManager(Manager):
@@ -408,17 +432,25 @@ class MinionManager(Manager):
             for position in self.flow_cell_positions():
                 # print (position)
                 device_id = position.name
-                if device_id not in self.connected_positions and position.running:
-                    # TODO note that we cannot connect to a remote instance without an ip websocket
-                    self.connected_positions[device_id] = DeviceMonitor(
-                        self.args,
-                        position.connect(),
-                        self.header,
-                        device_id,
-                        self.sequencing_statistics,
-                    )
+                if device_id not in self.connected_positions:
+                    running = "yes" if position.running else "no"
+                    self.sequencing_statistics._connected_positions[device_id] = {
+                        "device_id": device_id,
+                        "running": running,
+                        "sample_id": "",
+                        "up_time": time.time(),
+                    }
+                    if position.running:
+                        # TODO note that we cannot connect to a remote instance without an ip websocket
+                        self.connected_positions[device_id] = DeviceMonitor(
+                            self.args,
+                            position.connect(),
+                            self.header,
+                            device_id,
+                            self.sequencing_statistics,
+                        )
+
             time.sleep(5)
-        print("Stopped successfully.")
 
     def stop_monitoring(self):
         """
