@@ -175,6 +175,7 @@ def parse_fastq_record(
         run_dict[fastq_read["run_id"]].add_read(fastq_read)
     else:
         sequencing_statistic.reads_skipped += 1
+        sequencing_statistic.fastq_info[fastq_read["run_id"]]["reads_skipped"] += 1
 
 
 def parse_fastq_file(
@@ -216,6 +217,7 @@ def parse_fastq_file(
         fastq_file = minotour_api.post(
             EndPoint.FASTQ_FILE, json=payload, base_id=run_id
         )
+    sequencing_stats.fastq_info[run_id]["run_id"] = run_id
     counter = 0
     # fq = pyfastx.Fastq(fastq_path)
     # gen = (read for read in fq)
@@ -226,6 +228,7 @@ def parse_fastq_file(
             description_dict = parse_fastq_description(desc)
             counter += 1
             sequencing_stats.reads_seen += 1
+            sequencing_stats.fastq_info[run_id]["reads_seen"] += 1
             sequencing_stats.fastq_message = "processing read {}".format(counter)
             try:
                 ### We haven't seen this run before - so we need to check stuff.
@@ -279,6 +282,8 @@ def parse_fastq_file(
     except Exception as err:
         log.error("Problem with uploading file {}".format(err))
     sequencing_stats.time_per_file = time.time()
+    sequencing_stats.fastq_info[run_id]["files_processed"] += 1
+    sequencing_stats.fastq_info[run_id]["files_seen"] += 1
     return counter
 
 
@@ -385,6 +390,8 @@ class FastqHandler(FileSystemEventHandler):
             or event.src_path.endswith(".fq.gz")
         ):
             self.sequencing_statistic.files_seen += 1
+            run_id = get_runid(event.src_path)
+            self.sequencing_statistic.fastq_info[run_id]["files_seen"] += 1
             self.fastq_files_to_create[event.src_path] = time.time()
 
     def on_modified(self, event):
