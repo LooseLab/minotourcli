@@ -721,7 +721,7 @@ def check_server_compatibility(minotour_api, log):
             "Please change the client to a previous version or upgrade server."
         )
     else:
-        return f"minFQ version: {__version__} is compatible with minoTour server specified.\n"
+        return "minFQ version: {} is compatible with minoTour server specified.\n".format(__version__)
 
 
 def list_minotour_options(log, args, minotour_api):
