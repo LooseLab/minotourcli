@@ -266,6 +266,9 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
                         #### Currently just using size.
                         file_byte_size = get_file_size(os.path.join(path, f))
                         run_id = get_runid(os.path.join(path, f))
+                        sequencing_statistics.fastq_info[run_id]["files_seen"] += 1
+                        sequencing_statistics.fastq_info[run_id]["run_id"] = run_id
+                        sequencing_statistics.fastq_info[run_id]["directory"] = path
                         if (
                             run_id not in novel_run_set
                             and run_id not in seen_file_tracker.keys()
@@ -299,6 +302,7 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
                             if int(file_byte_size) == int(
                                 seen_file_tracker[run_id][check_file_path]
                             ):
+                                sequencing_statistics.fastq_info[run_id]["files_skipped"] += 1
                                 sequencing_statistics.files_skipped += 1
                             else:
                                 new_fastq_file_dict[filepath] = os.stat(filepath).st_mtime
