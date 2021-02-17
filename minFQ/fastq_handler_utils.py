@@ -242,6 +242,7 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
     """
     # Dictionary for tracking files
     new_fastq_file_dict = {}
+    store_path = path
     if not ignore_existing:
         counter = 0
         # if directory
@@ -268,7 +269,8 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
                         run_id = get_runid(os.path.join(path, f))
                         sequencing_statistics.fastq_info[run_id]["files_seen"] += 1
                         sequencing_statistics.fastq_info[run_id]["run_id"] = run_id
-                        sequencing_statistics.fastq_info[run_id]["directory"] = path
+                        if "directory" not in sequencing_statistics.fastq_info[run_id]:
+                            sequencing_statistics.fastq_info[run_id]["directory"] = store_path
                         if (
                             run_id not in novel_run_set
                             and run_id not in seen_file_tracker.keys()
