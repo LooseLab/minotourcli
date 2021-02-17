@@ -125,8 +125,8 @@ class SequencingStatistics:
                 }
             )
         if minknow:
-            if char_widths.get("sample_id", 0) > 16:
-                self.minknow_sample_col_x = 67 + char_widths["sample_id"] - 8
+            if char_widths.get("sample_id", 0) > 8:
+                self.minknow_sample_col_x = 67 + char_widths["sample_id"] -8
             else:
                 self.minknow_sample_col_x = 67
         else:

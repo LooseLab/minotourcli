@@ -283,7 +283,6 @@ def parse_fastq_file(
         log.error("Problem with uploading file {}".format(err))
     sequencing_stats.time_per_file = time.time()
     sequencing_stats.fastq_info[run_id]["files_processed"] += 1
-    sequencing_stats.fastq_info[run_id]["files_seen"] += 1
     return counter
 
 
