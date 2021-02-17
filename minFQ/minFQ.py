@@ -5,6 +5,7 @@ import logging
 import logging.handlers
 import time
 import curses
+import traceback
 
 
 from minFQ.minknow_connection import MinionManager
@@ -21,11 +22,12 @@ from minFQ.utils import (
     list_minotour_options,
     check_job_from_client,
     write_out_minfq_info, write_out_minknow_info, write_out_fastq_info,
+    refresh_pad
 )
 
 
 def start_minknow_and_basecalled_monitoring(
-    sequencing_statistics, args, log, header, minotour_api, stdscr
+    sequencing_statistics, args, log, header, minotour_api, stdscr, screen
 ):
     """
     Start the minKnow monitoring and basecalled data monitoring in accordance with arguments passed by user
@@ -43,6 +45,8 @@ def start_minknow_and_basecalled_monitoring(
         The minotourAPI class
     stdscr: _curses.window
         Curses window for printing out
+    screen: _curses.window
+        The main curses screen
     Returns
     -------
 
@@ -59,7 +63,7 @@ def start_minknow_and_basecalled_monitoring(
     if not args.no_minknow:
         # this block is going to handle the running of minknow monitoring by the client.
         stdscr.addstr("Connecting to minknow instance at {}".format(args.ip))
-        stdscr.refresh()
+        refresh_pad(screen, stdscr)
         minknow_connection = MinionManager(
             args=args, header=header, sequencing_statistics=sequencing_statistics
         )
@@ -67,7 +71,7 @@ def start_minknow_and_basecalled_monitoring(
     stdscr.clear()
     stdscr.addstr("To stop minFQ use CTRL-C.\n")
     stdscr.addstr("Fetching Data...\n")
-    stdscr.refresh()
+    refresh_pad(screen, stdscr)
     event_handler = FastqHandler(
         args, header, runs_being_monitored_dict, sequencing_statistics, minotour_api
     )
@@ -79,7 +83,7 @@ def start_minknow_and_basecalled_monitoring(
             write_out_minfq_info(stdscr, sequencing_statistics)
             write_out_minknow_info(stdscr, sequencing_statistics)
             write_out_fastq_info(stdscr, sequencing_statistics)
-            stdscr.refresh()
+            refresh_pad(screen, stdscr)
             if not args.no_fastq and sequencing_statistics.directory_watch_list:
                 for folder in sequencing_statistics.directory_watch_list:
                     if folder and folder not in already_watching_set:
@@ -124,7 +128,7 @@ def start_minknow_and_basecalled_monitoring(
             #         # )
             #         stdscr.refresh()
 
-            time.sleep(5)
+            time.sleep(0.5)
             # if not args.verbose:
             #     clear_lines(line_counter)
             if sequencing_statistics.errored:
@@ -161,9 +165,9 @@ def main():
     -------
 
     """
-    stdscr = curses.initscr()
-    # num_rows, num_cols = screen.getmaxyx()
-    # stdscr = curses.newpad(200, 200)
+    screen = curses.initscr()
+    num_rows, num_cols = screen.getmaxyx()
+    stdscr = curses.newpad(200, 200)
     stdscr.scrollok(True)
     curses.start_color()
     curses.use_default_colors()
@@ -190,14 +194,14 @@ def main():
     # Get the arguments namespace
     args = parser.parse_args()
     log = configure_logging(getattr(logging, args.loglevel))
-    stdscr.addstr(str("""Welcome to\n
+    stdscr.addstr(str("""Welcome to
            _      ______ _____ 
           (_)     |  ___|  _  |
  _ __ ___  _ _ __ | |_  | | | |
 | '_ ` _ \| | '_ \|  _| | | | |
 | | | | | | | | | | |   \ \/' /
 |_| |_| |_|_|_| |_\_|    \_/\_\ \n"""), curses.color_pair(2))
-    stdscr.refresh()
+    refresh_pad(screen, stdscr)
     header = {
         "Authorization": "Token {}".format(args.api_key),
         "Content-Type": "application/json",
@@ -235,18 +239,20 @@ MMMMMMMMMMMMMMMMMMWNx:,;xNMMMMMMMMMMMMNx;,:xNWMMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMNKko:;,,:xNMMMMMMMMMMNx:,,;:okKNMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMWXkdddddddxKWMMMMMMMMMXxdddddddkXWMMMMMMMMMMMMMMM\n""", curses.color_pair(4))
     stdscr.addstr("Welcome to minFQ, the upload client for minoTour.\n")
-    stdscr.refresh()
+    refresh_pad(screen, stdscr)
     try:
         validate_args(args)
         minotour_api = MinotourAPI(args.host_name, args.port_number, header)
         test_message = minotour_api.test()
         stdscr.addstr(test_message, curses.color_pair(1))
-        stdscr.refresh()
+        refresh_pad(screen, stdscr)
         compatibility_message = check_server_compatibility(minotour_api, log)
         stdscr.addstr(compatibility_message, curses.color_pair(2))
-        stdscr.refresh()
+        refresh_pad(screen, stdscr)
         ### List to hold folders we want to watch
         sequencing_statistics = SequencingStatistics()
+        sequencing_statistics.screen_num_cols = num_cols
+        sequencing_statistics.screen_num_rows = num_rows
         sequencing_statistics.minotour_url = "{}:{}".format(args.host_name, args.port_number)
         if args.list:
             list_minotour_options(log, args, minotour_api)
@@ -254,10 +260,9 @@ MMMMMMMMMMMMMMMWXkdddddddxKWMMMMMMMMMXxdddddddkXWMMMMMMMMMMMMMMM\n""", curses.co
         if args.job is not None:
             check_job_from_client(args, log, minotour_api, parser)
         start_minknow_and_basecalled_monitoring(
-            sequencing_statistics, args, log, header, minotour_api, stdscr
+            sequencing_statistics, args, log, header, minotour_api, stdscr, screen
         )
     except Exception as e:
-        stdscr.refresh()
         curses.nocbreak()
         stdscr.keypad(False)
         curses.echo()

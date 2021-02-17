@@ -1,4 +1,5 @@
 import logging
+import operator
 import os
 import sys
 import time
@@ -95,13 +96,13 @@ class SequencingStatistics:
     @property
     def connected_positions(self):
         if self._connected_positions:
-            return {
+            return dict(sorted({
                 key: {
                     k: self.convert(time.time() - v) if isinstance(v, float) else v
                     for k, v in value.items()
                 }
                 for key, value in self._connected_positions.items()
-            }
+            }.items(), key=operator.itemgetter(0)))
         else:
             return {}
 
@@ -171,6 +172,28 @@ class SequencingStatistics:
             Hours:Minutes:Seconds format generated from given second amount since this file upload began
         """
         return self.convert(time.time() - self.time_per_file)
+
+
+def refresh_pad(screen, pad):
+    """
+
+    Parameters
+    ----------
+    screen: _curses.window
+        Main curses we add the pad too
+    pad: _curses.window
+        Curses window
+    sequencing_stats: minFQ.utils.SequencingStatistics
+        Sequencing stats class stores info
+
+    Returns
+    -------
+    None
+    """
+    num_rows, num_cols = screen.getmaxyx()
+    pad.refresh(0, 0, 0, 0, num_rows-1, num_cols-1)
+    # sequencing_stats.screen_num_rows = num_rows
+    # sequencing_stats.screen_num_cols = num_cols
 
 
 def write_out_minfq_info(stdscr, sequencing_statistics):
@@ -282,8 +305,6 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
         ),
     )
     cols_y = sequencing_statistics.fastq_y + 4
-    # char_widths = sequencing_statistics.update_minknow_cols_x(False)
-    # sample_extra_width = char_widths.get("sample", 0)
     if sequencing_statistics.directory_watch_list:
         stdscr.addstr(cols_y, 0, "Run id")
         stdscr.addstr(cols_y, 44, "Queued")
@@ -351,7 +372,6 @@ def clear_lines(lines=1):
 
 
 def test(stdscr):
-    stdscr.refresh()
     curses.nocbreak()
     stdscr.keypad(False)
     curses.echo()
