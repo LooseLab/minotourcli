@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from collections import defaultdict
+import curses
 
 from minFQ.endpoints import EndPoint
 from .version import __version__
@@ -349,13 +350,25 @@ def clear_lines(lines=1):
         sys.stdout.write(clear_line)
 
 
-def add_arguments_to_parser(parser):
+def test(stdscr):
+    stdscr.refresh()
+    curses.nocbreak()
+    stdscr.keypad(False)
+    curses.echo()
+    curses.curs_set(1)
+    curses.endwin()
+    return __version__
+
+
+def add_arguments_to_parser(parser, stdscr):
     """
     Add command line arguments to the parser.
     Parameters
     ----------
     parser: configargparse.ArgumentParser
         The argument parser instance
+    stdscr: _curses.window
+        The curses window object
     Returns
     -------
     parser: configargparse.ArgumentParser
@@ -559,7 +572,7 @@ def add_arguments_to_parser(parser):
         dest="GUI",
     )
     parser.add_argument(
-        "-V", "--version", action="version", version="%(prog)s (" + __version__ + ")",
+        "-V", "--version", action="version", version=test(stdscr),
     )
 
     parser.add_argument(

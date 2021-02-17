@@ -186,7 +186,7 @@ def main():
         description="minFQ: A program to analyse minION fastq files in real-time or post-run and monitor the activity of MinKNOW.",
         default_config_files=[config_file],
     )
-    parser = add_arguments_to_parser(parser)
+    parser = add_arguments_to_parser(parser, stdscr)
     # Get the arguments namespace
     args = parser.parse_args()
     log = configure_logging(getattr(logging, args.loglevel))
