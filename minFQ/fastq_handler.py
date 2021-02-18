@@ -381,7 +381,7 @@ class FastqHandler(FileSystemEventHandler):
         # if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
         #     self.creates[event.src_path] = time.time()
 
-        log.debug("Processing file {}".format(event.src_path))
+        log.warning("Processing created file {}".format(event.src_path))
         # time.sleep(5)
         if (
             event.src_path.endswith(".fastq")
@@ -401,7 +401,7 @@ class FastqHandler(FileSystemEventHandler):
             or event.src_path.endswith(".fq")
             or event.src_path.endswith(".fq.gz")
         ):
-            log.debug("Modified file {}".format(event.src_path))
+            log.warning("Modified file {}".format(event.src_path))
             self.fastq_files_to_create[event.src_path] = time.time()
 
     def on_moved(self, event):
@@ -413,5 +413,5 @@ class FastqHandler(FileSystemEventHandler):
                 event.dest_path.endswith(".fq.gz"),
             )
         ):
-            log.debug("Modified file {}".format(event.dest_path))
+            log.warning("Modified file {}".format(event.dest_path))
             self.fastq_files_to_create[event.dest_path] = time.time()
