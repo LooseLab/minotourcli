@@ -75,6 +75,7 @@ class DeviceMonitor(LiveMonitoringActions):
         # Updated in Flowcell monitor thread
         self.flowcell_data = self.api_connection.device.get_flow_cell_info()
         # Get minotour minion record or create it if we don't have one
+        # todo bug here i'm quite sure for promethion
         self.minion = self.minotour_api.get_or_create(
             EndPoint.GET_MINION,
             params="search_criteria=name",
