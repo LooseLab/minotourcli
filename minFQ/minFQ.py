@@ -51,14 +51,13 @@ def start_minknow_and_basecalled_monitoring(
     -------
 
     """
-    already_watching_set = set()
     sequencing_statistics.read_count = 0
     runs_being_monitored_dict = {}
     if not args.no_fastq:
         # This block handles the fastq
         # Add our watchdir to our WATCHLIST
         if args.watch_dir is not None:
-            sequencing_statistics.directory_watch_list.append(args.watch_dir)
+            sequencing_statistics.to_watch_directory_set.append(args.watch_dir)
         # if we are connecting to minKNOW
     if not args.no_minknow:
         # this block is going to handle the running of minknow monitoring by the client.
@@ -84,18 +83,19 @@ def start_minknow_and_basecalled_monitoring(
             write_out_minknow_info(stdscr, sequencing_statistics)
             write_out_fastq_info(stdscr, sequencing_statistics)
             refresh_pad(screen, stdscr)
-            if not args.no_fastq and sequencing_statistics.directory_watch_list:
-                for folder in sequencing_statistics.directory_watch_list:
-                    if folder and folder not in already_watching_set:
+            if not args.no_fastq and sequencing_statistics.to_watch_directory_set: # tick
+                for folder in sequencing_statistics.to_watch_directory_set: # directory watchlist has the new run dir
+                    if folder and folder not in sequencing_statistics.watched_directory_set:
                         # check that the folder exists, before adding it to be scheduled
                         if os.path.exists(folder):
                             # We have a new folder that hasn't been added.
                             # We need to add this to our list to schedule and catalogue the files.
-                            sequencing_statistics.update = True
                             # TODO bug here where we never remove directories from the already watching set - eventually this would lead to a massive set of strings in this set if minFQ is never quit
-                            already_watching_set.add(folder)
+                            sequencing_statistics.watched_directory_set.add(folder)
                             event_handler.addfolder(folder)
                             log.info("FastQ Monitoring added for {}".format(folder))
+                            sequencing_statistics.to_watch_directory_set.remove(folder)
+                            sequencing_statistics.update = True
                         else:
                             log.warning(
                                 "Waiting for minKNOW to create folder {} before updating watchdog.".format(
@@ -104,7 +104,7 @@ def start_minknow_and_basecalled_monitoring(
                             )
                 if sequencing_statistics.update:
                     observer.unschedule_all()
-                    for folder in sequencing_statistics.directory_watch_list:
+                    for folder in sequencing_statistics.watched_directory_set:
                         if folder and os.path.exists(folder):
                             observer.schedule(
                                 event_handler, path=folder, recursive=True
@@ -116,21 +116,9 @@ def start_minknow_and_basecalled_monitoring(
                                 )
                             )
                     sequencing_statistics.update = False
-                # line_counter = write_out_fastq_stats(
-                #     sequencing_statistics
-                # )
 
-            # if not args.no_minknow:
-            #     # stdscr.write("MinKNOW Monitoring Status:\n")
-            #     for device in sequencing_statistics.connected_positions:
-            #         # stdscr.addstr(
-            #         #     "Connected minIONs: {}\n".format(device)
-            #         # )
-            #         stdscr.refresh()
+            time.sleep(1)
 
-            time.sleep(0.5)
-            # if not args.verbose:
-            #     clear_lines(line_counter)
             if sequencing_statistics.errored:
                 log.info("Errored - Will take a few seconds to clean clear_lines!")
                 log.error(sequencing_statistics.error_message)
@@ -139,7 +127,15 @@ def start_minknow_and_basecalled_monitoring(
                 if not args.no_fastq:
                     observer.stop()
                     observer.join()
+                observer.stop()
+                observer.join()
                 event_handler.stopt()
+                curses.nocbreak()
+                stdscr.keypad(False)
+                curses.echo()
+                curses.endwin()
+                print(repr(sequencing_statistics.error_message))
+                print("Exiting after error - Will take a few seconds to close threads.")
                 sys.exit(0)
 
     except (KeyboardInterrupt, Exception) as e:
