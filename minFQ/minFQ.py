@@ -22,7 +22,7 @@ from minFQ.utils import (
     list_minotour_options,
     check_job_from_client,
     write_out_minfq_info, write_out_minknow_info, write_out_fastq_info,
-    refresh_pad
+    refresh_pad, ascii_minotour
 )
 
 
@@ -80,6 +80,7 @@ def start_minknow_and_basecalled_monitoring(
         while 1:
             # todo these should be abstracted into one function as they are verrrry similar
             write_out_minfq_info(stdscr, sequencing_statistics)
+            ascii_minotour(stdscr)
             write_out_minknow_info(stdscr, sequencing_statistics)
             write_out_fastq_info(stdscr, sequencing_statistics)
             refresh_pad(screen, stdscr)
@@ -170,10 +171,10 @@ def main():
     stdscr.scrollok(True)
     curses.start_color()
     curses.use_default_colors()
-    curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
-    curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_BLUE, curses.COLOR_BLACK)
-    curses.init_pair(4, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+    curses.init_pair(1, curses.COLOR_GREEN, -1)
+    curses.init_pair(2, curses.COLOR_RED, -1)
+    curses.init_pair(3, curses.COLOR_BLUE, -1)
+    curses.init_pair(4, curses.COLOR_MAGENTA, -1)
     curses.noecho()
     stdscr.clear()
     if platform.system() == "Windows":  # MS

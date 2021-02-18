@@ -157,6 +157,33 @@ def refresh_pad(screen, pad):
     # sequencing_stats.screen_num_cols = num_cols
 
 
+def ascii_minotour(stdscr):
+    """
+    Add an ascii minotour in the top right because why not
+    Parameters
+    ----------
+    stdscr
+
+    Returns
+    -------
+
+    """
+    stdscr.addstr(0, 92, "     .                .",  curses.color_pair(2))
+    stdscr.addstr(1, 92, "     -+:...       ..:+=",  curses.color_pair(2))
+    stdscr.addstr(2, 92, "      :+*##%%%%%%##*+:",  curses.color_pair(2))
+    stdscr.addstr(3, 92, "    :-=+**.*%%%%#.**++=-.",  curses.color_pair(2))
+    stdscr.addstr(4, 92, " :*@@@@@@@-*%%%%%.@@@@@@@%=",  curses.color_pair(2))
+    stdscr.addstr(5, 92, "+@@@@@@@@@%.+%%#-+@@@@@@@@@*",  curses.color_pair(2))
+    stdscr.addstr(6, 92, "@@@@@%.-*@@@*==+%@@%- =@@@@@",  curses.color_pair(2))
+    stdscr.addstr(7, 92, ":@@@@#   :@@@@@@@@+   -@@@@=",  curses.color_pair(2))
+    stdscr.addstr(8, 92, " .+@@@+##-:@@@@@@+.*#=%@@#- ",  curses.color_pair(2))
+    stdscr.addstr(9, 92, "    =#@@@@ #@@@@@.=@@@%+.   ",  curses.color_pair(2))
+    stdscr.addstr(10, 92, "       :-.:*%%%%%- -:   ",  curses.color_pair(2))
+    stdscr.addstr(11, 92, "         +%%+--=#%#-        ",  curses.color_pair(2))
+    stdscr.addstr(12, 92, "        :##      *%+      ",  curses.color_pair(2))
+    stdscr.addstr(13, 92, "       .:=*:     +*-.",  curses.color_pair(2))
+
+
 def write_out_minfq_info(stdscr, sequencing_statistics):
     """
 
@@ -195,6 +222,7 @@ def write_out_minfq_info(stdscr, sequencing_statistics):
             sequencing_statistics.reads_skipped,
         ),
     )
+
 
 
 def write_out_minknow_info(stdscr, sequencing_statistics):
