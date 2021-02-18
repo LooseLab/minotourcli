@@ -85,6 +85,7 @@ def start_minknow_and_basecalled_monitoring(
             refresh_pad(screen, stdscr)
             if not args.no_fastq and sequencing_statistics.to_watch_directory_list: # tick
                 for folder in sequencing_statistics.to_watch_directory_list: # directory watchlist has the new run dir
+                    log.warning("Checking folder {} that is in our to watch directory".format(folder))
                     if folder and folder not in sequencing_statistics.watched_directory_set:
                         # check that the folder exists, before adding it to be scheduled
                         if os.path.exists(folder):
@@ -102,10 +103,12 @@ def start_minknow_and_basecalled_monitoring(
                                     folder
                                 )
                             )
+                log.warning("Updating observers is {}".format(sequencing_statistics.update))
                 if sequencing_statistics.update:
                     observer.unschedule_all()
                     for folder in sequencing_statistics.watched_directory_set:
                         if folder and os.path.exists(folder):
+                            log.warning("Scheduling observer for {}, which does exist".format(folder))
                             observer.schedule(
                                 event_handler, path=folder, recursive=True
                             )
