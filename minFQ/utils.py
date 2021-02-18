@@ -288,19 +288,19 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
             - value.get("reads_skipped", 0)
         )
         stdscr.addstr(
-            cols_y + index + 2, 44, "{}/{}".format(str(files_queued), str(reads_queued))
+            cols_y + index + 2, 15, "{}/{}".format(str(files_queued), str(reads_queued))
         )
         stdscr.addstr(
             cols_y + index + 2,
-            59,
+            30,
             "{}/{}".format(
                 str(value.get("files_processed", 0)), str(value.get("reads_uploaded", 0))
             ),
         )
-        stdscr.addstr(cols_y + index + 2, 74, "{}/{}".format(
+        stdscr.addstr(cols_y + index + 2, 45, "{}/{}".format(
             str(value.get("files_skipped", 0)), str(value.get("reads_skipped", 0)))
         )
-        stdscr.addstr(cols_y + index + 2, 89, str(value.get("directory", 0)))
+        stdscr.addstr(cols_y + index + 2, 60, str(value.get("directory", 0)))
 
 
 def clear_lines(lines=1):
