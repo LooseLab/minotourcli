@@ -29,7 +29,8 @@ class SequencingStatistics:
         self.update = False
         self.read_up_time = time.time()
         self.read_count = 0
-        self.directory_watch_list = []
+        self.to_watch_directory_set = set()
+        self.watched_directory_set = set()
         self.errored = False
         self.error_message = ""
         self.time_per_file = time.time()
@@ -42,46 +43,6 @@ class SequencingStatistics:
         self._fastq_y = 16
         self.minotour_url = ""
         self.minknow_sample_col_x = 67
-        self.connected_positions_test = {
-            "MS00000": {
-                "device_id": "MS00000",
-                "running": "yes",
-                "sample_id": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                "up_time": "01:00:36",
-            },
-            "MS00002": {
-                "device_id": "MS00002",
-                "running": "no",
-                "sample_id": "",
-                "up_time": "01:20:36",
-            },
-            "MS00003": {
-                "device_id": "MS00003",
-                "running": "yes",
-                "sample_id": "Hi_there_friends",
-                "up_time": "00:05:36",
-            },
-        }
-        self.fastq_info_test = {
-            "MS00000": {
-                "run_id": "ae9d6455f89107767ed80917b59f032d3e2037c6",
-                "skipped": 109,
-                "uploaded": 10000000,
-                "directory": "/fun/times/abound",
-            },
-            "MS00001": {
-                "run_id": "ae9d6455f89107767ed80917b59f032d3e2037c6",
-                "skipped": 109,
-                "uploaded": 30000,
-                "directory": "/fun/times/abound/2",
-            },
-            "MS00002": {
-                "run_id": "ae9d6455f89107767ed80917b59f032d3e2037c6",
-                "skipped": 19,
-                "uploaded": 102000000,
-                "directory": "/fun/times/abound/3",
-            },
-        }
 
     @property
     def fastq_y(self):
@@ -301,15 +262,15 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
         sequencing_statistics.fastq_y,
         0,
         "Base-called data upload stats\n------------------------------\nDirectories watched: {}\n".format(
-            len(sequencing_statistics.directory_watch_list)
+            len(sequencing_statistics.to_watch_directory_set)
         ),
     )
     cols_y = sequencing_statistics.fastq_y + 4
-    if sequencing_statistics.directory_watch_list:
+    if sequencing_statistics.to_watch_directory_set:
         stdscr.addstr(cols_y, 0, "Run id")
         stdscr.addstr(cols_y, 44, "Queued")
         stdscr.addstr(cols_y, 59, "Uploaded")
-        stdscr.addstr(cols_y, 74, "Skipped")
+        stdscr.addstr(cols_y, 74, "Previous Seen")
         stdscr.addstr(cols_y, 89, "Directory")
         stdscr.addstr(cols_y + 1, 44, "Files/Reads")
         stdscr.addstr(cols_y + 1, 59, "Files/Reads")
@@ -651,7 +612,7 @@ def write_out_fastq_stats(upload_stats, line_counter):
     )
     sys.stdout.write(
         "Monitoring the following directories: {}\n".format(
-            upload_stats.directory_watch_list
+            upload_stats.to_watch_directory_set
         )
     )
     return line_counter + 5
