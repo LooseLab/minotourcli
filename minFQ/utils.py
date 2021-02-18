@@ -3,7 +3,7 @@ import operator
 import os
 import sys
 import time
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import curses
 
 from minFQ.endpoints import EndPoint
@@ -57,7 +57,7 @@ class SequencingStatistics:
     @property
     def connected_positions(self):
         if self._connected_positions:
-            return dict(sorted({
+            return OrderedDict(sorted({
                 key: {
                     k: self.convert(time.time() - v) if isinstance(v, float) else v
                     for k, v in value.items()
@@ -266,27 +266,17 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
         ),
     )
     cols_y = sequencing_statistics.fastq_y + 4
-    if sequencing_statistics.watched_directory_set:
-        stdscr.addstr(cols_y, 0, "Run id")
-        stdscr.addstr(cols_y, 44, "Queued")
-        stdscr.addstr(cols_y, 59, "Uploaded")
-        stdscr.addstr(cols_y, 74, "Previous Seen")
-        stdscr.addstr(cols_y, 89, "Directory")
-        stdscr.addstr(cols_y + 1, 44, "Files/Reads")
-        stdscr.addstr(cols_y + 1, 59, "Files/Reads")
-        stdscr.addstr(cols_y + 1, 74, "Files/Reads")
-    else:
-        stdscr.addstr(cols_y, 0, "Run id")
-        stdscr.addstr(cols_y, 15, "Queued")
-        stdscr.addstr(cols_y, 30, "Uploaded")
-        stdscr.addstr(cols_y, 45, "Skipped")
-        stdscr.addstr(cols_y, 60, "Directory")
-        stdscr.addstr(cols_y + 1, 15, "Files/Reads")
-        stdscr.addstr(cols_y + 1, 30, "Files/Reads")
-        stdscr.addstr(cols_y + 1, 45, "Files/Reads")
+    stdscr.addstr(cols_y, 0, "Run id")
+    stdscr.addstr(cols_y, 15, "Queued")
+    stdscr.addstr(cols_y, 30, "Uploaded")
+    stdscr.addstr(cols_y, 45, "Already Seen")
+    stdscr.addstr(cols_y, 60, "Directory")
+    stdscr.addstr(cols_y + 1, 15, "Files/Reads")
+    stdscr.addstr(cols_y + 1, 30, "Files/Reads")
+    stdscr.addstr(cols_y + 1, 45, "Files/Reads")
 
     for index, value in enumerate(sequencing_statistics.fastq_info.values()):
-        stdscr.addstr(cols_y + index + 2, 0, str(value.get("run_id", "")))
+        stdscr.addstr(cols_y + index + 2, 0, str(value.get("run_id", ""))[:10])
         files_queued = (
             value.get("files_seen", 0)
             - value.get("files_processed", 0)

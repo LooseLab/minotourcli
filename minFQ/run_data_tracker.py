@@ -232,7 +232,6 @@ class RunDataTracker:
         if not run:
             # get or create a flowcell
             log.info("Looking for flowcell {}".format(flowcell_name))
-            log.debug(flowcell)
             is_barcoded = True if "barcode" in description_dict.keys() else False
             has_fastq = False if self.args.skip_sequence else True
             key = "sample_id" if "sample_id" in description_dict else "sampleid"

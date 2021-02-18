@@ -465,7 +465,6 @@ class LiveMonitoringActions(RpcSafeConnection):
             EndPoint.MINION_RUN_INFO,
             json=payload, base_id=self.run_primary_key
         )
-        log.debug(update_run_info)
 
     def update_minion_stats(self):
         """

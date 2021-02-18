@@ -129,7 +129,6 @@ class DeviceMonitor(LiveMonitoringActions):
             data = self.minotour_api.get_json(
                 EndPoint.MINION_CONTROL, base_id=self.minion["id"]
             )
-            log.debug(data)
             time.sleep(self.interval)
             for job in data:
                 if job["job"] == "test_message":
