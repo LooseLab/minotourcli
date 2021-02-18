@@ -57,7 +57,7 @@ def start_minknow_and_basecalled_monitoring(
         # This block handles the fastq
         # Add our watchdir to our WATCHLIST
         if args.watch_dir is not None:
-            sequencing_statistics.to_watch_directory_set.append(args.watch_dir)
+            sequencing_statistics.to_watch_directory_list.append(args.watch_dir)
         # if we are connecting to minKNOW
     if not args.no_minknow:
         # this block is going to handle the running of minknow monitoring by the client.
@@ -83,8 +83,8 @@ def start_minknow_and_basecalled_monitoring(
             write_out_minknow_info(stdscr, sequencing_statistics)
             write_out_fastq_info(stdscr, sequencing_statistics)
             refresh_pad(screen, stdscr)
-            if not args.no_fastq and sequencing_statistics.to_watch_directory_set: # tick
-                for folder in sequencing_statistics.to_watch_directory_set: # directory watchlist has the new run dir
+            if not args.no_fastq and sequencing_statistics.to_watch_directory_list: # tick
+                for folder in sequencing_statistics.to_watch_directory_list: # directory watchlist has the new run dir
                     if folder and folder not in sequencing_statistics.watched_directory_set:
                         # check that the folder exists, before adding it to be scheduled
                         if os.path.exists(folder):
@@ -94,7 +94,7 @@ def start_minknow_and_basecalled_monitoring(
                             sequencing_statistics.watched_directory_set.add(folder)
                             event_handler.addfolder(folder)
                             log.info("FastQ Monitoring added for {}".format(folder))
-                            sequencing_statistics.to_watch_directory_set.remove(folder)
+                            sequencing_statistics.to_watch_directory_list.remove(folder)
                             sequencing_statistics.update = True
                         else:
                             log.warning(

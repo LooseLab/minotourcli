@@ -29,7 +29,7 @@ class SequencingStatistics:
         self.update = False
         self.read_up_time = time.time()
         self.read_count = 0
-        self.to_watch_directory_set = set()
+        self.to_watch_directory_list = []
         self.watched_directory_set = set()
         self.errored = False
         self.error_message = ""
@@ -262,11 +262,11 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
         sequencing_statistics.fastq_y,
         0,
         "Base-called data upload stats\n------------------------------\nDirectories watched: {}\n".format(
-            len(sequencing_statistics.to_watch_directory_set)
+            len(sequencing_statistics.watched_directory_set)
         ),
     )
     cols_y = sequencing_statistics.fastq_y + 4
-    if sequencing_statistics.to_watch_directory_set:
+    if sequencing_statistics.watched_directory_set:
         stdscr.addstr(cols_y, 0, "Run id")
         stdscr.addstr(cols_y, 44, "Queued")
         stdscr.addstr(cols_y, 59, "Uploaded")
@@ -612,7 +612,7 @@ def write_out_fastq_stats(upload_stats, line_counter):
     )
     sys.stdout.write(
         "Monitoring the following directories: {}\n".format(
-            upload_stats.to_watch_directory_set
+            upload_stats.to_watch_directory_list
         )
     )
     return line_counter + 5
