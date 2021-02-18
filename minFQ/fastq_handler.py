@@ -101,7 +101,6 @@ def parse_fastq_record(
     -------
 
     """
-    log.debug("Parsing reads from file {}".format(fastq_file_path))
     fastq_read = {
         "read": description_dict.get("read", None),
         "run_id": description_dict.get("runid", None),
@@ -128,7 +127,7 @@ def parse_fastq_record(
     if args.unblocks is not None:
         run_dict[fastq_read["run_id"]].unblocked_file = args.unblocks
     ### Check the overlap between the current file path and the folders being watched:
-    for folder in sequencing_statistic.directory_watch_list:
+    for folder in sequencing_statistic.watched_directory_set:
         if folder is not None:
             if fastq_file_path.startswith(folder):
                 if run_dict[fastq_read["run_id"]].run_folder != folder:
@@ -352,11 +351,13 @@ class FastqHandler(FileSystemEventHandler):
         while self.running:
             current_time = time.time()
             # sort by created time descending
-            for fastqfile, createtime in sorted(
+            for fastqfile, create_time in sorted(
                 self.fastq_files_to_create.items(), key=lambda x: x[1]
             ):
-                # file created 5 sec ago, so should be complete. For simulations we make the time longer.
                 # remove the file from fastq files to create as we are doing that now
+                if create_time > time.time() - 5:
+                    time.sleep(5)
+                # file created 5 sec ago, so should be complete. For simulations we make the time longer.
                 del self.fastq_files_to_create[fastqfile]
                 parse_fastq_file(
                     fastqfile,
