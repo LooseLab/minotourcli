@@ -175,9 +175,8 @@ class LiveMonitoringActions(RpcSafeConnection):
         )
         file_path = os.path.normpath(folder_path)
         if not self.args.no_fastq:
-            if file_path in self.sequencing_statistics.directory_watch_list:
-                time.sleep(self.long_interval)
-                self.sequencing_statistics.directory_watch_list.remove(file_path)
+            if file_path in self.sequencing_statistics.to_watch_directory_set:
+                self.sequencing_statistics.watched_directory_set.remove(file_path)
                 self.sequencing_statistics.fastq_info.pop(str(self.run_information.run_id))
                 self.sequencing_statistics.update = True
         log.debug("run stop observed")
@@ -207,8 +206,9 @@ class LiveMonitoringActions(RpcSafeConnection):
                 self.api_connection.protocol.get_current_protocol_run().output_path
             )
             if not self.args.no_fastq:
-                if str(os.path.normpath(FolderPath)) not in self.sequencing_statistics.directory_watch_list:
-                    self.sequencing_statistics.directory_watch_list.append(str(os.path.normpath(FolderPath)))
+                if str(os.path.normpath(FolderPath)) not in self.sequencing_statistics.watched_directory_set:
+                    self.sequencing_statistics.to_watch_directory_set.add(str(os.path.normpath(FolderPath)))
+                    self.sequencing_statistics.update = True
                     self.sequencing_statistics.fastq_info[str(self.run_information.run_id)]["directory"] = str(os.path.normpath(FolderPath))
                     self.sequencing_statistics.fastq_info[str(self.run_information.run_id)]["run_id"] = str(self.run_information.run_id)
             self.update_minion_run_info()
