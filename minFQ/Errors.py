@@ -27,7 +27,7 @@ class MTConnectionError(Exception):
         str
         """
         lookup_message = {401: "Nuh uh - unauthorised", 500: "MinoTour says no"}
-        return "{} -> {} -> {} -> {}".format(
+        return "{} \n -> {} \n -> \n {} \n -> {}".format(
             self.response.status_code,
             lookup_message.get(self.response.status_code, ""),
             self.message,

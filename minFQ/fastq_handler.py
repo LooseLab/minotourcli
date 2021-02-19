@@ -21,7 +21,8 @@ from minFQ.fastq_handler_utils import (
 )
 from watchdog.events import FileSystemEventHandler
 
-log = logging.getLogger("minFQ")
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
 
 
 # ##Function modified from https://raw.githubusercontent.com/lh3/readfq/master/readfq.py
@@ -373,7 +374,6 @@ class FastqHandler(FileSystemEventHandler):
                     break
             if current_time + 5 > time.time():
                 time.sleep(5)
-            log.debug("still ticking")
 
     def on_created(self, event):
         """Watchdog counts a new file in a folder it is watching as a new file"""
@@ -381,7 +381,7 @@ class FastqHandler(FileSystemEventHandler):
         # if (event.src_path.endswith(".fastq") or event.src_path.endswith(".fastq.gz")):
         #     self.creates[event.src_path] = time.time()
 
-        log.warning("Processing created file {}".format(event.src_path))
+        log.debug("Processing created file {}".format(event.src_path))
         # time.sleep(5)
         if (
             event.src_path.endswith(".fastq")
@@ -401,17 +401,17 @@ class FastqHandler(FileSystemEventHandler):
             or event.src_path.endswith(".fq")
             or event.src_path.endswith(".fq.gz")
         ):
-            log.warning("Modified file {}".format(event.src_path))
+            log.debug("Modified file {}".format(event.src_path))
             self.fastq_files_to_create[event.src_path] = time.time()
 
     def on_moved(self, event):
         if any(
             (
                 event.dest_path.endswith(".fastq"),
-                event.dest_path.endswith(".fastq,gz"),
-                event.dest_path.endswith(".gq"),
+                event.dest_path.endswith(".fastq.gz"),
+                event.dest_path.endswith(".fq"),
                 event.dest_path.endswith(".fq.gz"),
             )
         ):
-            log.warning("Modified file {}".format(event.dest_path))
+            log.debug("Modified file {}".format(event.dest_path))
             self.fastq_files_to_create[event.dest_path] = time.time()

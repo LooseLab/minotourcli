@@ -13,7 +13,7 @@ from minknow_api.protocol_pb2 import ProtocolRunUserInfo
 
 from minFQ.endpoints import EndPoint
 
-log = logging.getLogger("minFQ")
+log = logging.getLogger(__name__)
 
 
 def check_warnings(device_type, minknow_version):
@@ -173,13 +173,11 @@ class LiveMonitoringActions(RpcSafeConnection):
                 self.api_connection.protocol.get_current_protocol_run().output_path
             )
         )
-        file_path = os.path.normpath(folder_path)
         if not self.args.no_fastq:
-            if file_path in self.sequencing_statistics.watched_directory_set:
-                self.sequencing_statistics.watched_directory_set.remove(file_path)
-                log.info("popping: ", self.run_information.run_id)
-                self.sequencing_statistics.fastq_info.pop(str(self.run_information.run_id))
-                self.sequencing_statistics.update = True
+            self.sequencing_statistics.watched_directory_set.remove(folder_path)
+            log.info("popping: {}".format( str(self.run_information.run_id)))
+            self.sequencing_statistics.fastq_info.pop(str(self.run_information.run_id))
+            self.sequencing_statistics.update = True
         log.debug("run stop observed")
 
     def run_start(self):
@@ -207,7 +205,7 @@ class LiveMonitoringActions(RpcSafeConnection):
                 self.api_connection.protocol.get_current_protocol_run().output_path
             )
             if not self.args.no_fastq:
-                if str(os.path.normpath(FolderPath)) not in self.sequencing_statistics.watched_directory_set:
+                if str(os.path.normpath(FolderPath)) not in self.sequencing_statistics.to_watch_directory_list:
                     self.sequencing_statistics.to_watch_directory_list.append(str(os.path.normpath(FolderPath)))
                     self.sequencing_statistics.update = True
                     self.sequencing_statistics.fastq_info[str(self.run_information.run_id)]["directory"] = str(os.path.normpath(FolderPath))

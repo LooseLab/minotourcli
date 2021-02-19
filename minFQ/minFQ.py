@@ -2,11 +2,8 @@ import os
 import sys
 import platform
 import logging
-import logging.handlers
 import time
 import curses
-import traceback
-
 
 from minFQ.minknow_connection import MinionManager
 from minFQ.fastq_handler import FastqHandler
@@ -15,19 +12,32 @@ from watchdog.observers.polling import PollingObserver as Observer
 from minFQ.minotourapi import MinotourAPI
 from minFQ.utils import (
     add_arguments_to_parser,
-    configure_logging,
     validate_args,
     check_server_compatibility,
     SequencingStatistics,
     list_minotour_options,
     check_job_from_client,
     write_out_minfq_info, write_out_minknow_info, write_out_fastq_info,
-    refresh_pad, ascii_minotour
+    refresh_pad, ascii_minotour,
+    CursesHandler
 )
+
+logging.basicConfig(
+    format="%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s",
+    filename="minFQ.log",
+    filemode="w",
+    level=logging.INFO,
+)
+
+log = logging.getLogger()
+log.setLevel(logging.DEBUG)
+
+# define a Handler which writes INFO messages or higher to the sys.stderr
+# log = logging.getLogger("minFQ")
 
 
 def start_minknow_and_basecalled_monitoring(
-    sequencing_statistics, args, log, header, minotour_api, stdscr, screen
+    sequencing_statistics, args,  header, minotour_api, stdscr, screen, log_win
 ):
     """
     Start the minKnow monitoring and basecalled data monitoring in accordance with arguments passed by user
@@ -47,6 +57,8 @@ def start_minknow_and_basecalled_monitoring(
         Curses window for printing out
     screen: _curses.window
         The main curses screen
+    log_win: _curses.window
+        The logging window we write to
     Returns
     -------
 
@@ -68,22 +80,38 @@ def start_minknow_and_basecalled_monitoring(
         )
     curses.napms(2000)
     stdscr.clear()
-    stdscr.addstr("To stop minFQ use CTRL-C.\n")
-    stdscr.addstr("Fetching Data...\n")
-    refresh_pad(screen, stdscr)
     event_handler = FastqHandler(
         args, header, runs_being_monitored_dict, sequencing_statistics, minotour_api
     )
     observer = Observer()
     observer.start()
+    stats = True
     try:
-        while 1:
+        while True:
+            try:
+                c = stdscr.getch()
+                if c == ord("l"):
+                    stats = False
+                elif c == ord("s"):
+                    stats = True
+            except curses.ERR:
+                stats = True
             # todo these should be abstracted into one function as they are verrrry similar
-            write_out_minfq_info(stdscr, sequencing_statistics)
-            ascii_minotour(stdscr)
-            write_out_minknow_info(stdscr, sequencing_statistics)
-            write_out_fastq_info(stdscr, sequencing_statistics)
-            refresh_pad(screen, stdscr)
+            if stats:
+                stdscr.addstr(0, 0, "To stop minFQ use CTRL-C. To see the logs, Press l. To return to stats, Press s.", curses.color_pair(4))
+                stdscr.addstr(1, 0, "Fetching Data...")
+                write_out_minfq_info(stdscr, sequencing_statistics)
+                ascii_minotour(stdscr)
+                write_out_minknow_info(stdscr, sequencing_statistics)
+                write_out_fastq_info(stdscr, sequencing_statistics)
+                refresh_pad(screen, stdscr)
+                stdscr.overwrite(screen)
+            else:
+                log.info()
+                log_win.overwrite(screen)
+                # log_win.addstr(0, 0, "To stop minFQ use CTRL-C. To see the logs, Press l. To see info, Press s.", curses.color_pair(4))
+                refresh_pad(screen, log_win)
+            screen.refresh()
             if not args.no_fastq and sequencing_statistics.to_watch_directory_list: # tick
                 for folder in sequencing_statistics.to_watch_directory_list: # directory watchlist has the new run dir
                     log.warning("Checking folder {} that is in our to watch directory".format(folder))
@@ -109,7 +137,7 @@ def start_minknow_and_basecalled_monitoring(
                     observer.unschedule_all()
                     for folder in sequencing_statistics.watched_directory_set:
                         if folder and os.path.exists(folder):
-                            log.warning("Scheduling observer for {}, which does exist".format(folder))
+                            log.info("Scheduling observer for {}, which does exist".format(folder))
                             observer.schedule(
                                 event_handler, path=folder, recursive=True
                             )
@@ -120,11 +148,10 @@ def start_minknow_and_basecalled_monitoring(
                                 )
                             )
                     sequencing_statistics.update = False
-
             time.sleep(1)
 
             if sequencing_statistics.errored:
-                log.info("Errored - Will take a few seconds to clean clear_lines!")
+                log.error("Errored - Will take a few seconds to clean clear_lines!")
                 log.error(sequencing_statistics.error_message)
                 if not args.no_minknow:
                     minknow_connection.stop_monitoring()
@@ -169,14 +196,28 @@ def main():
     num_rows, num_cols = screen.getmaxyx()
     stdscr = curses.newpad(200, 200)
     stdscr.scrollok(True)
+    stdscr.nodelay(True)
+    curses.noecho()
     curses.start_color()
     curses.use_default_colors()
     curses.init_pair(1, curses.COLOR_GREEN, -1)
     curses.init_pair(2, curses.COLOR_RED, -1)
     curses.init_pair(3, curses.COLOR_BLUE, -1)
     curses.init_pair(4, curses.COLOR_MAGENTA, -1)
-    curses.noecho()
     stdscr.clear()
+    ## create log window
+    num_rows, num_cols = screen.getmaxyx()
+    log_win = curses.newpad(60, 200)
+    log_win.scrollok(True)
+    log_win.nodelay(True)
+    log_win.idlok(True)
+    log_win.leaveok(True)
+
+    mh = CursesHandler(screen, log_win)
+    mh.setLevel(logging.DEBUG)
+    formatterDisplay = logging.Formatter("%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s")
+    mh.setFormatter(formatterDisplay)
+    log.addHandler(mh)
     if platform.system() == "Windows":  # MS
         config_file = os.path.join(os.path.sep, sys.prefix, "minfq_windows.config")
     else:
@@ -193,7 +234,12 @@ def main():
     parser = add_arguments_to_parser(parser, stdscr)
     # Get the arguments namespace
     args = parser.parse_args()
-    log = configure_logging(getattr(logging, args.loglevel))
+    handler = logging.getLogger().handlers[0]
+    # old_level = console_handler.level
+    # console_handler.setLevel(logging.DEBUG)
+    handler.setLevel(getattr(logging, args.loglevel.upper()))
+    log.setLevel(getattr(logging, args.loglevel.upper()))
+    # log = configure_logging(getattr(logging, args.loglevel.upper()), screen, log_win)
     stdscr.addstr(str("""Welcome to
            _      ______ _____ 
           (_)     |  ___|  _  |
@@ -260,7 +306,7 @@ MMMMMMMMMMMMMMMWXkdddddddxKWMMMMMMMMMXxdddddddkXWMMMMMMMMMMMMMMM\n""", curses.co
         if args.job is not None:
             check_job_from_client(args, log, minotour_api, parser)
         start_minknow_and_basecalled_monitoring(
-            sequencing_statistics, args, log, header, minotour_api, stdscr, screen
+            sequencing_statistics, args,  header, minotour_api, stdscr, screen, log_win
         )
     except Exception as e:
         curses.nocbreak()

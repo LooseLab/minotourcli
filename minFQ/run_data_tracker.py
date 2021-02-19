@@ -12,7 +12,7 @@ from minFQ.minotourapi import MinotourAPI
 
 import toml as toml_manager
 
-log = logging.getLogger("minFQ")
+log = logging.getLogger(__name__)
 
 
 def get_flowcell_name_from_desc(description_dict, user_run_name):

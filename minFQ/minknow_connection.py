@@ -15,9 +15,9 @@ from minFQ.minknow_connection_utils import (
     check_warnings,
     LiveMonitoringActions,
 )
+from minFQ.utils import CursesHandler
 
-log = logging.getLogger("minFQ")
-logger = logging.getLogger("special_times")
+log = logging.getLogger(__name__)
 
 
 class DeviceMonitor(LiveMonitoringActions):
@@ -192,6 +192,7 @@ class DeviceMonitor(LiveMonitoringActions):
         while self.run_bool:
             flowcell_info_response = self.api_connection.device.stream_flow_cell_info()
             for flowcell_info in flowcell_info_response:
+                log.info("Hello")
                 self.flowcell_data = flowcell_info
                 self.update_minion_info()
 
@@ -317,7 +318,6 @@ class DeviceMonitor(LiveMonitoringActions):
 
         """
         while self.run_bool:
-            logger.info("Checking run info - still alive")
             self.acquisition_data = self.get_acquisition_data()
             self.temperature_data = self.api_connection.device.get_temperature()
             # ToDo: Check this code on a promethION.
@@ -333,11 +333,6 @@ class DeviceMonitor(LiveMonitoringActions):
             }:
                 self.run_information = (
                     self.api_connection.acquisition.get_current_acquisition_run()
-                )
-                logger.info(
-                    "running update minion stats - run primary key is {}".format(
-                        self.run_primary_key
-                    )
                 )
                 if self.run_primary_key:
                     self.update_minion_stats()

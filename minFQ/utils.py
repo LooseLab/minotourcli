@@ -10,6 +10,39 @@ from minFQ.endpoints import EndPoint
 from .version import __version__
 
 
+class CursesHandler(logging.Handler):
+    """ todo spruce up message
+    Logging handler to emit logs to the curses window in the correct format
+    """
+    def __init__(self, screen, log_pad):
+        """
+
+        Parameters
+        ----------
+        screen: _curses.window
+            The main terminal screen
+        log_pad: _curses.window
+            The pad that we are printing out log too.
+        """
+        logging.Handler.__init__(self)
+        self.screen = screen
+        self.log_pad = log_pad
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            screen = self.screen
+            log_pad = self.log_pad
+            fs = "\n%s"
+            log_pad.addstr(fs % msg)
+            # screen.box()
+            # refresh_pad(screen, log_pad)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
+
 class SequencingStatistics:
     """
     A class to store data about the sequencing, between different threads.
@@ -152,6 +185,7 @@ def refresh_pad(screen, pad):
     None
     """
     num_rows, num_cols = screen.getmaxyx()
+    # pad.addstr(0, 0, "{} rows, {} cols".format(num_rows, num_cols))
     pad.refresh(0, 0, 0, 0, num_rows-1, num_cols-1)
     # sequencing_stats.screen_num_rows = num_rows
     # sequencing_stats.screen_num_cols = num_cols
@@ -222,7 +256,6 @@ def write_out_minfq_info(stdscr, sequencing_statistics):
             sequencing_statistics.reads_skipped,
         ),
     )
-
 
 
 def write_out_minknow_info(stdscr, sequencing_statistics):
@@ -557,19 +590,10 @@ def add_arguments_to_parser(parser, stdscr):
         type=str,
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="Set the logging level",
+        help="Set the logging level, default INFO.",
         dest="loglevel",
     )
 
-    parser.add_argument(
-        "-g",
-        "--gui",
-        action="store_true",
-        required=False,
-        default=False,
-        help="Configure the code for GUI use - not yet implemented.",
-        dest="GUI",
-    )
     parser.add_argument(
         "-V", "--version", action="version", version=test(stdscr),
     )
@@ -636,28 +660,7 @@ def write_out_fastq_stats(upload_stats, line_counter):
     return line_counter + 5
 
 
-def configure_logging(log_level):
-    """
-    Configure the logging to be used by this script.
-    Parameters
-    ----------
-    log_level: str
-        Logging level to print out at. One of INFO, DEBUG, ERROR, WARNING
-    Returns
-    -------
-    log: logging.Logger
-        A configured logger.
-    """
-    logging.basicConfig(
-        format="%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s",
-        filename="minFQ.log",
-        filemode="w",
-        # level=os.environ.get('LOGLEVEL', 'INFO')
-        level=log_level,
-    )
-    # define a Handler which writes INFO messages or higher to the sys.stderr
-    log = logging.getLogger("minFQ")
-    return log
+
 
 
 def validate_args(args):
