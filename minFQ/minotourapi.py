@@ -1,14 +1,24 @@
-import datetime
 import json as json_library
 import logging
-import sys
-
 import requests
 
-from urllib.parse import urlparse
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 from minFQ.Errors import MTConnectionError
 from minFQ.endpoints import EndPoint
+
+
+retry_strategy = Retry(
+    total=4,
+    status_forcelist=[429, 500, 502, 503, 504],
+    method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
+    backoff_factor=1
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+http = requests.Session()
+http.mount("https://", adapter)
+http.mount("http://", adapter)
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +86,7 @@ class MinotourAPI:
         """
 
         url = "{}api/v1{}".format(self.base_url, endpoint.resolve_url(**kwargs))
-        resp = requests.get(url, headers=self.request_headers, params=params)
+        resp = http.get(url, headers=self.request_headers, params=params)
         # handle resp fail ...
         self.handle_response(resp)
         return resp
@@ -141,7 +151,9 @@ class MinotourAPI:
 
         """
         url = "{}api/v1{}".format(self.base_url, endpoint.resolve_url(**kwargs))
-        resp = requests.post(url, headers=self.request_headers, json=json, params=params)
+        resp = http.post(
+            url, headers=self.request_headers, json=json, params=params
+        )
         self.handle_response(resp)
         return resp
 
@@ -188,7 +200,7 @@ class MinotourAPI:
         requests.models.Response
         """
         url = "{}api/v1{}".format(self.base_url, endpoint.resolve_url(**kwargs))
-        resp = requests.put(url, headers=self.request_headers, json=json, params=params)
+        resp = http.put(url, headers=self.request_headers, json=json, params=params)
         self.handle_response(resp)
         return resp
 
@@ -226,7 +238,9 @@ class MinotourAPI:
 
         """
         url = "{}api/v1{}?{}".format(self.base_url, partial_url, parameters)
-        return requests.delete(url, headers=self.request_headers, json=json, params=parameters)
+        return requests.delete(
+            url, headers=self.request_headers, json=json, params=parameters
+        )
 
     def handle_response(self, response):
         """
@@ -236,12 +250,18 @@ class MinotourAPI:
         None
         """
         if response.status_code not in {200, 201, 204, 400, 404, 502}:
-            log.debug("{} responded with status {}".format(response.url, response.status_code))
+            log.debug(
+                "{} responded with status {}".format(response.url, response.status_code)
+            )
             log.debug("Text {}".format(response.text))
             log.error(MTConnectionError(response), exc_info=True)
             raise MTConnectionError(response)
         if response.status_code == 502:
-            log.info("Received bad gateway 502 on request {}. Trying to continue....".format(response.url))
+            log.info(
+                "Received bad gateway 502 on request {}. Trying to continue....".format(
+                    response.url
+                )
+            )
         return None
 
     def get_or_create(self, *args, **kwargs):
