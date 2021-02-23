@@ -204,6 +204,7 @@ def main():
     curses.init_pair(2, curses.COLOR_RED, -1)
     curses.init_pair(3, curses.COLOR_BLUE, -1)
     curses.init_pair(4, curses.COLOR_MAGENTA, -1)
+    curses.init_pair(5, curses.COLOR_YELLOW, -1)
     stdscr.clear()
     ## create log window
     num_rows, num_cols = screen.getmaxyx()
@@ -301,7 +302,7 @@ MMMMMMMMMMMMMMMWXkdddddddxKWMMMMMMMMMXxdddddddkXWMMMMMMMMMMMMMMM\n""", curses.co
         sequencing_statistics.screen_num_rows = num_rows
         sequencing_statistics.minotour_url = "{}:{}".format(args.host_name, args.port_number)
         if args.list:
-            list_minotour_options(log, args, minotour_api)
+            list_minotour_options(log, args, minotour_api, stdscr, screen)
         # Below we perform checks if we are trying to set a job.
         if args.job is not None:
             check_job_from_client(args, log, minotour_api, parser)

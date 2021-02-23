@@ -737,7 +737,7 @@ def check_server_compatibility(minotour_api, log):
         return "minFQ version: {} is compatible with minoTour server specified.\n".format(__version__)
 
 
-def list_minotour_options(log, args, minotour_api):
+def list_minotour_options(log, args, minotour_api, stdscr, screen):
     """
     List the options for jobs we can start, references and threat sets for metagenomics
     Parameters
@@ -748,34 +748,54 @@ def list_minotour_options(log, args, minotour_api):
         Namespace for chosen arguments after parsing
     minotour_api: minFQ.minotourapi.MinotourAPI
         Dictionary of header info for requests sent to minoTour
+    stdscr: _curses.pad
+        The window for the curses display
+    screen: _curses.window
+        The window for the curses display
     Returns
     -------
     None
     """
-    log.info("Checking available jobs.")
+    stdscr.clear()
+    stdscr.addstr(0, 0, "Fetching available Jobs, References and Targets...", curses.color_pair(5))
     # TODO combine below into new single API end point
     jobs = minotour_api.get_json(EndPoint.TASK_TYPES, params={"cli": True})["data"]
     references = minotour_api.get_json(EndPoint.REFERENCES)["data"]
     params = {"api_key": args.api_key, "cli": True}
     targets = minotour_api.get_json(EndPoint.TARGET_SETS, params=params)
-    log.info("The following jobs are available on this minoTour installation:")
+    stdscr.addstr(2, 0, "The following jobs are available on this minoTour installation:")
+    line_num = 3
     for job_info in jobs:
         if not job_info["name"].startswith("Delete"):
-            log.info(
+            stdscr.addstr(line_num, 0,
                 "\t{}:{}".format(
                     job_info["id"], job_info["name"].lower().replace(" ", "_")
-                )
+                ), curses.color_pair(3)
             )
-    log.info("If you wish to run an alignment, the following references are available:")
+            line_num += 1
+    line_num += 1
+    stdscr.addstr(line_num, 0, "If you wish to run an alignment, the following references are available:")
+    line_num += 1
     for reference in references:
-        log.info("\t{}:{}".format(reference["id"], reference["name"]))
-    log.info(
-        "If you wish to add a target set to the metagenomics task, the following sets are available to you:"
+        stdscr.addstr(line_num, 0, "\t{}:{}".format(reference["id"], reference["name"]), curses.color_pair(4))
+        line_num += 1
+    line_num += 1
+    stdscr.addstr(
+        line_num, 0, "If you wish to add a target set to the metagenomics task, the following sets are available to you:"
     )
+    line_num += 1
     index = 1
     for target in targets:
-        log.info("\t{}:{}".format(index, target))
+        stdscr.addstr(line_num, 0, "\t{}:{}".format(index, target), curses.color_pair(2))
         index += 1
+        line_num += 1
+    refresh_pad(screen, stdscr)
+    curses.napms(6000)
+    curses.nocbreak()
+    stdscr.keypad(False)
+    curses.echo()
+    curses.curs_set(1)
+    curses.endwin()
     sys.exit(0)
 
 
