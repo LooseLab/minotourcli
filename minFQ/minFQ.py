@@ -107,7 +107,6 @@ def start_minknow_and_basecalled_monitoring(
                 refresh_pad(screen, stdscr)
                 stdscr.overwrite(screen)
             else:
-                log.info()
                 log_win.overwrite(screen)
                 # log_win.addstr(0, 0, "To stop minFQ use CTRL-C. To see the logs, Press l. To see info, Press s.", curses.color_pair(4))
                 refresh_pad(screen, log_win)
