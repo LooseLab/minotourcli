@@ -660,9 +660,6 @@ def write_out_fastq_stats(upload_stats, line_counter):
     return line_counter + 5
 
 
-
-
-
 def validate_args(args):
     """
     Check the args before setting up all connections. Error out if any mistakes are found.
@@ -685,6 +682,9 @@ def validate_args(args):
             error_string = (
                 "If not monitoring FASTQ please do no provide a watch directory."
             )
+    if args.job and args.job == 16:
+        if not args.reference:
+            error_string = "Reference required for Artic job type. Please provide."
 
     if args.toml is not None:
         if not os.path.exists(args.toml):
