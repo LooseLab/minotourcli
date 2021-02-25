@@ -1,5 +1,8 @@
+import gzip
 import json as json_library
 import logging
+from pprint import pformat
+
 import requests
 
 from requests.adapters import HTTPAdapter
@@ -11,7 +14,7 @@ from minFQ.endpoints import EndPoint
 
 retry_strategy = Retry(
     total=4,
-    status_forcelist=[429, 500, 502, 503, 504],
+    status_forcelist=[429, 502, 503, 504],
     method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
     backoff_factor=1
 )
@@ -21,7 +24,7 @@ http.mount("https://", adapter)
 http.mount("http://", adapter)
 
 log = logging.getLogger(__name__)
-
+log.setLevel(logging.INFO)
 
 class MinotourAPI:
     def __init__(self, base_url, port_number, request_headers):
@@ -151,8 +154,9 @@ class MinotourAPI:
 
         """
         url = "{}api/v1{}".format(self.base_url, endpoint.resolve_url(**kwargs))
+        json = gzip.compress(json_library.dumps(json).encode())
         resp = http.post(
-            url, headers=self.request_headers, json=json, params=params
+            url, headers=self.request_headers, data=json, params=params
         )
         self.handle_response(resp)
         return resp
@@ -172,6 +176,8 @@ class MinotourAPI:
             Parsed JSON str response, or string response if returned text is not JSON
         """
         resp = self._post(*args, **kwargs)
+        log.info("response is {}".format(resp.text))
+        log.info("response is {}".format(resp.text))
         try:
             return resp.json()
         except json_library.JSONDecodeError:
@@ -200,7 +206,8 @@ class MinotourAPI:
         requests.models.Response
         """
         url = "{}api/v1{}".format(self.base_url, endpoint.resolve_url(**kwargs))
-        resp = http.put(url, headers=self.request_headers, json=json, params=params)
+        json = gzip.compress(json_library.dumps(json).encode())
+        resp = http.put(url, headers=self.request_headers, data=json, params=params)
         self.handle_response(resp)
         return resp
 

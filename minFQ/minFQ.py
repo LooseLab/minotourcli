@@ -251,6 +251,7 @@ def main():
     header = {
         "Authorization": "Token {}".format(args.api_key),
         "Content-Type": "application/json",
+        "Content-Encoding": "gzip"
     }
     stdscr.addstr("""MMMMMMMMMMMNNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMWWWMMMMMMMMMMM
 MMMMMMMMMMWkkNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMWKOXMMMMMMMMMMM

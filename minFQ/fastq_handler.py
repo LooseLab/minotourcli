@@ -261,8 +261,7 @@ def parse_fastq_file(
 
             except Exception as e:
                 sequencing_stats.reads_corrupt += 1
-                print(e)
-                log.error(e)
+                log.error(e, exc_info=True)
                 log.error("This gzipped file failed to upload - {}.".format(fastq_path))
                 raise Exception
                 # continue
