@@ -178,10 +178,13 @@ class LiveMonitoringActions(RpcSafeConnection):
             )
         )
         if not self.args.no_fastq:
-            self.sequencing_statistics.watched_directory_set.remove(folder_path)
-            self.sequencing_statistics.to_watch_directory_list.remove(folder_path)
-            log.info("popping: {} from fastq info".format(str(self.run_information.run_id)))
-            self.sequencing_statistics.fastq_info.pop(str(self.run_information.run_id))
+            if folder_path in self.sequencing_statistics.watched_directory_set:
+                self.sequencing_statistics.watched_directory_set.remove(folder_path)
+            if folder_path in self.sequencing_statistics.to_watch_directory_list:
+                self.sequencing_statistics.to_watch_directory_list.remove(folder_path)
+            if str(self.run_information.run_id) in self.sequencing_statistics.fastq_info:
+                log.info("popping: {} from fastq info".format(str(self.run_information.run_id)))
+                self.sequencing_statistics.fastq_info.pop(str(self.run_information.run_id))
             self.sequencing_statistics.update = True
         log.debug("run stop observed")
 
