@@ -142,7 +142,7 @@ def start_minknow_and_basecalled_monitoring(
                             )
                         else:
                             log.warning(
-                                "Tried to add {}, but folder most likely does not exist".format(
+                                "Tried to add {}, but folder does not exist".format(
                                     folder
                                 )
                             )
