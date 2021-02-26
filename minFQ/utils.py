@@ -364,25 +364,6 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
         stdscr.addstr(cols_y + index + 2, 60, str(value.get("directory", 0)))
 
 
-def clear_lines(lines=1):
-    """
-    Some weird print function, clears lines to print our new code
-    Parameters
-    ----------
-    lines: int
-        NUmber of line to go clear_lines and clear
-
-    Returns
-    -------
-    None
-    """
-    clear_line = "\033[2K"  # clear a line
-    up_line = "\033[1A"  # Move cursor clear_lines a line
-    for _ in range(lines):
-        sys.stdout.write(up_line)
-        sys.stdout.write(clear_line)
-
-
 def test(stdscr):
     curses.nocbreak()
     stdscr.keypad(False)
