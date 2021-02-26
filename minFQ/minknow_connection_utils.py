@@ -36,7 +36,9 @@ def check_warnings(device_type, minknow_version):
         log.warning(
             "This version of minFQ may not be compatible with the MinKNOW version you are running."
         )
-        log.warning("As a consequence, live monitoring MAY NOT WORK. We recommend using minknow 4.0.X")
+        log.warning(
+            "As a consequence, live monitoring MAY NOT WORK. We recommend using minknow 4.0.X"
+        )
         log.warning("If you experience problems, let us know.")
 
 
@@ -44,6 +46,7 @@ class RpcSafeConnection:
     """
     Get values from the RPC and except RPC errors correctly
     """
+
     def __init__(self, api_connection):
         """
 
@@ -137,6 +140,7 @@ class LiveMonitoringActions(RpcSafeConnection):
     Actions that we need to take when certain events are triggered in the course of sequencing. Also communicates with
     minoTpur
     """
+
     def __init__(self, api_connection, minotour_api, sequencing_statistics, header):
         """
         Initialise this
@@ -175,7 +179,8 @@ class LiveMonitoringActions(RpcSafeConnection):
         )
         if not self.args.no_fastq:
             self.sequencing_statistics.watched_directory_set.remove(folder_path)
-            log.info("popping: {}".format( str(self.run_information.run_id)))
+            self.sequencing_statistics.to_watch_directory_list.remove(folder_path)
+            log.info("popping: {} from fastq info".format(str(self.run_information.run_id)))
             self.sequencing_statistics.fastq_info.pop(str(self.run_information.run_id))
             self.sequencing_statistics.update = True
         log.debug("run stop observed")
@@ -205,11 +210,19 @@ class LiveMonitoringActions(RpcSafeConnection):
                 self.api_connection.protocol.get_current_protocol_run().output_path
             )
             if not self.args.no_fastq:
-                if str(os.path.normpath(FolderPath)) not in self.sequencing_statistics.to_watch_directory_list:
-                    self.sequencing_statistics.to_watch_directory_list.append(str(os.path.normpath(FolderPath)))
-                    self.sequencing_statistics.update = True
-                    self.sequencing_statistics.fastq_info[str(self.run_information.run_id)]["directory"] = str(os.path.normpath(FolderPath))
-                    self.sequencing_statistics.fastq_info[str(self.run_information.run_id)]["run_id"] = str(self.run_information.run_id)
+                if (
+                    os.path.normpath(FolderPath)
+                    not in self.sequencing_statistics.to_watch_directory_list
+                ):
+                    self.sequencing_statistics.to_watch_directory_list.append(
+                        str(os.path.normpath(FolderPath))
+                    )
+                    self.sequencing_statistics.fastq_info[
+                        str(self.run_information.run_id)
+                    ]["directory"] = os.path.normpath(FolderPath)
+                    self.sequencing_statistics.fastq_info[
+                        str(self.run_information.run_id)
+                    ]["run_id"] = self.run_information.run_id
             self.update_minion_run_info()
         except Exception as err:
             log.error("Problem starting run {}", err)
@@ -225,21 +238,28 @@ class LiveMonitoringActions(RpcSafeConnection):
 
         """
         run_id = self.run_information.run_id
-        run = self.minotour_api.get_json(EndPoint.RUNS, base_id=run_id, params="search_criteria=runid")
+        run = self.minotour_api.get_json(
+            EndPoint.RUNS, base_id=run_id, params="search_criteria=runid"
+        )
         if run:
             self.minotour_run_url = run["url"]
             self.run_primary_key = run["id"]
         else:
             # get or create a flowcell
             self.sample_id = self.get_run_info_sample_name()
-            flowcell_name = "{}_{}".format(
-                self.get_flowcell_id(), self.sample_id.sample_id.value
-            ) if self.args.force_unique else self.get_flowcell_id()
-            flowcell = self.minotour_api.get_json(EndPoint.FLOWCELL, base_id=flowcell_name,
-                                                  params="search_criteria=name")["data"]
+            flowcell_name = (
+                "{}_{}".format(self.get_flowcell_id(), self.sample_id.sample_id.value)
+                if self.args.force_unique
+                else self.get_flowcell_id()
+            )
+            flowcell = self.minotour_api.get_json(
+                EndPoint.FLOWCELL, base_id=flowcell_name, params="search_criteria=name"
+            )["data"]
             if not flowcell:
                 log.debug("Manually creating flowcell")
-                flowcell = self.minotour_api.post(EndPoint.FLOWCELL, no_id=True, json={"name": flowcell_name})
+                flowcell = self.minotour_api.post(
+                    EndPoint.FLOWCELL, no_id=True, json={"name": flowcell_name}
+                )
             payload = {
                 "name": self.sample_id.sample_id.value,
                 "sample_name": self.sample_id.sample_id.value,
@@ -248,10 +268,16 @@ class LiveMonitoringActions(RpcSafeConnection):
                 "has_fastq": True,
                 "flowcell": flowcell["url"],
                 "minion": self.minion["url"],
-                "start_time": str(self.run_information.start_time.ToDatetime().replace(tzinfo=pytz.UTC))
+                "start_time": str(
+                    self.run_information.start_time.ToDatetime().replace(
+                        tzinfo=pytz.UTC
+                    )
+                ),
             }
 
-            created_run = self.minotour_api.post(EndPoint.RUNS, json=payload, no_id=True)
+            created_run = self.minotour_api.post(
+                EndPoint.RUNS, json=payload, no_id=True
+            )
             if not created_run:
                 log.error("Run not created!")
             else:
@@ -274,7 +300,10 @@ class LiveMonitoringActions(RpcSafeConnection):
         log.debug("Current acquistion status: {}".format(self.acquisition_status))
         self.update_minion_event()
         # set the device to active as it is currently sequencing
-        if str(self.acquisition_status) in {"ACQUISITION_RUNNING", "ACQUISITION_STARTING"}:
+        if str(self.acquisition_status) in {
+            "ACQUISITION_RUNNING",
+            "ACQUISITION_STARTING",
+        }:
             self.device_active = True
 
     def disconnect_nicely(self):
@@ -361,45 +390,62 @@ class LiveMonitoringActions(RpcSafeConnection):
         -------
 
         """
-        current_script = self.api_connection.protocol.get_run_info().protocol_id if self.acquisition_data else "No Run"
+        current_script = (
+            self.api_connection.protocol.get_run_info().protocol_id
+            if self.acquisition_data
+            else "No Run"
+        )
         try:
-            self.file_system_disk_space = self.api_connection.instance.get_disk_space_info().filesystem_disk_space_info[0]
+            self.file_system_disk_space = self.api_connection.instance.get_disk_space_info().filesystem_disk_space_info[
+                0
+            ]
         except RpcError as e:
             log.debug(e)
         file_system_disk_space = self.file_system_disk_space
-        payload = {"minion": self.minion["url"], "minKNOW_status": self.acquisition_status,
-                   "minKNOW_current_script": current_script,
-                   "minKNOW_exp_script_purpose": self.api_connection.protocol.get_protocol_purpose().purpose,
-                   "minKNOW_flow_cell_id": self.get_flowcell_id(),
-                   "minKNOW_real_sample_rate": self.api_connection.device.get_sample_rate().sample_rate,
-                   "minKNOW_asic_id": self.flowcell_data.asic_id_str,
-                   "minKNOW_total_drive_space": file_system_disk_space.bytes_capacity,
-                   "minKNOW_disk_space_till_shutdown": file_system_disk_space.bytes_when_alert_issued,
-                   "minKNOW_disk_available": file_system_disk_space.bytes_available,
-                   "minKNOW_warnings": file_system_disk_space.recommend_stop, "minknow_version": self.minknow_version,
-                   "wells_per_channel": self.flowcell_data.wells_per_channel
-                   }
+        payload = {
+            "minion": self.minion["url"],
+            "minKNOW_status": self.acquisition_status,
+            "minKNOW_current_script": current_script,
+            "minKNOW_exp_script_purpose": self.api_connection.protocol.get_protocol_purpose().purpose,
+            "minKNOW_flow_cell_id": self.get_flowcell_id(),
+            "minKNOW_real_sample_rate": self.api_connection.device.get_sample_rate().sample_rate,
+            "minKNOW_asic_id": self.flowcell_data.asic_id_str,
+            "minKNOW_total_drive_space": file_system_disk_space.bytes_capacity,
+            "minKNOW_disk_space_till_shutdown": file_system_disk_space.bytes_when_alert_issued,
+            "minKNOW_disk_available": file_system_disk_space.bytes_available,
+            "minKNOW_warnings": file_system_disk_space.recommend_stop,
+            "minknow_version": self.minknow_version,
+            "wells_per_channel": self.flowcell_data.wells_per_channel,
+        }
 
         current_protocol_run = self.get_current_protocol_run()
         if current_protocol_run:
             if current_protocol_run.acquisition_run_ids:
-                payload["minKNOW_script_run_id"] = current_protocol_run.acquisition_run_ids[0]
+                payload[
+                    "minKNOW_script_run_id"
+                ] = current_protocol_run.acquisition_run_ids[0]
 
         if self.sample_id:
             payload["minKNOW_sample_name"] = self.sample_id.sample_id.value
             payload["minKNOW_run_name"] = self.sample_id.protocol_group_id.value
 
         if self.acquisition_data:
-            payload[
-                "read_length_type"
-            ] = "BASECALLED BASES" if self.acquisition_data.config_summary.basecalling_enabled else "ESTIMATED BASES"
+            payload["read_length_type"] = (
+                "BASECALLED BASES"
+                if self.acquisition_data.config_summary.basecalling_enabled
+                else "ESTIMATED BASES"
+            )
 
         if self.run_information:
             if hasattr(self.run_information, "run_id"):
                 payload["minKNOW_hash_run_id"] = str(self.run_information.run_id)
 
-        method_handle = self.minotour_api.put if self.minion_status else self.minotour_api.post
-        self.minion_status = method_handle(EndPoint.MINION_STATUS, base_id=self.minion["id"], json=payload)
+        method_handle = (
+            self.minotour_api.put if self.minion_status else self.minotour_api.post
+        )
+        self.minion_status = method_handle(
+            EndPoint.MINION_STATUS, base_id=self.minion["id"], json=payload
+        )
 
     def update_minion_event(self):
         """
@@ -419,7 +465,9 @@ class LiveMonitoringActions(RpcSafeConnection):
             "event": str(urlparse(minknow_status_url).path),
             "minION": str(self.minion["url"]),
         }
-        self.minotour_api.post(EndPoint.MINION_EVENT, base_id=self.minion["id"], json=payload)
+        self.minotour_api.post(
+            EndPoint.MINION_EVENT, base_id=self.minion["id"], json=payload
+        )
 
     def update_minion_run_info(self):
         """
@@ -438,16 +486,19 @@ class LiveMonitoringActions(RpcSafeConnection):
             "run": self.minotour_run_url,
             "minKNOW_version": self.api_connection.instance.get_version_info().minknow.full,
             "minKNOW_hash_run_id": self.run_information.run_id,
-            "minKNOW_script_run_id": self.api_connection.protocol.get_current_protocol_run().acquisition_run_ids[0],
+            "minKNOW_script_run_id": self.api_connection.protocol.get_current_protocol_run().acquisition_run_ids[
+                0
+            ],
             "minKNOW_real_sample_rate": self.api_connection.device.get_sample_rate().sample_rate,
             "minKNOW_asic_id": self.flowcell_data.asic_id_str,
             "minKNOW_start_time": self.run_information.start_time.ToDatetime().strftime(
                 "%Y-%m-%d %H:%M:%S"
             ),
-            "minKNOW_colours_string": MessageToJson(self.api_connection.analysis_configuration.get_channel_states_desc(),
-                                                    preserving_proto_field_name=True,
-                                                    including_default_value_fields=True,
-                                                    ),
+            "minKNOW_colours_string": MessageToJson(
+                self.api_connection.analysis_configuration.get_channel_states_desc(),
+                preserving_proto_field_name=True,
+                including_default_value_fields=True,
+            ),
             "minKNOW_computer": self.computer_name,
             "target_temp": self.temperature_data.target_temperature,
             "flowcell_type": self.flowcell_data.user_specified_product_code,
@@ -460,8 +511,7 @@ class LiveMonitoringActions(RpcSafeConnection):
         else:
             payload["experiment_id"] = "Not Known"
         update_run_info = self.minotour_api.post(
-            EndPoint.MINION_RUN_INFO,
-            json=payload, base_id=self.run_primary_key
+            EndPoint.MINION_RUN_INFO, json=payload, base_id=self.run_primary_key
         )
 
     def update_minion_stats(self):
@@ -482,7 +532,7 @@ class LiveMonitoringActions(RpcSafeConnection):
             "asic_temp": self.temperature_data.minion.asic_temperature.value,
             "heat_sink_temp": self.temperature_data.minion.heatsink_temperature.value,
             "voltage_value": int(self.bias_voltage),
-            "minKNOW_read_count":  self.acquisition_data.yield_summary.read_count,
+            "minKNOW_read_count": self.acquisition_data.yield_summary.read_count,
             "estimated_selected_bases": self.acquisition_data.yield_summary.estimated_selected_bases,
         }
         payload.update(counted)
@@ -502,14 +552,22 @@ class LiveMonitoringActions(RpcSafeConnection):
                     }
                 )
             except IndexError as e:
-                log.error("Problem access histogram data for {}".format(str(self.minion["url"])))
+                log.error(
+                    "Problem access histogram data for {}".format(
+                        str(self.minion["url"])
+                    )
+                )
         if self.acquisition_data:
             payload.update(
-                {"basecalled_bases": int(self.acquisition_data.yield_summary.basecalled_pass_bases) + int(self.acquisition_data.yield_summary.basecalled_fail_bases),
-                 "basecalled_fail_read_count": self.acquisition_data.yield_summary.basecalled_fail_read_count,
-                 "basecalled_pass_read_count": self.acquisition_data.yield_summary.basecalled_pass_read_count}
+                {
+                    "basecalled_bases": int(
+                        self.acquisition_data.yield_summary.basecalled_pass_bases
+                    )
+                    + int(self.acquisition_data.yield_summary.basecalled_fail_bases),
+                    "basecalled_fail_read_count": self.acquisition_data.yield_summary.basecalled_fail_read_count,
+                    "basecalled_pass_read_count": self.acquisition_data.yield_summary.basecalled_pass_read_count,
+                }
             )
         result = self.minotour_api.post(
-            EndPoint.MINION_RUN_STATS,
-            json=payload, base_id=self.run_primary_key
+            EndPoint.MINION_RUN_STATS, json=payload, base_id=self.run_primary_key
         )
