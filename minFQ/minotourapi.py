@@ -177,7 +177,6 @@ class MinotourAPI:
         """
         resp = self._post(*args, **kwargs)
         log.info("response is {}".format(resp.text))
-        log.info("response is {}".format(resp.text))
         try:
             return resp.json()
         except json_library.JSONDecodeError:
