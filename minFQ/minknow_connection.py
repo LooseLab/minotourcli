@@ -101,6 +101,7 @@ class DeviceMonitor(LiveMonitoringActions):
         self.minion_settings = None
         self.bias_voltage = None
         self.run_info_api = None
+        self.folder_path = None
         super().__init__(
             api_connection, self.minotour_api, sequencing_statistics, header
         )
