@@ -13,7 +13,7 @@ from minFQ.endpoints import EndPoint
 
 
 retry_strategy = Retry(
-    total=4,
+    total=6,
     status_forcelist=[429, 502, 503, 504],
     method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
     backoff_factor=1
@@ -261,7 +261,6 @@ class MinotourAPI:
             )
             log.debug("Text {}".format(response.text))
             log.error(MTConnectionError(response), exc_info=True)
-            raise MTConnectionError(response)
         if response.status_code == 502:
             log.info(
                 "Received bad gateway 502 on request {}. Trying to continue....".format(
