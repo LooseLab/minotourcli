@@ -7,7 +7,6 @@ from google.protobuf.json_format import MessageToJson
 import pytz
 from grpc import RpcError
 from urllib.parse import urlparse
-from pprint import pformat
 
 from minknow_api.protocol_pb2 import ProtocolRunUserInfo
 
@@ -82,8 +81,8 @@ class RpcSafeConnection:
         """
         try:
             return self.api_connection.protocol.get_current_protocol_run()
-        except RpcError:
-            log.debug("Failed to get current run info from protocol service")
+        except RpcError as E:
+            log.debug("Failed to get current run info from protocol service: {}".format(E))
             return None
 
     def get_acquisition_data(self):
@@ -172,11 +171,7 @@ class LiveMonitoringActions(RpcSafeConnection):
 
         """
         self.update_minion_event()
-        folder_path = str(
-            os.path.normpath(
-                self.api_connection.protocol.get_current_protocol_run().output_path
-            )
-        )
+        folder_path = self.folder_path
         if not self.args.no_fastq:
             if folder_path in self.sequencing_statistics.watched_directory_set:
                 self.sequencing_statistics.watched_directory_set.remove(folder_path)
@@ -212,6 +207,7 @@ class LiveMonitoringActions(RpcSafeConnection):
             FolderPath = (
                 self.api_connection.protocol.get_current_protocol_run().output_path
             )
+            self.folder_path = FolderPath
             if not self.args.no_fastq:
                 if (
                     os.path.normpath(FolderPath)
