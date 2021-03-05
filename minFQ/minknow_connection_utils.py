@@ -3,6 +3,8 @@ import os
 import time
 import datetime
 from collections import Counter
+from pprint import pformat
+
 from google.protobuf.json_format import MessageToJson
 import pytz
 from grpc import RpcError
@@ -170,8 +172,10 @@ class LiveMonitoringActions(RpcSafeConnection):
         -------
 
         """
+        log.info("Run stop observed for Run - {}".format(str(self.run_information.run_id)))
         self.update_minion_event()
         folder_path = self.folder_path
+        log.info("popping folder path {}".format(folder_path))
         if not self.args.no_fastq:
             if folder_path in self.sequencing_statistics.watched_directory_set:
                 self.sequencing_statistics.watched_directory_set.remove(folder_path)
@@ -179,7 +183,10 @@ class LiveMonitoringActions(RpcSafeConnection):
                 self.sequencing_statistics.to_watch_directory_list.remove(folder_path)
             if str(self.run_information.run_id) in self.sequencing_statistics.fastq_info:
                 log.info("popping: {} from fastq info".format(str(self.run_information.run_id)))
+                log.info(pformat(self.sequencing_statistics.fastq_info))
                 self.sequencing_statistics.fastq_info.pop(str(self.run_information.run_id))
+                log.info("popped")
+                log.info(pformat(self.sequencing_statistics.fastq_info))
             self.sequencing_statistics.update = True
         log.debug("run stop observed")
 
