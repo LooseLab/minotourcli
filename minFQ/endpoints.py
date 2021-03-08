@@ -18,7 +18,6 @@ class EndPoint(Enum):
     TEST = "/minknow/test-connect/"
     READ_TYPES = "/reads/read-types/"
     READ_NAMES = "/reads/runs/{}/read-names/"
-
     MINION_CONTROL = "/minknow/minions/{}/control/"
 
     # Post or Put
@@ -27,6 +26,7 @@ class EndPoint(Enum):
     MINION_MESSAGES = "/minknow/minions/{}/messages/"
     MINION_RUN_INFO = "/minknow/minions/runs/{}/"
     MINION_RUN_STATS = "/minknow/minions/runs/{}/run-stats/"
+    POST_MINION = "/minknow/minions/"
     RUNS = "/reads/runs/{}/"
     FLOWCELL = "/reads/flowcells/{}/"
     FASTQ_FILE = "/reads/runs/{}/files/"
