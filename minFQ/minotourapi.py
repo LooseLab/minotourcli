@@ -269,23 +269,23 @@ class MinotourAPI:
             )
         return None
 
-    def get_or_create(self, *args, **kwargs):
-        """
-        Get an object from the minoTour server or create it if we receive a 404
-        Parameters
-        ----------
-        args
-        kwargs
-
-        Returns
-        -------
-
-        """
-        payload = kwargs.pop("json")
-        resp = self._get(*args, **kwargs)
-        if not resp:
-            kwargs["params"] = None
-            kwargs["json"] = payload
-            return self.post(*args, **kwargs)
-        else:
-            return resp.json()
+    # def get_or_create(self, *args, **kwargs):
+    #     """
+    #     Get an object from the minoTour server or create it if we receive a 404
+    #     Parameters
+    #     ----------
+    #     args
+    #     kwargs
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     payload = kwargs.pop("json")
+    #     resp = self._get(*args, **kwargs)
+    #     if not resp:
+    #         kwargs["params"] = None
+    #         kwargs["json"] = payload
+    #         return self.post(*args, **kwargs)
+    #     else:
+    #         return resp.json()
