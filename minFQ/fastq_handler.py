@@ -217,7 +217,8 @@ def parse_fastq_file(
         fastq_file = minotour_api.post(
             EndPoint.FASTQ_FILE, json=payload, base_id=run_id
         )
-    sequencing_stats.fastq_info[run_id]["run_id"] = run_id
+    if not sequencing_stats.fastq_info[run_id]["run_id"]:
+        sequencing_stats.fastq_info[run_id]["run_id"] = run_id
     counter = 0
     # fq = pyfastx.Fastq(fastq_path)
     # gen = (read for read in fq)
