@@ -182,13 +182,14 @@ class LiveMonitoringActions(RpcSafeConnection):
             if folder_path in self.sequencing_statistics.to_watch_directory_list:
                 self.sequencing_statistics.to_watch_directory_list.remove(folder_path)
             if str(self.run_information.run_id) in self.sequencing_statistics.fastq_info:
-                log.info("popping: {} from fastq info".format(str(self.run_information.run_id)))
+                log.info("altering live acquisition status for : {} from fastq info".format(str(self.run_information.run_id)))
                 log.info(pformat(self.sequencing_statistics.fastq_info))
-                self.sequencing_statistics.fastq_info.pop(str(self.run_information.run_id))
-                log.info("popped")
+                self.sequencing_statistics.fastq_info[str(self.run_information.run_id)]["acquisition_finished"] = True
+                log.info("altered")
                 log.info(pformat(self.sequencing_statistics.fastq_info))
             self.sequencing_statistics.update = True
-        log.debug("run stop observed")
+        log.debug("run stop"
+                  " observed")
 
     def run_start(self):
         """
@@ -214,21 +215,24 @@ class LiveMonitoringActions(RpcSafeConnection):
             FolderPath = (
                 self.api_connection.protocol.get_current_protocol_run().output_path
             )
-            self.folder_path = FolderPath
+            self.folder_path = os.path.abspath(FolderPath)
             if not self.args.no_fastq:
                 if (
-                    os.path.normpath(FolderPath)
+                    self.folder_path
                     not in self.sequencing_statistics.to_watch_directory_list
                 ):
                     self.sequencing_statistics.to_watch_directory_list.append(
-                        str(os.path.normpath(FolderPath))
+                        self.folder_path
                     )
                     self.sequencing_statistics.fastq_info[
                         str(self.run_information.run_id)
-                    ]["directory"] = os.path.normpath(FolderPath)
+                    ]["directory"] = self.folder_path
                     self.sequencing_statistics.fastq_info[
                         str(self.run_information.run_id)
                     ]["run_id"] = self.run_information.run_id
+                    self.sequencing_statistics.fastq_info[
+                        str(self.run_information.run_id)
+                    ]["acquisition_finished"] = False
             self.update_minion_run_info()
         except Exception as err:
             log.error("Problem starting run {}", err)
