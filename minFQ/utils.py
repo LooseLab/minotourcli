@@ -1,3 +1,4 @@
+import json
 import logging
 import operator
 import os
@@ -5,15 +6,19 @@ import sys
 import time
 from collections import defaultdict, OrderedDict
 import curses
+from pprint import pformat
 
 from minFQ.endpoints import EndPoint
 from .version import __version__
+
+log = logging.getLogger(__name__)
 
 
 class CursesHandler(logging.Handler):
     """ todo spruce up message
     Logging handler to emit logs to the curses window in the correct format
     """
+
     def __init__(self, screen, log_pad):
         """
 
@@ -90,13 +95,20 @@ class SequencingStatistics:
     @property
     def connected_positions(self):
         if self._connected_positions:
-            return OrderedDict(sorted({
-                key: {
-                    k: self.convert(time.time() - v) if isinstance(v, float) else v
-                    for k, v in value.items()
-                }
-                for key, value in self._connected_positions.items()
-            }.items(), key=operator.itemgetter(0)))
+            return OrderedDict(
+                sorted(
+                    {
+                        key: {
+                            k: self.convert(time.time() - v)
+                            if isinstance(v, float)
+                            else v
+                            for k, v in value.items()
+                        }
+                        for key, value in self._connected_positions.items()
+                    }.items(),
+                    key=operator.itemgetter(0),
+                )
+            )
         else:
             return {}
 
@@ -120,7 +132,7 @@ class SequencingStatistics:
             )
         if minknow:
             if char_widths.get("sample_id", 0) > 8:
-                self.minknow_sample_col_x = 67 + char_widths["sample_id"] -8
+                self.minknow_sample_col_x = 67 + char_widths["sample_id"] - 8
             else:
                 self.minknow_sample_col_x = 67
         else:
@@ -167,6 +179,29 @@ class SequencingStatistics:
         """
         return self.convert(time.time() - self.time_per_file)
 
+    def check_fastq_info(self):
+        """
+        Check that a fastq info isn't out of data. Pop an entry if acquistion_finished = True and there an files queued
+        Returns
+        -------
+        None
+        """
+        iteration_safe_dict = json.loads(json.dumps(self.fastq_info))
+        for run_id, info_dict in iteration_safe_dict.items():
+            files_queued = (
+                info_dict.get("files_seen", 0)
+                - info_dict.get("files_processed", 0)
+                - info_dict.get("files_skipped", 0)
+            )
+            if info_dict.get("acquisition_finished", False) and not files_queued:
+                log.info(
+                    "{} being popped as files queued is {} and acquisition is finished ({})".format(
+                        run_id, files_queued, info_dict["acquisition_finished"]
+                    )
+                )
+                self.fastq_info.pop(run_id)
+                log.info(pformat(self.fastq_info))
+
 
 def refresh_pad(screen, pad):
     """
@@ -186,7 +221,7 @@ def refresh_pad(screen, pad):
     """
     num_rows, num_cols = screen.getmaxyx()
     # pad.addstr(0, 0, "{} rows, {} cols".format(num_rows, num_cols))
-    pad.refresh(0, 0, 0, 0, num_rows-1, num_cols-1)
+    pad.refresh(0, 0, 0, 0, num_rows - 1, num_cols - 1)
     # sequencing_stats.screen_num_rows = num_rows
     # sequencing_stats.screen_num_cols = num_cols
 
@@ -202,20 +237,20 @@ def ascii_minotour(stdscr):
     -------
 
     """
-    stdscr.addstr(0, 92, "     .                .",  curses.color_pair(2))
-    stdscr.addstr(1, 92, "     -+:...       ..:+=",  curses.color_pair(2))
-    stdscr.addstr(2, 92, "      :+*##%%%%%%##*+:",  curses.color_pair(2))
-    stdscr.addstr(3, 92, "    :-=+**.*%%%%#.**++=-.",  curses.color_pair(2))
-    stdscr.addstr(4, 92, " :*@@@@@@@-*%%%%%.@@@@@@@%=",  curses.color_pair(2))
-    stdscr.addstr(5, 92, "+@@@@@@@@@%.+%%#-+@@@@@@@@@*",  curses.color_pair(2))
-    stdscr.addstr(6, 92, "@@@@@%.-*@@@*==+%@@%- =@@@@@",  curses.color_pair(2))
-    stdscr.addstr(7, 92, ":@@@@#   :@@@@@@@@+   -@@@@=",  curses.color_pair(2))
-    stdscr.addstr(8, 92, " .+@@@+##-:@@@@@@+.*#=%@@#- ",  curses.color_pair(2))
-    stdscr.addstr(9, 92, "    =#@@@@ #@@@@@.=@@@%+.   ",  curses.color_pair(2))
-    stdscr.addstr(10, 92, "       :-.:*%%%%%- -:   ",  curses.color_pair(2))
-    stdscr.addstr(11, 92, "         +%%+--=#%#-        ",  curses.color_pair(2))
-    stdscr.addstr(12, 92, "        :##      *%+      ",  curses.color_pair(2))
-    stdscr.addstr(13, 92, "       .:=*:     +*-.",  curses.color_pair(2))
+    stdscr.addstr(0, 92, "     .                .", curses.color_pair(2))
+    stdscr.addstr(1, 92, "     -+:...       ..:+=", curses.color_pair(2))
+    stdscr.addstr(2, 92, "      :+*##%%%%%%##*+:", curses.color_pair(2))
+    stdscr.addstr(3, 92, "    :-=+**.*%%%%#.**++=-.", curses.color_pair(2))
+    stdscr.addstr(4, 92, " :*@@@@@@@-*%%%%%.@@@@@@@%=", curses.color_pair(2))
+    stdscr.addstr(5, 92, "+@@@@@@@@@%.+%%#-+@@@@@@@@@*", curses.color_pair(2))
+    stdscr.addstr(6, 92, "@@@@@%.-*@@@*==+%@@%- =@@@@@", curses.color_pair(2))
+    stdscr.addstr(7, 92, ":@@@@#   :@@@@@@@@+   -@@@@=", curses.color_pair(2))
+    stdscr.addstr(8, 92, " .+@@@+##-:@@@@@@+.*#=%@@#- ", curses.color_pair(2))
+    stdscr.addstr(9, 92, "    =#@@@@ #@@@@@.=@@@%+.   ", curses.color_pair(2))
+    stdscr.addstr(10, 92, "       :-.:*%%%%%- -:   ", curses.color_pair(2))
+    stdscr.addstr(11, 92, "         +%%+--=#%#-        ", curses.color_pair(2))
+    stdscr.addstr(12, 92, "        :##      *%+      ", curses.color_pair(2))
+    stdscr.addstr(13, 92, "       .:=*:     +*-.", curses.color_pair(2))
 
 
 def write_out_minfq_info(stdscr, sequencing_statistics):
@@ -237,24 +272,49 @@ def write_out_minfq_info(stdscr, sequencing_statistics):
         0,
         "MinFQ Stats\n------------------------------------------\n"
         "MinFQ up time: {}\n"
-        "Connected to minoTour at: {}\n"
-        "Total FASTQ files Queued: {} \t\t Total Reads Queued: {}\n"
-        "Total FASTQ files Uploaded: {} \t\t Total Reads Uploaded: {}\n"
-        "Total FASTQ files Skipped: {} \t\t Total Reads Skipped: {}\n"
-        "".format(
-            sequencing_statistics.minfq_uptime,
-            sequencing_statistics.minotour_url,
+        "Connected to minoTour at: {}\n".format(
+            sequencing_statistics.minfq_uptime, sequencing_statistics.minotour_url
+        ),
+    )
+    stdscr.addstr(
+        sequencing_statistics.minfq_y + 4,
+        0,
+        "Total FASTQ files Queued: {}".format(
             sequencing_statistics.files_seen
             - sequencing_statistics.files_processed
-            - sequencing_statistics.files_skipped,
+            - sequencing_statistics.files_skipped
+        ),
+    )
+    stdscr.addstr(
+        sequencing_statistics.minfq_y + 4,
+        43,
+        "Total Reads Queued: {}".format(
             sequencing_statistics.reads_seen
             - sequencing_statistics.reads_uploaded
-            - sequencing_statistics.reads_skipped,
-            sequencing_statistics.files_processed,
-            sequencing_statistics.reads_uploaded,
-            sequencing_statistics.files_skipped,
-            sequencing_statistics.reads_skipped,
+            - sequencing_statistics.reads_skipped
         ),
+    )
+    stdscr.addstr(
+        sequencing_statistics.minfq_y + 5,
+        0,
+        "Total FASTQ files Uploaded: {}".format(sequencing_statistics.files_processed,),
+    )
+    stdscr.addstr(
+        sequencing_statistics.minfq_y + 5,
+        43,
+        "Total Reads Uploaded: {}".format(sequencing_statistics.reads_uploaded),
+    )
+    stdscr.addstr(
+        sequencing_statistics.minfq_y + 6,
+        0,
+        "Total FASTQ files Already seen: {}".format(
+            sequencing_statistics.files_skipped
+        ),
+    )
+    stdscr.addstr(
+        sequencing_statistics.minfq_y + 6,
+        43,
+        "Total Reads Uploaded: {} ".format(sequencing_statistics.reads_skipped),
     )
 
 
@@ -335,8 +395,8 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
     stdscr.addstr(cols_y + 1, 15, "Files/Reads")
     stdscr.addstr(cols_y + 1, 30, "Files/Reads")
     stdscr.addstr(cols_y + 1, 45, "Files/Reads")
-
-    for index, value in enumerate(sequencing_statistics.fastq_info.values()):
+    iteration_safe_dict = json.loads(json.dumps(sequencing_statistics.fastq_info))
+    for index, value in enumerate(iteration_safe_dict.values()):
         stdscr.addstr(cols_y + index + 2, 0, str(value.get("run_id", ""))[:10])
         files_queued = (
             value.get("files_seen", 0)
@@ -355,11 +415,16 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
             cols_y + index + 2,
             30,
             "{}/{}".format(
-                str(value.get("files_processed", 0)), str(value.get("reads_uploaded", 0))
+                str(value.get("files_processed", 0)),
+                str(value.get("reads_uploaded", 0)),
             ),
         )
-        stdscr.addstr(cols_y + index + 2, 45, "{}/{}".format(
-            str(value.get("files_skipped", 0)), str(value.get("reads_skipped", 0)))
+        stdscr.addstr(
+            cols_y + index + 2,
+            45,
+            "{}/{}".format(
+                str(value.get("files_skipped", 0)), str(value.get("reads_skipped", 0))
+            ),
         )
         stdscr.addstr(cols_y + index + 2, 60, str(value.get("directory", 0)))
 
@@ -598,49 +663,6 @@ def add_arguments_to_parser(parser, stdscr):
     return parser
 
 
-def write_out_fastq_stats(upload_stats, line_counter):
-    """
-    Write out information to the terminal about our fastq monitoring
-    Parameters
-    ----------
-    upload_stats: minFQ.utils.SequencingStatistics
-        Class with statistics and info about our monitoring
-    line_counter: int
-        The number of lines that we need to clear from the terminal print out
-    Returns
-    -------
-    int
-    """
-    sys.stdout.write("{}\n".format(upload_stats.fastq_message))
-    sys.stdout.write("FastQ Upload Status:\n")
-    sys.stdout.write(
-        "Files queued/Processed/Skipped/Up time/This file:{}/{}/{}/{}/{}\n".format(
-            upload_stats.files_seen
-            - upload_stats.files_processed
-            - upload_stats.files_skipped,
-            upload_stats.files_processed,
-            upload_stats.files_skipped,
-            upload_stats.elapsed,
-            upload_stats.per_file,
-        )
-    )
-    sys.stdout.write(
-        "New reads seen/Uploaded/Skipped:{}/{}/{}\n".format(
-            upload_stats.reads_seen
-            - upload_stats.reads_uploaded
-            - upload_stats.reads_skipped,
-            upload_stats.reads_uploaded,
-            upload_stats.reads_skipped,
-        )
-    )
-    sys.stdout.write(
-        "Monitoring the following directories: {}\n".format(
-            upload_stats.to_watch_directory_list
-        )
-    )
-    return line_counter + 5
-
-
 def validate_args(args):
     """
     Check the args before setting up all connections. Error out if any mistakes are found.
@@ -655,13 +677,13 @@ def validate_args(args):
     error_string = None
     if args.watch_dir:
         if not os.path.exists(args.watch_dir):
-            error_string = "The watch directory specified {} does not exists. Please check specified path.".format(
+            error_string = "The watch directory specified {} does not exist. Please check specified path.".format(
                 args.watch_dir
             )
 
         if args.no_fastq:
             error_string = (
-                "If not monitoring FASTQ please do no provide a watch directory."
+                "If not monitoring FASTQ please do not provide a watch directory."
             )
     if args.job and args.job == 16:
         if not args.reference:
@@ -715,7 +737,9 @@ def check_server_compatibility(minotour_api, log):
             "Please change the client to a previous version or upgrade server."
         )
     else:
-        return "minFQ version: {} is compatible with minoTour server specified.\n".format(__version__)
+        return "minFQ version: {} is compatible with minoTour server specified.\n".format(
+            __version__
+        )
 
 
 def list_minotour_options(log, args, minotour_api, stdscr, screen):
@@ -738,36 +762,56 @@ def list_minotour_options(log, args, minotour_api, stdscr, screen):
     None
     """
     stdscr.clear()
-    stdscr.addstr(0, 0, "Fetching available Jobs, References and Targets...", curses.color_pair(5))
+    stdscr.addstr(
+        0, 0, "Fetching available Jobs, References and Targets...", curses.color_pair(5)
+    )
     # TODO combine below into new single API end point
     jobs = minotour_api.get_json(EndPoint.TASK_TYPES, params={"cli": True})["data"]
     references = minotour_api.get_json(EndPoint.REFERENCES)["data"]
     params = {"api_key": args.api_key, "cli": True}
     targets = minotour_api.get_json(EndPoint.TARGET_SETS, params=params)
-    stdscr.addstr(2, 0, "The following jobs are available on this minoTour installation:")
+    stdscr.addstr(
+        2, 0, "The following jobs are available on this minoTour installation:"
+    )
     line_num = 3
     for job_info in jobs:
         if not job_info["name"].startswith("Delete"):
-            stdscr.addstr(line_num, 0,
+            stdscr.addstr(
+                line_num,
+                0,
                 "\t{}:{}".format(
                     job_info["id"], job_info["name"].lower().replace(" ", "_")
-                ), curses.color_pair(3)
+                ),
+                curses.color_pair(3),
             )
             line_num += 1
     line_num += 1
-    stdscr.addstr(line_num, 0, "If you wish to run an alignment, the following references are available:")
+    stdscr.addstr(
+        line_num,
+        0,
+        "If you wish to run an alignment, the following references are available:",
+    )
     line_num += 1
     for reference in references:
-        stdscr.addstr(line_num, 0, "\t{}:{}".format(reference["id"], reference["name"]), curses.color_pair(4))
+        stdscr.addstr(
+            line_num,
+            0,
+            "\t{}:{}".format(reference["id"], reference["name"]),
+            curses.color_pair(4),
+        )
         line_num += 1
     line_num += 1
     stdscr.addstr(
-        line_num, 0, "If you wish to add a target set to the metagenomics task, the following sets are available to you:"
+        line_num,
+        0,
+        "If you wish to add a target set to the metagenomics task, the following sets are available to you:",
     )
     line_num += 1
     index = 1
     for target in targets:
-        stdscr.addstr(line_num, 0, "\t{}:{}".format(index, target), curses.color_pair(2))
+        stdscr.addstr(
+            line_num, 0, "\t{}:{}".format(index, target), curses.color_pair(2)
+        )
         index += 1
         line_num += 1
     refresh_pad(screen, stdscr)
