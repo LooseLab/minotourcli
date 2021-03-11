@@ -272,11 +272,6 @@ class DeviceMonitor(LiveMonitoringActions):
                                 self.channel_states_dict[
                                     int(channel.channel)
                                 ] = channel.state_name
-                        if str(self.acquisition_status) not in {
-                            "ACQUISITION_RUNNING",
-                            "ACQUISITION_STARTING",
-                        }:
-                            break
                     except Exception as e:
                         log.error("Chan state error: {}".format(e))
             time.sleep(self.interval)
