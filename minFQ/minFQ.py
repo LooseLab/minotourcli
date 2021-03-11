@@ -111,7 +111,7 @@ def start_minknow_and_basecalled_monitoring(
                 # log_win.addstr(0, 0, "To stop minFQ use CTRL-C. To see the logs, Press l. To see info, Press s.", curses.color_pair(4))
                 refresh_pad(screen, log_win)
             screen.refresh()
-            if not args.no_fastq and sequencing_statistics.to_watch_directory_list: # tick
+            if not args.no_fastq and sequencing_statistics.to_watch_directory_list:
                 for folder in sequencing_statistics.to_watch_directory_list: # directory watchlist has the new run dir
                     log.warning("Checking folder {} that is in our to watch directory".format(folder))
                     if folder and folder not in sequencing_statistics.watched_directory_set:
@@ -147,6 +147,8 @@ def start_minknow_and_basecalled_monitoring(
                                 )
                             )
                     sequencing_statistics.update = False
+                # check if we need to remove any fastq info
+            sequencing_statistics.check_fastq_info()
             time.sleep(1)
 
             if sequencing_statistics.errored:
