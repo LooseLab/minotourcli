@@ -13,6 +13,7 @@ class EndPoint(Enum):
     GET_MINION = "/minknow/minions/{}/"
     TASK_TYPES = "/reads/task-types/"
     TARGET_SETS = "/metagenomics/target-sets"
+    PRIMER_SCHEMES = "/artic/schemes"
     # todo if we get the api right, we can just combine the base minion with the status or events etc.
     MINION_STATUS = "/minknow/minions/{}/status/"
     TEST = "/minknow/test-connect/"

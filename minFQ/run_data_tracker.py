@@ -146,6 +146,7 @@ class RunDataTracker:
             "job_type": args.job,
             "reference": args.reference,
             "target_set": args.targets,
+            "primer_scheme": args.primer_scheme,
             "cli": True,
             "api_key": args.api_key
         }

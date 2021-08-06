@@ -382,11 +382,16 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
     stdscr.addstr(
         sequencing_statistics.fastq_y,
         0,
-        "Base-called data upload stats\n------------------------------\nDirectories watched: {}\n".format(
+        "Base-called data upload stats\n------------------------------\nDirectories watched: {}".format(
             len(sequencing_statistics.watched_directory_set)
         ),
     )
-    cols_y = sequencing_statistics.fastq_y + 4
+    stdscr.addstr(
+        sequencing_statistics.fastq_y + 3,
+        0,
+        str(sequencing_statistics.fastq_message)
+    )
+    cols_y = sequencing_statistics.fastq_y + 5
     stdscr.addstr(cols_y, 0, "Run id")
     stdscr.addstr(cols_y, 15, "Queued")
     stdscr.addstr(cols_y, 30, "Uploaded")
@@ -660,6 +665,15 @@ def add_arguments_to_parser(parser, stdscr):
         help="Absolute path to an unblocked read_ids text file. Not necessary, should be picked up automatically.",
         dest="unblocks",
     )
+    parser.add_argument(
+        "-ps",
+        "--primer-scheme",
+        type=int,
+        default=None,
+        required=False,
+        help="Set the primer scheme to use for artic tasks. Valid options can be seen using --list.",
+        dest="primer_scheme"
+    )
     return parser
 
 
@@ -688,6 +702,8 @@ def validate_args(args):
     if args.job and args.job == 16:
         if not args.reference:
             error_string = "Reference required for Artic job type. Please provide."
+        if not args.primer_scheme:
+            error_string = "Primer Scheme required for Artic job type. Please provide."
 
     if args.toml is not None:
         if not os.path.exists(args.toml):
@@ -752,7 +768,7 @@ def list_minotour_options(log, args, minotour_api, stdscr, screen):
     args: argparse.Namespace
         Namespace for chosen arguments after parsing
     minotour_api: minFQ.minotourapi.MinotourAPI
-        Dictionary of header info for requests sent to minoTour
+        API convenience class
     stdscr: _curses.pad
         The window for the curses display
     screen: _curses.window
@@ -768,6 +784,7 @@ def list_minotour_options(log, args, minotour_api, stdscr, screen):
     # TODO combine below into new single API end point
     jobs = minotour_api.get_json(EndPoint.TASK_TYPES, params={"cli": True})["data"]
     references = minotour_api.get_json(EndPoint.REFERENCES)["data"]
+    schemes = minotour_api.get_json(EndPoint.PRIMER_SCHEMES)["data"]
     params = {"api_key": args.api_key, "cli": True}
     targets = minotour_api.get_json(EndPoint.TARGET_SETS, params=params)
     stdscr.addstr(
@@ -811,6 +828,19 @@ def list_minotour_options(log, args, minotour_api, stdscr, screen):
     for target in targets:
         stdscr.addstr(
             line_num, 0, "\t{}:{}".format(index, target), curses.color_pair(2)
+        )
+        index += 1
+        line_num += 1
+    line_num += 1
+    stdscr.addstr(
+        line_num,
+        0,
+        "Artic primer scheme choice - MANDATORY for starting artic Jobs - use the ID number on the right",
+    )
+    line_num += 1
+    for scheme in schemes:
+        stdscr.addstr(
+            line_num, 0, "\t{} : {} - {}".format(scheme["id"], scheme["scheme_species"], scheme["scheme_version"]), curses.color_pair(2)
         )
         index += 1
         line_num += 1
@@ -866,3 +896,7 @@ def check_job_from_client(args, log, minotour_api, parser):
             if args.targets > len(targets):
                 log.error("Target set not found. Please check spelling and try again.")
                 sys.exit(0)
+    if args.job == "artic" or args.job == 16:
+        if not args.primer_scheme:
+            log.error("Primer scheme required for artic job.")
+            sys.exit(1)
