@@ -746,8 +746,11 @@ def check_server_compatibility(minotour_api, log):
     clients = version["clients"]
     if not any([__version__.startswith(client) for client in clients]):
         log.error(
-            "Server does not support this client. Please change the client to a previous version or upgrade server."
+            "Server does not support this client. Please check server version or upgrade/downgrade client."
         )
+        log.error("Server supports minFQ versions:")
+        for client in clients:
+            log.error(client)
         raise Exception(
             "Server does not support this client. "
             "Please change the client to a previous version or upgrade server."
