@@ -161,7 +161,7 @@ def parse_fastq_record(
         # Parse the channel out of the description and lookup it's corresponding condition
         # set it to the reads barcode
         if run_dict[fastq_read["run_id"]].toml is not None:
-            fastq_read["barcode_name"] = run_dict[fastq_read["run_id"]].toml[
+            fastq_read["barcode_name"] = fastq_read["barcode_name"] + "_" +  run_dict[fastq_read["run_id"]].toml[
                 int(fastq_read["channel"])
             ]
         is_unblocked = fastq_read["read_id"] in run_dict[fastq_read["run_id"]].unblocked_dict
