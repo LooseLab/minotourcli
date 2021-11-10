@@ -436,14 +436,20 @@ class MinionManager(Manager):
                         "up_time": time.time(),
                     }
                     if position.running:
-                        # TODO note that we cannot connect to a remote instance without an ip websocket
-                        self.connected_positions[device_id] = DeviceMonitor(
-                            self.args,
-                            position.connect(),
-                            self.header,
-                            device_id,
-                            self.sequencing_statistics,
-                        )
+                        connected_position = position.connect()
+                        device_connected = connected_position.device.get_device_state().device_state
+                        if device_connected:
+                            # TODO note that we cannot connect to a remote instance without an ip websocket
+                            self.connected_positions[device_id] = DeviceMonitor(
+                                self.args,
+                                connected_position,
+                                self.header,
+                                device_id,
+                                self.sequencing_statistics,
+                            )
+                        else:
+                            self.sequencing_statistics._connected_positions[device_id]['running']="Error"
+
 
             time.sleep(5)
 
