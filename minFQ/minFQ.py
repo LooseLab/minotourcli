@@ -4,6 +4,7 @@ import platform
 import logging
 import time
 import curses
+from logging.handlers import RotatingFileHandler
 
 from minFQ.minknow_connection import MinionManager
 from minFQ.fastq_handler import FastqHandler
@@ -17,16 +18,19 @@ from minFQ.utils import (
     SequencingStatistics,
     list_minotour_options,
     check_job_from_client,
-    write_out_minfq_info, write_out_minknow_info, write_out_fastq_info,
-    refresh_pad, ascii_minotour,
-    CursesHandler
+    write_out_minfq_info,
+    write_out_minknow_info,
+    write_out_fastq_info,
+    refresh_pad,
+    ascii_minotour,
+    CursesHandler,
 )
 
 logging.basicConfig(
-    format="%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s",
-    filename="minFQ.log",
-    filemode="w",
+    handlers=[RotatingFileHandler("./minFQ.log", maxBytes=20000000, backupCount=3)],
     level=logging.INFO,
+    format="[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
 )
 
 log = logging.getLogger()
@@ -37,7 +41,7 @@ log.setLevel(logging.DEBUG)
 
 
 def start_minknow_and_basecalled_monitoring(
-    sequencing_statistics, args,  header, minotour_api, stdscr, screen, log_win
+    sequencing_statistics, args, header, minotour_api, stdscr, screen, log_win
 ):
     """
     Start the minKnow monitoring and basecalled data monitoring in accordance with arguments passed by user
@@ -98,7 +102,12 @@ def start_minknow_and_basecalled_monitoring(
                 stats = True
             # todo these should be abstracted into one function as they are verrrry similar
             if stats:
-                stdscr.addstr(0, 0, "To stop minFQ use CTRL-C. To see the logs, Press l. To return to stats, Press s.", curses.color_pair(4))
+                stdscr.addstr(
+                    0,
+                    0,
+                    "To stop minFQ use CTRL-C. To see the logs, Press l. To return to stats, Press s.",
+                    curses.color_pair(4),
+                )
                 stdscr.addstr(1, 0, "Fetching Data...")
                 write_out_minfq_info(stdscr, sequencing_statistics)
                 ascii_minotour(stdscr)
@@ -112,9 +121,20 @@ def start_minknow_and_basecalled_monitoring(
                 refresh_pad(screen, log_win)
             screen.refresh()
             if not args.no_fastq and sequencing_statistics.to_watch_directory_list:
-                for folder in sequencing_statistics.to_watch_directory_list: # directory watchlist has the new run dir
-                    log.warning("Checking folder {} that is in our to watch directory".format(folder))
-                    if folder and folder not in sequencing_statistics.watched_directory_set:
+                for (
+                    folder
+                ) in (
+                    sequencing_statistics.to_watch_directory_list
+                ):  # directory watchlist has the new run dir
+                    log.warning(
+                        "Checking folder {} that is in our to watch directory".format(
+                            folder
+                        )
+                    )
+                    if (
+                        folder
+                        and folder not in sequencing_statistics.watched_directory_set
+                    ):
                         # check that the folder exists, before adding it to be scheduled
                         if os.path.exists(folder):
                             # We have a new folder that hasn't been added.
@@ -131,12 +151,18 @@ def start_minknow_and_basecalled_monitoring(
                                     folder
                                 )
                             )
-                log.warning("Updating observers is {}".format(sequencing_statistics.update))
+                log.warning(
+                    "Updating observers is {}".format(sequencing_statistics.update)
+                )
                 if sequencing_statistics.update:
                     observer.unschedule_all()
                     for folder in sequencing_statistics.watched_directory_set:
                         if folder and os.path.exists(folder):
-                            log.info("Scheduling observer for {}, which does exist".format(folder))
+                            log.info(
+                                "Scheduling observer for {}, which does exist".format(
+                                    folder
+                                )
+                            )
                             observer.schedule(
                                 event_handler, path=folder, recursive=True
                             )
@@ -217,7 +243,9 @@ def main():
 
     mh = CursesHandler(screen, log_win)
     mh.setLevel(logging.DEBUG)
-    formatterDisplay = logging.Formatter("%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s")
+    formatterDisplay = logging.Formatter(
+        "%(asctime)s %(module)s:%(levelname)s:%(thread)d:%(message)s"
+    )
     mh.setFormatter(formatterDisplay)
     log.addHandler(mh)
     if platform.system() == "Windows":  # MS
@@ -242,20 +270,26 @@ def main():
     handler.setLevel(getattr(logging, args.loglevel.upper()))
     log.setLevel(getattr(logging, args.loglevel.upper()))
     # log = configure_logging(getattr(logging, args.loglevel.upper()), screen, log_win)
-    stdscr.addstr(str("""Welcome to
+    stdscr.addstr(
+        str(
+            """Welcome to
            _      ______ _____ 
           (_)     |  ___|  _  |
  _ __ ___  _ _ __ | |_  | | | |
 | '_ ` _ \| | '_ \|  _| | | | |
 | | | | | | | | | | |   \ \/' /
-|_| |_| |_|_|_| |_\_|    \_/\_\ \n"""), curses.color_pair(2))
+|_| |_| |_|_|_| |_\_|    \_/\_\ \n"""
+        ),
+        curses.color_pair(2),
+    )
     refresh_pad(screen, stdscr)
     header = {
         "Authorization": "Token {}".format(args.api_key),
         "Content-Type": "application/json",
-        "Content-Encoding": "gzip"
+        "Content-Encoding": "gzip",
     }
-    stdscr.addstr("""MMMMMMMMMMMNNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMWWWMMMMMMMMMMM
+    stdscr.addstr(
+        """MMMMMMMMMMMNNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMWWWMMMMMMMMMMM
 MMMMMMMMMMWkkNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMWKOXMMMMMMMMMMM
 MMMMMMMMMMWx:dKNWMMMMMMMMMMMMMMMMMMMMMMMMMMMMMWWXkcoXMMMMMMMMMMM
 MMMMMMMMMMMKl;:lxkO0KKKXXNNNNWWWWWNNNNXXXKKK0Oxoc;:kWMMMMMMMMMMM
@@ -286,7 +320,9 @@ MMMMMMMMMMMMMMMMMNx;,,,;oXWMMMMMMMMMMWKl;,,,;dNMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMMMNk:,,:OWMMMMMMMMMMMMWk;,,:kNMMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMMMWNx:,;xNMMMMMMMMMMMMNx;,:xNWMMMMMMMMMMMMMMMMMM
 MMMMMMMMMMMMMMMMNKko:;,,:xNMMMMMMMMMMNx:,,;:okKNMMMMMMMMMMMMMMMM
-MMMMMMMMMMMMMMMWXkdddddddxKWMMMMMMMMMXxdddddddkXWMMMMMMMMMMMMMMM\n""", curses.color_pair(4))
+MMMMMMMMMMMMMMMWXkdddddddxKWMMMMMMMMMXxdddddddkXWMMMMMMMMMMMMMMM\n""",
+        curses.color_pair(4),
+    )
     stdscr.addstr("Welcome to minFQ, the upload client for minoTour.\n")
     refresh_pad(screen, stdscr)
     try:
@@ -302,14 +338,16 @@ MMMMMMMMMMMMMMMWXkdddddddxKWMMMMMMMMMXxdddddddkXWMMMMMMMMMMMMMMM\n""", curses.co
         sequencing_statistics = SequencingStatistics()
         sequencing_statistics.screen_num_cols = num_cols
         sequencing_statistics.screen_num_rows = num_rows
-        sequencing_statistics.minotour_url = "{}:{}".format(args.host_name, args.port_number)
+        sequencing_statistics.minotour_url = "{}:{}".format(
+            args.host_name, args.port_number
+        )
         if args.list:
             list_minotour_options(log, args, minotour_api, stdscr, screen)
         # Below we perform checks if we are trying to set a job.
         if args.job is not None:
             check_job_from_client(args, log, minotour_api, parser)
         start_minknow_and_basecalled_monitoring(
-            sequencing_statistics, args,  header, minotour_api, stdscr, screen, log_win
+            sequencing_statistics, args, header, minotour_api, stdscr, screen, log_win
         )
     except Exception as e:
         curses.nocbreak()
@@ -319,4 +357,3 @@ MMMMMMMMMMMMMMMWXkdddddddxKWMMMMMMMMMXxdddddddkXWMMMMMMMMMMMMMMM\n""", curses.co
         curses.endwin()
         print(e)
         sys.exit(0)
-
