@@ -3,6 +3,7 @@ File Routines for handling fastq files and monitoring locations. Built on watchd
 """
 import gzip
 import logging
+import lzma
 import sys
 import threading
 import time
@@ -223,7 +224,11 @@ def parse_fastq_file(
     # fq = pyfastx.Fastq(fastq_path)
     # gen = (read for read in fq)
     # for read in gen:
-    handle = gzip.open if fastq_path.endswith(".gz") else open
+    open_handle_dict = {
+        ".gz": gzip.open,
+        ".xz": lzma.open
+    }
+    handle = open_handle_dict.get(fastq_path[-3:], open)
     with handle(fastq_path, "rt") as fh:
         for desc, name, seq, qual in readfq(fh):
             description_dict = parse_fastq_description(desc)
