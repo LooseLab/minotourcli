@@ -253,7 +253,7 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
             ## ToDo Consider moving these to top level
             novel_run_set = set()
             seen_file_tracker = {}
-            file_endings = {".fq", ".fastq", ".fq.gz", ".fastq.gz"}
+            file_endings = {".fq", ".fastq", ".fq.gz", ".fastq.gz", ".fq.xz", ".fastq.xz"}
             # have s rummage around the watch directory
             for path, dirs, files in os.walk(path):
                 # iterate fastq files in the watchdir
