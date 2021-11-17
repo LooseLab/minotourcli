@@ -882,7 +882,7 @@ def check_job_from_client(args, log, minotour_api, parser):
             "Can't find the job type chosen. Please double check that it is the same ID shown by --list."
         )
 
-    if args.job == "minimap2" or args.job == 4:
+    if args.job == "minimap2" or args.job in {4, 5}:
         if args.reference == None:
             log.error("You need to specify a reference for a Minimap2 task.")
             sys.exit(0)
