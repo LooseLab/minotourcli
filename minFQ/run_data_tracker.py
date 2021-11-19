@@ -134,7 +134,7 @@ class RunDataTracker:
     def add_unblocked_reads_file(self, unblocked_file_path):
         self.unblocked_file = unblocked_file_path
 
-    def create_jobs(self, flowcell, args):
+    def create_jobs(self, flowcell, run, args):
         """
         Create jobs when runCollection is initialised
         Returns
@@ -148,7 +148,8 @@ class RunDataTracker:
             "target_set": args.targets,
             "primer_scheme": args.primer_scheme,
             "cli": True,
-            "api_key": args.api_key
+            "api_key": args.api_key,
+            "run": run["id"]
         }
         self.minotour_api.post(
             EndPoint.JOBS,
@@ -257,7 +258,7 @@ class RunDataTracker:
             run = created_run
 
         if args.job:
-            self.create_jobs(flowcell, args)
+            self.create_jobs(flowcell, run, args)
         if not self.run:
             self.run = run
         for item in run["barcodes"]:
