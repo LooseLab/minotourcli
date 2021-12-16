@@ -149,7 +149,7 @@ class RunDataTracker:
             "primer_scheme": args.primer_scheme,
             "cli": True,
             "api_key": args.api_key,
-            "run": run["id"]
+            # "run": run["id"]
         }
         self.minotour_api.post(
             EndPoint.JOBS,
