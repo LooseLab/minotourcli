@@ -674,6 +674,17 @@ def add_arguments_to_parser(parser, stdscr):
         help="Set the primer scheme to use for artic tasks. Valid options can be seen using --list.",
         dest="primer_scheme"
     )
+    parser.add_argument(
+        "-cc",
+        "--concat_conditions",
+        type=bool,
+        default=False,
+        required=False,
+        help="On ReadFish runs, concatenate the reads barcode name and the condition ReadFish has for it's channel. "
+             "Default False. ",
+        dest="concat_condish",
+        action="store_true",
+    )
     return parser
 
 
