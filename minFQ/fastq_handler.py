@@ -161,7 +161,7 @@ def parse_fastq_record(
         fastq_read["barcode_name"] = barcode_name.replace(" ", "_") if barcode_name else "No_barcode"
         # Parse the channel out of the description and lookup it's corresponding condition
         # set it to the reads barcode
-        if run_dict[fastq_read["run_id"]].toml is not None and args["concat_condish"]:
+        if run_dict[fastq_read["run_id"]].toml is not None and args.concat_condish:
             fastq_read["barcode_name"] = fastq_read["barcode_name"] + "_" + run_dict[fastq_read["run_id"]].toml[
                 int(fastq_read["channel"])
             ]
