@@ -763,7 +763,7 @@ def check_server_compatibility(minotour_api, log):
             log.error(client)
         raise Exception(
             "Server does not support this client. "
-            "Please change the client to a previous version or upgrade server."
+            f"Please change your client to any of {clients} or upgrade your minoTour server."
         )
     else:
         return "minFQ version: {} is compatible with minoTour server specified.\n".format(
