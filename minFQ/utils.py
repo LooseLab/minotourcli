@@ -677,7 +677,6 @@ def add_arguments_to_parser(parser, stdscr):
     parser.add_argument(
         "-cc",
         "--concat_conditions",
-        type=bool,
         default=False,
         required=False,
         help="On ReadFish runs, concatenate the reads barcode name and the condition ReadFish has for it's channel. "
