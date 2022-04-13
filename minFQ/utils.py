@@ -85,7 +85,7 @@ class SequencingStatistics:
     @property
     def fastq_y(self):
         """
-        Return te number of ocnnected positions to calulcate where to write the fastq statistics
+        Return te number of connected positions to calulcate where to write the fastq statistics
         Returns
         -------
 

@@ -375,15 +375,15 @@ class MinionManager(Manager):
 
     def __init__(
         self,
+        **kwargs
+    ):
+        """
         host="localhost",
         port=None,
         use_tls=False,
         args=None,
         header=None,
         sequencing_statistics=None,
-    ):
-        """
-
         Parameters
         ----------
         host: str
@@ -399,7 +399,15 @@ class MinionManager(Manager):
         sequencing_statistics: minFQ.utils.SequencingStatistics
             The metrics for tracking fastq sequencing
         """
-        super().__init__(host, port, use_tls)
+        log.info(f"Installed minknow API Version {minknow_api.__version__}")
+        if minknow_api.__version__.startswith("5"):
+            host = kwargs.get("host", "localhost")
+            port = kwargs.get("port", 9502)
+            super().__init__(host, port)
+        elif minknow_api.__version__[:2] in {"4.2", "4.3", "4.4", "4.5"}:
+            host = kwargs.get("host", "localhost")
+            port = kwargs.get("port", 9501)
+            super().__init__(host, port, use_tls=False)
         self.monitor = True
         self.connected_positions = {}
         self.device_monitor_thread = threading.Thread(
@@ -407,9 +415,9 @@ class MinionManager(Manager):
         )
         self.device_monitor_thread.daemon = True
         self.device_monitor_thread.start()
-        self.args = args
-        self.header = header
-        self.sequencing_statistics = sequencing_statistics
+        self.args = kwargs["args"]
+        self.header = kwargs["header"]
+        self.sequencing_statistics = kwargs["sequencing_statistics"]
 
     @property
     def count(self):
