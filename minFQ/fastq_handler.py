@@ -166,6 +166,9 @@ def parse_fastq_record(
                 int(fastq_read["channel"])
             ]
         is_unblocked = fastq_read["read_id"] in run_dict[fastq_read["run_id"]].unblocked_dict
+        # new - now we unblock the 
+        if is_unblocked:
+            run_dict[fastq_read["run_id"]].unblocked_dict.pop(fastq_read["read_id"])
         fastq_read["rejected_barcode_name"] = "Unblocked" if is_unblocked else "Sequenced"
         # add control-treatment if passed as argument
         if args.treatment_control:

@@ -30,10 +30,13 @@ class OpenLine:
             The keyword args to pass to the open function. Default None.
         """
         self.fp = fp
-        self.start = start
+        # seeking lines is zero indexed
+        self.start = start - 1 
         self.number = number
         self.open_func = f
-        self.current_line = 0
+        self.current_line = start
+        # number of bytes in a line
+        self.offset = 37
 
         if number == -1:
             self.number = float("inf")
@@ -45,12 +48,11 @@ class OpenLine:
 
     def __enter__(self):
         with self.open_func(self.fp, **self.f_kwds) as fh:
+            fh.seek(self.number * self.offset)
             for i, L in enumerate(fh, start=1):
-                if i < self.start:
-                    continue
-                if i >= self.start + self.number:
+                if i >= self.number:
                     break
-                self.current_line = i
+                self.current_line += 1
                 yield L.strip()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
