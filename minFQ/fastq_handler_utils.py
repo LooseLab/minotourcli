@@ -31,7 +31,7 @@ class OpenLine:
         """
         self.fp = fp
         # seeking lines is zero indexed
-        self.start = start - 1 
+        self.start = start - 1
         self.number = number
         self.open_func = f
         self.current_line = start
@@ -48,9 +48,9 @@ class OpenLine:
 
     def __enter__(self):
         with self.open_func(self.fp, **self.f_kwds) as fh:
-            fh.seek(self.number * self.offset)
+            fh.seek(self.start * self.offset)
             for i, L in enumerate(fh, start=1):
-                if i >= self.number:
+                if i >= self.number + self.start:
                     break
                 self.current_line += 1
                 yield L.strip()
