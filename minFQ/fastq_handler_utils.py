@@ -31,7 +31,7 @@ class OpenLine:
         """
         self.fp = fp
         # seeking lines is zero indexed
-        self.start = start - 1
+        self.start = max(start - 1 , 0)
         self.number = number
         self.open_func = f
         self.current_line = start
