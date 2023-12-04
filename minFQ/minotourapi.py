@@ -15,7 +15,7 @@ from minFQ.endpoints import EndPoint
 retry_strategy = Retry(
     total=6,
     status_forcelist=[429, 502, 503, 504],
-    method_whitelist=["HEAD", "GET", "OPTIONS", "POST"],
+    allowed_methods=["HEAD", "GET", "OPTIONS", "POST"],
     backoff_factor=1
 )
 adapter = HTTPAdapter(max_retries=retry_strategy)
