@@ -4,11 +4,89 @@ import os
 from pathlib import Path
 
 import numpy as np
+import pysam
+import click
 
 from minFQ.endpoints import EndPoint
 from minFQ.run_data_tracker import RunDataTracker
 
 log = logging.getLogger(__name__)
+
+
+class ReadBam:
+    """
+:param bam_file: A bam format alignment file.
+:return:
+    name: sequence name
+    seq: sequence
+    qual: quality of reads
+    start_time_pr: start time of run (per read)
+    read_basecall_id: read ID and basecall ID
+`       channel: channel ID
+    read_number: read number
+    seq_to_signal :sequence to signal move table
+    rg_id : read group identifier
+    dt: time of run
+    ds: run ID in basecall model
+    bm: basecall model
+    ri: run ID
+    lb: sample ID
+    pl: read platform (e.g ONT, PacBio)
+    pm: device position
+    pu: flow cell ID
+    al: unknown (outputs unclassified)
+    """
+
+    def __init__(self, bam_file):
+        """ Initializes bam_file and tags as instances """
+        # Defines self.bam_file as an AlignmentFile object for reading input BAM file
+        self.bam_file = pysam.AlignmentFile(bam_file, 'rb', check_sq=False)
+        self.tags = self.get_rg_tags(self.bam_file)
+
+    def get_rg_tags(self, bam_file):
+        """ Detects and retrieves @RG header tags from a BAM file and assigns each one to a dictionary """
+        # Gets @RG from header
+        rg_tags = bam_file.header.get('RG', [])
+        # Exits script if no @RG field present
+        if not rg_tags:
+            print('This file does not contain an @RG field')
+            exit()
+        # Only return the first RG tag for ease
+        rg_tag = rg_tags[0]
+        # Creates dictionary of @RG header tags and their values
+        rg_tags_dict = {
+            'rg_id': rg_tag.get('ID', None),
+            'start_time': rg_tag.get('DT', None),
+            'basecall_model_version_id': rg_tag.get('DS', '').split(' ')[1].replace('basecall_model=', ''),
+            'run_id': rg_tag.get('DS', '').split(' ')[0].replace('runid=', ''),
+            'sample_id': rg_tag.get('LB', None),
+            'platform': rg_tag.get('PL', None),
+            'position': rg_tag.get('PM', None),
+            'flow_cell_id': rg_tag.get('PU', None),
+            'al': rg_tag.get('al', None)
+        }
+        return rg_tags_dict
+
+    def read_bam(self):
+        """ Extracts read data from a BAM file iteratively and yields in a FASTQ friendly format"""
+        for read in self.bam_file:
+            name = read.query_name
+            seq = read.seq
+            qual = read.qual
+            start_time_pr = read.get_tag('st')
+            channel = read.get_tag('ch')
+            read_number = read.get_tag('rn')
+            read_basecall_id = read.get_tag('RG')
+
+            # Combines read and @RG metrics to create description variable, using the same format as FASTQ files
+            desc = '@' + str(name) + ' runid=' + str(self.tags['run_id']) + ' read=' + str(read_number) + ' ch=' + str(
+                channel) + ' start_time=' + str(start_time_pr) + ' flow_cell_id=' + str(
+                self.tags['flow_cell_id']) + ' protocol_group_id=' + 'UNKNOWN' + ' sample_id=' + str(
+                self.tags['sample_id']) + ' parent_read_id=' + str(name) + ' basecall_model_version_id=' + str(
+                self.tags['basecall_model_version_id'])
+            # Yields FASTQ metrics
+            yield desc, name, seq, qual
+
 
 class OpenLine:
     def __init__(self, fp, start=1, number=-1, f=open, f_kwds=None):
@@ -197,26 +275,51 @@ def average_quality(quality):
     )
 
 
-def get_runid(fastq):
+def get_runid(file_path):
     """
-    Open a fastq file, read the first line and parse out the Run ID
-    :param fastq: path to the fastq file to be parsed
-    :type fastq: str
-    :return runid: The run ID of this fastq file as a string
+    Open a file, read the first line and parse out the Run ID
+    :param file_path: path to the file to be parsed
+    :type file_path: str
+    :return runid: The run ID of this file as a string
     """
-    runid = ""
-    if fastq.endswith(".gz"):
-        with gzip.open(fastq, "rt") as file:
+
+    runid = ""  # EDITED TO INCLUDE BAM FILES
+    file_suffix = Path(file_path).suffix
+
+    if file_suffix == ".bam":
+        with pysam.AlignmentFile(file_path, 'rb', check_sq=False) as file_path:
+            rg_tags = file_path.header.get('RG', [])
+            rg_tag = rg_tags[0]
+            line = rg_tag.get('DS', '').split(' ')[0]
+    elif file_suffix == ".gz":
+        with gzip.open(file_path, "rt") as file_path:
             for _ in range(1):
-                line = file.readline()
-    else:
-        with open(fastq, "r") as file:
+                line = file_path.readline()
+    else:  # this only works for others
+        with open(file_path, "r") as file_path:
             for _ in range(1):
-                line = file.readline()
+                line = file_path.readline()
     for _ in line.split():
         if _.startswith("runid"):
             runid = _.split("=")[1]
     return runid
+    # if file_path.endswith(".bam"):
+    #     with pysam.AlignmentFile(file_path, 'rb', check_sq=False) as file_path:
+    #         rg_tags = file_path.header.get('RG', [])
+    #         rg_tag = rg_tags[0]
+    #         line = rg_tag.get('DS', '').split(' ')[0]
+    # elif file_path.endswith(".gz"):
+    #     with gzip.open(file_path, "rt") as file_path:
+    #         for _ in range(1):
+    #             line = file_path.readline()
+    # else:
+    #     with open(file_path, "r") as file_path:
+    #         for _ in range(1):
+    #             line = file_path.readline()
+    # for _ in line.split():
+    #     if _.startswith("runid"):
+    #         runid = _.split("=")[1]
+    # return runid
 
 
 def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq_dict, sequencing_statistics):
@@ -253,7 +356,7 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
             ## ToDo Consider moving these to top level
             novel_run_set = set()
             seen_file_tracker = {}
-            file_endings = {".fq", ".fastq", ".fq.gz", ".fastq.gz"}
+            file_endings = {".fq", ".fastq", ".fq.gz", ".fastq.gz", ".bam"}
             # have s rummage around the watch directory
             for path, dirs, files in os.walk(path):
                 # iterate fastq files in the watchdir
@@ -273,8 +376,8 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
                         if "directory" not in sequencing_statistics.fastq_info[run_id]:
                             sequencing_statistics.fastq_info[run_id]["directory"] = store_path
                         if (
-                            run_id not in novel_run_set
-                            and run_id not in seen_file_tracker.keys()
+                                run_id not in novel_run_set
+                                and run_id not in seen_file_tracker.keys()
                         ):
                             # get all files for this run
                             result = minotour_api.get_json(EndPoint.FASTQ_FILE, base_id=run_id)
@@ -297,13 +400,13 @@ def unseen_files_in_watch_folder_dict(path, ignore_existing, minotour_api, fastq
                         """Here we are going to check if the files match or not. """
                         seen_file = False
                         if (
-                            run_id in seen_file_tracker.keys()
-                            and check_file_path in seen_file_tracker[run_id]
+                                run_id in seen_file_tracker.keys()
+                                and check_file_path in seen_file_tracker[run_id]
                         ):
                             seen_file = True
                             ## if the file hasn't changed size, we can skip it
                             if int(file_byte_size) == int(
-                                seen_file_tracker[run_id][check_file_path]
+                                    seen_file_tracker[run_id][check_file_path]
                             ):
                                 sequencing_statistics.fastq_info[run_id]["files_skipped"] += 1
                                 sequencing_statistics.files_skipped += 1
@@ -350,4 +453,3 @@ def create_run_collection(run_id, run_dict, args, header, description_dict, sequ
     """
     run_dict[run_id] = RunDataTracker(args, header, sequencing_statistics)
     run_dict[run_id].add_run(description_dict, args)
-
