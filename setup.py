@@ -47,6 +47,8 @@ setup(
         "validators",
         "grpcio-tools",
         "toml",
+        "click",    # Added click and pysam
+        "pysam"
     ],
     package_data={"minFQ": []},
     package_dir={"minFQ": "minFQ"},
