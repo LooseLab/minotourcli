@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 
 class CursesHandler(logging.Handler):
-    """ todo spruce up message
+    """todo spruce up message
     Logging handler to emit logs to the curses window in the correct format
     """
 
@@ -85,7 +85,7 @@ class SequencingStatistics:
     @property
     def fastq_y(self):
         """
-        Return te number of ocnnected positions to calulcate where to write the fastq statistics
+        Return te number of connected positions to calulcate where to write the fastq statistics
         Returns
         -------
 
@@ -99,9 +99,11 @@ class SequencingStatistics:
                 sorted(
                     {
                         key: {
-                            k: self.convert(time.time() - v)
-                            if isinstance(v, float)
-                            else v
+                            k: (
+                                self.convert(time.time() - v)
+                                if isinstance(v, float)
+                                else v
+                            )
                             for k, v in value.items()
                         }
                         for key, value in self._connected_positions.items()
@@ -297,7 +299,9 @@ def write_out_minfq_info(stdscr, sequencing_statistics):
     stdscr.addstr(
         sequencing_statistics.minfq_y + 5,
         0,
-        "Total FASTQ files Uploaded: {}".format(sequencing_statistics.files_processed,),
+        "Total FASTQ files Uploaded: {}".format(
+            sequencing_statistics.files_processed,
+        ),
     )
     stdscr.addstr(
         sequencing_statistics.minfq_y + 5,
@@ -387,9 +391,7 @@ def write_out_fastq_info(stdscr, sequencing_statistics):
         ),
     )
     stdscr.addstr(
-        sequencing_statistics.fastq_y + 3,
-        0,
-        str(sequencing_statistics.fastq_message)
+        sequencing_statistics.fastq_y + 3, 0, str(sequencing_statistics.fastq_message)
     )
     cols_y = sequencing_statistics.fastq_y + 5
     stdscr.addstr(cols_y, 0, "Run id")
@@ -646,7 +648,10 @@ def add_arguments_to_parser(parser, stdscr):
     )
 
     parser.add_argument(
-        "-V", "--version", action="version", version=test(stdscr),
+        "-V",
+        "--version",
+        action="version",
+        version=test(stdscr),
     )
 
     parser.add_argument(
@@ -672,7 +677,7 @@ def add_arguments_to_parser(parser, stdscr):
         default=None,
         required=False,
         help="Set the primer scheme to use for artic tasks. Valid options can be seen using --list.",
-        dest="primer_scheme"
+        dest="primer_scheme",
     )
     parser.add_argument(
         "-b",
@@ -680,6 +685,16 @@ def add_arguments_to_parser(parser, stdscr):
         action="store_true",
         help="If you add this flag, runs will use BAM files.",
         dest="is_bam",
+    )
+    parser.add_argument(
+        "-cc",
+        "--concat_conditions",
+        default=False,
+        required=False,
+        help="On ReadFish runs, concatenate the reads barcode name and the condition ReadFish has for it's channel. "
+        "Default False. ",
+        dest="concat_condish",
+        action="store_true",
     )
     return parser
 
@@ -760,11 +775,13 @@ def check_server_compatibility(minotour_api, log):
             log.error(client)
         raise Exception(
             "Server does not support this client. "
-            "Please change the client to a previous version or upgrade server."
+            f"Please change your client to any of {clients} or upgrade your minoTour server."
         )
     else:
-        return "minFQ version: {} is compatible with minoTour server specified.\n".format(
-            __version__
+        return (
+            "minFQ version: {} is compatible with minoTour server specified.\n".format(
+                __version__
+            )
         )
 
 
@@ -850,7 +867,12 @@ def list_minotour_options(log, args, minotour_api, stdscr, screen):
     line_num += 1
     for scheme in schemes:
         stdscr.addstr(
-            line_num, 0, "\t{} : {} - {}".format(scheme["id"], scheme["scheme_species"], scheme["scheme_version"]), curses.color_pair(2)
+            line_num,
+            0,
+            "\t{} : {} - {}".format(
+                scheme["id"], scheme["scheme_species"], scheme["scheme_version"]
+            ),
+            curses.color_pair(2),
         )
         index += 1
         line_num += 1
@@ -889,7 +911,7 @@ def check_job_from_client(args, log, minotour_api, parser):
             "Can't find the job type chosen. Please double check that it is the same ID shown by --list."
         )
 
-    if args.job == "minimap2" or args.job == 4:
+    if args.job == "minimap2" or args.job in {4, 5}:
         if args.reference == None:
             log.error("You need to specify a reference for a Minimap2 task.")
             sys.exit(0)

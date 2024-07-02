@@ -3,6 +3,7 @@ File Routines for handling fastq files and monitoring locations. Built on watchd
 """
 import gzip
 import logging
+import lzma
 import sys
 import threading
 import time
@@ -160,11 +161,14 @@ def parse_fastq_record(
         fastq_read["barcode_name"] = barcode_name.replace(" ", "_") if barcode_name else "No_barcode"
         # Parse the channel out of the description and lookup it's corresponding condition
         # set it to the reads barcode
-        if run_dict[fastq_read["run_id"]].toml is not None:
-            fastq_read["barcode_name"] = fastq_read["barcode_name"] + "_" +  run_dict[fastq_read["run_id"]].toml[
+        if run_dict[fastq_read["run_id"]].toml is not None and args.concat_condish:
+            fastq_read["barcode_name"] = fastq_read["barcode_name"] + "_" + run_dict[fastq_read["run_id"]].toml[
                 int(fastq_read["channel"])
             ]
         is_unblocked = fastq_read["read_id"] in run_dict[fastq_read["run_id"]].unblocked_dict
+        # new - now we unblock the 
+        if is_unblocked:
+            run_dict[fastq_read["run_id"]].unblocked_dict.pop(fastq_read["read_id"])
         fastq_read["rejected_barcode_name"] = "Unblocked" if is_unblocked else "Sequenced"
         # add control-treatment if passed as argument
         if args.treatment_control:
@@ -223,7 +227,11 @@ def parse_fastq_file(
     # fq = pyfastx.Fastq(fastq_path)
     # gen = (read for read in fq)
     # for read in gen:
-    handle = gzip.open if fastq_path.endswith(".gz") else open
+    open_handle_dict = {
+        ".gz": gzip.open,
+        ".xz": lzma.open
+    }
+    handle = open_handle_dict.get(fastq_path[-3:], open)
     with handle(fastq_path, "rt") as fh:
         #  If the flag is_bam is used, BAM files will be read and parsed
         if args.is_bam:
