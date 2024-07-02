@@ -674,6 +674,13 @@ def add_arguments_to_parser(parser, stdscr):
         help="Set the primer scheme to use for artic tasks. Valid options can be seen using --list.",
         dest="primer_scheme"
     )
+    parser.add_argument(
+        "-b",
+        "--bam",
+        action="store_true",
+        help="If you add this flag, runs will use BAM files.",
+        dest="is_bam",
+    )
     return parser
 
 
